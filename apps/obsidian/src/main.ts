@@ -19,9 +19,10 @@ import {
   checkMarkdownStyle,
   toPlaintextMarkdown,
   deriveTitle,
-  HttpRelayClient,
-} from '@kaitox/core';
-import type { DraftMode, StyleReport, DraftAssetInput, AssetMeta } from '@kaitox/core';
+} from '@kaitox/x-article';
+import type { AssetMeta } from '@kaitox/x-article';
+import { HttpRelayClient } from '@kaitox/relay-protocol';
+import type { DraftMode, StyleReport, DraftAssetInput } from '@kaitox/relay-protocol';
 
 interface KaitoxSettings {
   relayBase: string;

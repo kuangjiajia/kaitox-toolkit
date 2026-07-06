@@ -1,7 +1,7 @@
 /**
  * 本地 relay 的 HTTP 服务（零第三方依赖，纯 node:http）。
  *
- * 实现 @kaitox/core 里 RelayClient 的线上契约：
+ * 实现 @kaitox/relay-protocol 里 RelayClient 的线上契约：
  *   GET    /health
  *   POST   /drafts                        （body: PostDraftWireBody）
  *   GET    /drafts
@@ -16,7 +16,7 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { writeFile, rm, mkdir } from 'node:fs/promises';
-import type { PostDraftWireBody } from '@kaitox/core';
+import type { PostDraftWireBody } from '@kaitox/relay-protocol';
 import {
   HOST,
   RELAY_VERSION,

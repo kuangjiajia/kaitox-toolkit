@@ -1,7 +1,7 @@
 /** relay 生命周期：探活、按需 detached 拉起、停止、状态。委托给 @kaitox/relay 的 daemon 助手。 */
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { HttpRelayClient } from '@kaitox/core';
+import { HttpRelayClient } from '@kaitox/relay-protocol';
 import {
   loadConfig,
   isRelayUp as relayIsUp,

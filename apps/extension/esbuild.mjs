@@ -1,4 +1,4 @@
-/** 把 content/background 打成自包含单文件（含 @kaitox/core 与 marked），并拷贝静态资源。 */
+/** 把 content/background 打成自包含单文件（含 @kaitox/x-article、@kaitox/relay-protocol 与 marked），并拷贝静态资源。 */
 import * as esbuild from 'esbuild';
 import { cp, mkdir } from 'node:fs/promises';
 

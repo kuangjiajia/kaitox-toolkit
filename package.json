@@ -1,7 +1,7 @@
 {
-  "name": "kaitox-x-publisher",
-  "version": "0.2.0",
-  "description": "本地 Markdown → X (Twitter) Article 草稿：上传端（CLI/Obsidian）+ 本地 relay + Chrome 插件",
+  "name": "kaitox",
+  "version": "0.3.0",
+  "description": "kaitox — local publishing platform: CLI / Obsidian / Chrome extension. First feature: publish local Markdown as X (Twitter) Article drafts.",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -9,12 +9,14 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build -w @kaitox/core && npm run build -w @kaitox/relay && npm run build -w @kaitox/cli",
+    "build": "npm run build -w @kaitox/relay-protocol && npm run build -w @kaitox/x-article && npm run build -w @kaitox/relay && npm run build -w @kaitox/cli",
     "build:extension": "npm run build -w @kaitox/extension",
     "build:obsidian": "npm run build -w @kaitox/obsidian",
-    "typecheck": "npm run typecheck -w @kaitox/core && npm run typecheck -w @kaitox/relay && npm run typecheck -w @kaitox/cli",
-    "test": "npm test -w @kaitox/core",
-    "test:integration": "npm run build && node test/integration.mjs"
+    "typecheck": "npm run typecheck -w @kaitox/relay-protocol && npm run typecheck -w @kaitox/x-article && npm run typecheck -w @kaitox/relay && npm run typecheck -w @kaitox/cli",
+    "test": "npm test -w @kaitox/x-article",
+    "test:integration": "npm run build && node test/integration.mjs",
+    "test:protocol": "npm run build && node test/relay-protocol.smoke.mjs",
+    "test:all": "npm run build && npm test -w @kaitox/x-article && node test/integration.mjs && node test/relay-protocol.smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

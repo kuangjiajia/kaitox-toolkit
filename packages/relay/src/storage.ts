@@ -1,8 +1,8 @@
 /** 草稿包在磁盘上的读写。布局：~/.kaitox/outbox/<id>/bundle.json + assets/<fileName>。 */
 import { mkdir, readFile, writeFile, readdir, rm, rename, stat } from 'node:fs/promises';
 import { join, basename } from 'node:path';
-import { base64ToBytes } from '@kaitox/core';
-import type { DraftBundle, DraftListItem, DraftStatus, PostDraftWireBody } from '@kaitox/core';
+import { base64ToBytes } from '@kaitox/relay-protocol';
+import type { DraftBundle, DraftListItem, DraftStatus, PostDraftWireBody } from '@kaitox/relay-protocol';
 import { outboxDir, sentDir } from './config.js';
 
 const BUNDLE_FILE = 'bundle.json';

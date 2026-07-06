@@ -1,6 +1,6 @@
 /** 风格报告的终端打印与交互式询问。 */
 import { createInterface } from 'node:readline';
-import type { StyleReport } from '@kaitox/core';
+import type { StyleReport } from '@kaitox/relay-protocol';
 
 const C = {
   reset: '\x1b[0m',

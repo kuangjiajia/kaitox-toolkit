@@ -1,6 +1,6 @@
 {
   "name": "@kaitox/relay",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "kaitox 本地 relay：127.0.0.1 上中转草稿包，上传端 POST、Chrome 插件轮询拉取（零第三方依赖）。带 CLI：start/dev/stop/status。",
   "type": "module",
   "main": "dist/index.js",
@@ -28,6 +28,6 @@
     "stop": "node dist/cli.js stop"
   },
   "dependencies": {
-    "@kaitox/core": "*"
+    "@kaitox/relay-protocol": "^0.3.0"
   }
 }

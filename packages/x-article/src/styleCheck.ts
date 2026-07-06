@@ -21,7 +21,7 @@
 
 import { marked } from 'marked';
 import { collectImageSources } from './contentState.js';
-import type { StyleIssue, StyleReport } from './bundle.js';
+import type { StyleIssue, StyleReport } from '@kaitox/relay-protocol';
 
 /** 单张图片的元信息（上传端解析本地/相对路径后填）。key = markdown 里的原样 src。 */
 export interface AssetMeta {

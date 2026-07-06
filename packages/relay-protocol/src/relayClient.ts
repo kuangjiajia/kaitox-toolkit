@@ -10,6 +10,7 @@
  */
 
 import type { DraftBundle, DraftListItem, DraftMode, DraftSource, DraftStatus, StyleReport } from './bundle.js';
+import { bytesToBase64 } from './base64.js';
 
 /** 待上传的一张图片（内存字节形态）。 */
 export interface DraftAssetInput {
@@ -186,32 +187,6 @@ export class HttpRelayClient implements RelayClient {
     });
     if (!res.ok) throw new Error(`relay DELETE /drafts/${id} ${res.status}`);
   }
-}
-
-// ---------------------------------------------------------------------------
-// base64（Node 与浏览器都能用，不依赖 Buffer/atob 单一实现）
-// ---------------------------------------------------------------------------
-
-export function bytesToBase64(bytes: Uint8Array): string {
-  if (typeof (globalThis as any).Buffer !== 'undefined') {
-    return (globalThis as any).Buffer.from(bytes).toString('base64');
-  }
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return (globalThis as any).btoa(binary);
-}
-
-export function base64ToBytes(b64: string): Uint8Array {
-  if (typeof (globalThis as any).Buffer !== 'undefined') {
-    return new Uint8Array((globalThis as any).Buffer.from(b64, 'base64'));
-  }
-  const binary = (globalThis as any).atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-  return out;
 }
 
 async function safeText(res: { text(): Promise<string> }): Promise<string> {

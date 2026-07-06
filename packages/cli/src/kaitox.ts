@@ -9,7 +9,7 @@
  */
 import { basename } from 'node:path';
 import { stat } from 'node:fs/promises';
-import type { DraftMode } from '@kaitox/core';
+import type { DraftMode } from '@kaitox/relay-protocol';
 import { buildDraft } from './bundleBuilder.js';
 import { printReport, promptDecision } from './report.js';
 import {

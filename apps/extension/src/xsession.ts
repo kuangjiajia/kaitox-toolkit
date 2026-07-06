@@ -1,9 +1,9 @@
 /** x.com 会话 / relay 连接 / queryId 解析。 */
+import { HttpRelayClient } from '@kaitox/relay-protocol';
 import {
-  HttpRelayClient,
   ARTICLE_DRAFT_CREATE_QUERY_ID,
   ARTICLE_UPDATE_COVER_MEDIA_QUERY_ID,
-} from '@kaitox/core';
+} from '@kaitox/x-article';
 
 export const DEFAULT_RELAY_BASE = 'http://127.0.0.1:8765';
 

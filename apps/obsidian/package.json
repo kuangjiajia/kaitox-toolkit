@@ -1,16 +1,17 @@
 {
   "name": "@kaitox/obsidian",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "kaitox Obsidian 插件：把当前笔记一键同步为 X Article 草稿（配合本地 relay 与 Chrome 插件）",
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "npm run build -w @kaitox/core --prefix ../.. && node esbuild.mjs",
+    "build": "npm run build --prefix ../.. && node esbuild.mjs",
     "build:only": "node esbuild.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@kaitox/core": "*"
+    "@kaitox/relay-protocol": "^0.3.0",
+    "@kaitox/x-article": "^0.3.0"
   },
   "devDependencies": {
     "obsidian": "^1.4.11"

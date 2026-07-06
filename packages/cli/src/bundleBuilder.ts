@@ -7,9 +7,9 @@ import {
   deriveTitle,
   toPlaintextMarkdown,
   checkMarkdownStyle,
-} from '@kaitox/core';
-import type { DraftAssetInput, PostDraftInput, StyleReport, DraftMode } from '@kaitox/core';
-import type { AssetMeta } from '@kaitox/core';
+} from '@kaitox/x-article';
+import type { AssetMeta } from '@kaitox/x-article';
+import type { DraftAssetInput, PostDraftInput, StyleReport, DraftMode } from '@kaitox/relay-protocol';
 
 export interface ResolvedAsset extends DraftAssetInput {
   resolved: boolean;

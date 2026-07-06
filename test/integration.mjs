@@ -16,14 +16,14 @@ process.env.KAITOX_HOME = home;
 process.env.KAITOX_RELAY_PORT = '8788';
 
 const { startRelay } = await import('@kaitox/relay');
+const { HttpRelayClient } = await import('@kaitox/relay-protocol');
 const {
-  HttpRelayClient,
   publishXArticle,
   collectImageSources,
   checkMarkdownStyle,
   toPlaintextMarkdown,
   DEFAULT_COVER_MEDIA_FEATURES,
-} = await import('@kaitox/core');
+} = await import('@kaitox/x-article');
 
 const BASE = 'http://127.0.0.1:8788';
 let pass = 0,

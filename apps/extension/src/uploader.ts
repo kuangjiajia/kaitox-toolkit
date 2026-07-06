@@ -1,15 +1,16 @@
 /**
  * 上传流水线：把一份草稿包在 x.com 页面上下文里传成 X Article 草稿。
  *
- * 直接复用 @kaitox/core 的 publishXArticle，只替换两处：
+ * 直接复用 @kaitox/x-article 的 publishXArticle，只替换两处：
  *   - fetchImage：从 relay 的 assets 端点取字节，而不是从网络下载 URL。
  *   - clientOptions：同源 fetch + credentials:'include'（页面已登录，自动带 cookie），
  *     并用解析出的 queryId。
  *
  * bundle.markdown 已由上传端按 mode 处理完（plaintext 已降级），这里无需再转换。
  */
-import { publishXArticle } from '@kaitox/core';
-import type { DraftBundle, HttpRelayClient, ImageFetcher, CoverFetcher } from '@kaitox/core';
+import { publishXArticle } from '@kaitox/x-article';
+import type { ImageFetcher, CoverFetcher } from '@kaitox/x-article';
+import type { DraftBundle, HttpRelayClient } from '@kaitox/relay-protocol';
 import { readCt0, getSettings } from './xsession.js';
 
 export interface UploadResult {

@@ -1,0 +1,20 @@
+{
+  "name": "@kaitox/relay-protocol",
+  "version": "0.3.0",
+  "description": "Wire contract and portable HTTP client for the kaitox draft relay: DraftBundle types, RelayClient interface, HttpRelayClient (Node & browser), base64 helpers. Zero dependencies.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

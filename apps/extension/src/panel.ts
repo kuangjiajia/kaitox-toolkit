@@ -5,7 +5,7 @@
  * 下拉面板用 position:fixed 挂在 body 上、按按钮位置对齐，避免被 X 的滚动容器裁切；
  * 注入的按钮在 X 重绘 header 后会被 content.ts 的观察器/轮询重新插回。
  */
-import type { DraftListItem, HttpRelayClient } from '@kaitox/core';
+import type { DraftListItem, HttpRelayClient } from '@kaitox/relay-protocol';
 import { getRelayClient } from './xsession.js';
 import { uploadDraft } from './uploader.js';
 import { LOGO_SVG } from './logo.js';
