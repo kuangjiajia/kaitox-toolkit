@@ -5,8 +5,8 @@ async function updateBadge(): Promise<void> {
   try {
     const res = await fetch(`${DEFAULT_RELAY_BASE}/drafts`);
     if (!res.ok) throw new Error(String(res.status));
-    const items: Array<{ status?: string }> = await res.json();
-    const n = items.filter((d) => d.status !== 'done').length;
+    const items: Array<{ status?: string; kind?: string }> = await res.json();
+    const n = items.filter((d) => d.status !== 'done' && (d.kind ?? 'x-article') === 'x-article').length;
     await chrome.action.setBadgeText({ text: n ? String(n) : '' });
     await chrome.action.setBadgeBackgroundColor({ color: '#1d9bf0' });
   } catch {

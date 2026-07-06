@@ -9,7 +9,15 @@
  * 云端 relay（v2）只要实现同一个 RelayClient 接口即可替换，上层无感。
  */
 
-import type { DraftBundle, DraftListItem, DraftMode, DraftSource, DraftStatus, StyleReport } from './bundle.js';
+import type {
+  DraftBundle,
+  DraftKind,
+  DraftListItem,
+  DraftMode,
+  DraftSource,
+  DraftStatus,
+  StyleReport,
+} from './bundle.js';
 import { bytesToBase64 } from './base64.js';
 
 /** 待上传的一张图片（内存字节形态）。 */
@@ -25,6 +33,8 @@ export interface DraftAssetInput {
 
 /** 构建并投递一份草稿所需的输入。 */
 export interface PostDraftInput {
+  /** Feature discriminator; defaults to 'x-article'. */
+  kind?: DraftKind;
   title: string;
   markdown: string;
   mode: DraftMode;
@@ -100,6 +110,7 @@ export class HttpRelayClient implements RelayClient {
     const bundle: PostDraftWireBody['bundle'] = {
       schemaVersion: 1,
       id,
+      kind: input.kind ?? 'x-article',
       title: input.title,
       markdown: input.markdown,
       mode: input.mode,

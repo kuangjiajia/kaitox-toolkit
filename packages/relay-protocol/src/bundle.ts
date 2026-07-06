@@ -12,8 +12,15 @@
 /** 富文本 or 纯文本兜底。见 plaintext.ts。 */
 export type DraftMode = 'rich' | 'plaintext';
 
-/** 草稿来自哪个上传端。 */
-export type DraftSource = 'cli' | 'obsidian' | 'unknown';
+/**
+ * Feature/target this draft is for. The relay stores and forwards it without
+ * interpreting it; consumers route on it. Absent = 'x-article' (v0.2 bundles
+ * on disk predate this field). Third-party features use their own string.
+ */
+export type DraftKind = 'x-article' | (string & {});
+
+/** 草稿来自哪个上传端。Third-party pushers may use their own string. */
+export type DraftSource = 'cli' | 'obsidian' | 'unknown' | (string & {});
 
 /** relay 侧维护的草稿生命周期状态。 */
 export type DraftStatus = 'pending' | 'uploading' | 'done' | 'failed';
@@ -59,6 +66,8 @@ export interface DraftAsset {
 export interface DraftBundle {
   schemaVersion: 1;
   id: string;
+  /** Feature discriminator; absent = 'x-article'. */
+  kind?: DraftKind;
   title: string;
   markdown: string;
   mode: DraftMode;
@@ -85,6 +94,8 @@ export interface DraftBundle {
 /** 列表接口返回的精简条目（不含 markdown / 字节）。 */
 export interface DraftListItem {
   id: string;
+  /** Feature discriminator; absent = 'x-article'. */
+  kind?: DraftKind;
   title: string;
   source: DraftSource;
   createdAt: string;

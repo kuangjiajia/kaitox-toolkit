@@ -58,6 +58,16 @@ try {
   check('封面字节回读一致', gotCover.length === pngBytes.length);
   const draftMeta = await client.getDraft(id);
   check('bundle.cover 元信息保留', draftMeta.cover?.fileName === 'cover-c.png');
+  check('kind 缺省时按 x-article 落盘', draftMeta.kind === 'x-article');
+  const listedItem = (await client.listDrafts()).find((d) => d.id === id);
+  check('list 条目带 kind', listedItem?.kind === 'x-article');
+  // 自定义 kind 原样经 relay 往返（relay 只存转不解释）。
+  const { id: kindId } = await client.postDraft({
+    kind: 'demo-feature', title: 'kind 往返', mode: 'rich', source: 'my-service',
+    markdown: 'hello', assets: [],
+  });
+  check('自定义 kind 往返保留', (await client.getDraft(kindId)).kind === 'demo-feature');
+  await client.deleteDraft(kindId);
   let traversalBlocked = false;
   try { await client.getAsset(id, '../../etc/passwd'); } catch { traversalBlocked = true; }
   check('目录穿越被拦', traversalBlocked);

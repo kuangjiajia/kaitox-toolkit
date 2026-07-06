@@ -118,11 +118,23 @@ export async function resolveAssets(markdown: string, mdDir: string): Promise<Re
 }
 
 /**
- * 解析封面图（CLI 的 --cover）。路径相对**当前工作目录**（与命令行传入的 md 路径一致，
- * 而非 markdown 文件所在目录）。fileName 用 cover- 前缀并避开正文图片文件名，防止覆盖。
+ * 解析封面图（CLI 的 --cover）。相对路径先按**当前工作目录**解析（与命令行传入的
+ * md 路径一致），找不到再回退到 markdown 文件所在目录（与正文图片的解析规则对齐）。
+ * fileName 用 cover- 前缀并避开正文图片文件名，防止覆盖。
  */
-export async function resolveCover(coverPath: string, takenFileNames: Set<string>): Promise<DraftAssetInput> {
-  const { bytes, mime } = await loadImageBytes(coverPath, process.cwd());
+export async function resolveCover(
+  coverPath: string,
+  takenFileNames: Set<string>,
+  mdDir?: string,
+): Promise<DraftAssetInput> {
+  let loaded: { bytes: Uint8Array; mime: string };
+  try {
+    loaded = await loadImageBytes(coverPath, process.cwd());
+  } catch (err) {
+    if (!mdDir || isAbsolute(coverPath) || /^(https?|file):/i.test(coverPath)) throw err;
+    loaded = await loadImageBytes(coverPath, mdDir);
+  }
+  const { bytes, mime } = loaded;
   const rawBase = basename(coverPath.split('?')[0].split('#')[0]) || 'image';
   const fileName = safeFileName(`cover-${rawBase}`, takenFileNames);
   return { key: 'cover', src: '__cover__', fileName, mime, bytes };
@@ -132,7 +144,7 @@ export interface BuildOptions {
   markdownPath: string;
   titleOverride?: string;
   mode: DraftMode;
-  /** 封面图路径/URL（相对当前工作目录）。 */
+  /** 封面图路径/URL（相对当前工作目录，找不到时回退 md 文件目录）。 */
   coverPath?: string;
 }
 
@@ -169,6 +181,7 @@ export async function buildDraft(opts: BuildOptions): Promise<BuildResult> {
   const title = opts.titleOverride?.trim() || fmTitle || deriveTitle(finalMd) || basename(opts.markdownPath);
 
   const input: PostDraftInput = {
+    kind: 'x-article',
     title,
     markdown: finalMd,
     mode: opts.mode,
@@ -183,7 +196,7 @@ export async function buildDraft(opts: BuildOptions): Promise<BuildResult> {
   if (opts.coverPath) {
     const taken = new Set(assets.map((a) => a.fileName));
     try {
-      input.cover = await resolveCover(opts.coverPath, taken);
+      input.cover = await resolveCover(opts.coverPath, taken, mdDir);
     } catch {
       coverUnresolved = opts.coverPath;
     }

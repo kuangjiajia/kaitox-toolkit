@@ -75,6 +75,7 @@ export async function listDrafts(): Promise<DraftListItem[]> {
     if (!b) continue;
     items.push({
       id: b.id,
+      kind: b.kind,
       title: b.title,
       source: b.source,
       createdAt: b.createdAt,

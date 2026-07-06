@@ -171,7 +171,10 @@ export class Panel {
       return;
     }
     try {
-      const items = (await this.client!.listDrafts()).filter((d) => d.status !== 'done');
+      // This panel only handles X-article drafts; other kinds are for other consumers.
+      const items = (await this.client!.listDrafts()).filter(
+        (d) => d.status !== 'done' && (d.kind ?? 'x-article') === 'x-article',
+      );
       this.setCount(items.length);
       if (this.open) this.render(items);
     } catch (err: any) {

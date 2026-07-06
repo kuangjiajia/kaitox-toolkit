@@ -2,8 +2,16 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 
-export const RELAY_VERSION = '0.2.0';
+// Read the version from package.json at runtime so it can never drift.
+export const RELAY_VERSION: string = (() => {
+  try {
+    return createRequire(import.meta.url)('../package.json').version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+})();
 export const DEFAULT_PORT = 8765;
 export const HOST = '127.0.0.1';
 

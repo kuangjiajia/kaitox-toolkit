@@ -16,6 +16,7 @@ export type {
   DraftBundle,
   DraftAsset,
   DraftListItem,
+  DraftKind,
   DraftMode,
   DraftSource,
   DraftStatus,
