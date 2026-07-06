@@ -2,6 +2,16 @@
   "name": "@kaitox/x-article",
   "version": "0.3.0",
   "description": "Publish Markdown as X (Twitter) Article drafts: Markdown → content_state converter, X private-API client, end-to-end publish orchestration, and an X-friendliness style checker. Works in browsers (same-origin) and Node.",
+  "license": "MIT",
+  "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",
+  "homepage": "https://kaitox.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitox/kaitox.git",
+    "directory": "packages/x-article"
+  },
+  "bugs": "https://github.com/kaitox/kaitox/issues",
+  "keywords": ["kaitox", "x", "twitter", "article", "markdown", "content-state", "draft-js", "publishing"],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,6 +23,13 @@
     }
   },
   "files": ["dist", "src"],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

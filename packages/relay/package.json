@@ -1,7 +1,17 @@
 {
   "name": "@kaitox/relay",
   "version": "0.3.0",
-  "description": "kaitox 本地 relay：127.0.0.1 上中转草稿包，上传端 POST、Chrome 插件轮询拉取（零第三方依赖）。带 CLI：start/dev/stop/status。",
+  "description": "kaitox local relay: stores draft bundles on 127.0.0.1 — upload clients POST, browser extensions poll. Zero third-party dependencies. Ships the kaitox-relay CLI (start/dev/stop/status).",
+  "license": "MIT",
+  "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",
+  "homepage": "https://kaitox.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitox/kaitox.git",
+    "directory": "packages/relay"
+  },
+  "bugs": "https://github.com/kaitox/kaitox/issues",
+  "keywords": ["kaitox", "relay", "draft", "publishing", "daemon", "cli"],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +30,9 @@
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["kaitox", "x", "twitter", "article", "relay", "cli"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -1,12 +1,28 @@
 {
   "name": "@kaitox/cli",
   "version": "0.3.0",
-  "description": "kaitox 命令行：把本地 Markdown 检查、打包并投递到本地 relay，供 Chrome 插件同步为 X Article 草稿",
+  "description": "kaitox CLI — local publishing platform. Current feature: style-check, bundle and deliver local Markdown to the local relay as X (Twitter) Article drafts (kaitox x push).",
+  "license": "MIT",
+  "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",
+  "homepage": "https://kaitox.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitox/kaitox.git",
+    "directory": "packages/cli"
+  },
+  "bugs": "https://github.com/kaitox/kaitox/issues",
+  "keywords": ["kaitox", "cli", "x", "twitter", "article", "markdown", "publishing"],
   "type": "module",
   "bin": {
     "kaitox": "dist/kaitox.js"
   },
   "files": ["dist", "skills"],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"

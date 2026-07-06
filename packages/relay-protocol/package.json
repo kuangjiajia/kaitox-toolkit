@@ -2,6 +2,16 @@
   "name": "@kaitox/relay-protocol",
   "version": "0.3.0",
   "description": "Wire contract and portable HTTP client for the kaitox draft relay: DraftBundle types, RelayClient interface, HttpRelayClient (Node & browser), base64 helpers. Zero dependencies.",
+  "license": "MIT",
+  "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",
+  "homepage": "https://kaitox.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitox/kaitox.git",
+    "directory": "packages/relay-protocol"
+  },
+  "bugs": "https://github.com/kaitox/kaitox/issues",
+  "keywords": ["kaitox", "relay", "protocol", "draft", "publishing", "markdown"],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,6 +23,13 @@
     }
   },
   "files": ["dist", "src"],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"

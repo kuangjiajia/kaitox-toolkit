@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+      - run: node test/integration.mjs
+      - run: node test/relay-protocol.smoke.mjs
+      - run: npm run build:extension
+      - run: npm run build:obsidian
+      - name: Verify publishable package contents
+        run: |
+          for p in relay-protocol x-article relay cli; do
+            (cd "packages/$p" && npm pack --dry-run)
+          done
