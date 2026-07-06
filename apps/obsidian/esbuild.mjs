@@ -19,4 +19,4 @@ await esbuild.build({
 
 await cp('manifest.json', 'dist/manifest.json');
 
-console.log('✓ Obsidian 插件已构建 → apps/obsidian/dist/（把该目录拷进 vault 的 .obsidian/plugins/kaitox-x-article/）');
+console.log('✓ Obsidian 插件已构建 → apps/obsidian/dist/（把该目录拷进 vault 的 .obsidian/plugins/kaitox/）');

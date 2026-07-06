@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "kaitox X Article 草稿同步",
-  "version": "0.2.0",
-  "description": "把本地 Markdown 一键上传成 X (Twitter) Article 草稿：从本地 relay 拉取待办，在草稿页上传图片并建草稿。",
+  "name": "Kaitox",
+  "version": "0.3.0",
+  "description": "Kaitox browser companion. Current feature: publish local Markdown as X (Twitter) Article drafts — syncs pending drafts from the local Kaitox relay and uploads them on the drafts page.",
   "permissions": ["storage", "alarms"],
   "host_permissions": [
     "*://x.com/*",
@@ -26,6 +26,6 @@
     }
   ],
   "action": {
-    "default_title": "kaitox 草稿同步"
+    "default_title": "Kaitox"
   }
 }
