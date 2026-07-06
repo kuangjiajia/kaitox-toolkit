@@ -1,10 +1,12 @@
 # X Article「Markdown → content_state」发布协议与实现说明
 
+**Abstract (English).** This document is a reverse-engineered protocol reference for creating X (Twitter) Article drafts from Markdown, driving the private web endpoints of x.com with the user's own logged-in browser session. It covers: the auth model (public web bearer token + `ct0` cookie as `x-csrf-token`, cookies as the real identity); the three-phase chunked media upload (`INIT` / `APPEND` / `FINALIZE` against `upload.x.com/i/media/upload.json`); the `content_state` data model (Draft.js-style `blocks` + an array-shaped `entity_map` with MEDIA / DIVIDER / MARKDOWN / LINK entities); the full Markdown → `content_state` mapping rules; the `ArticleEntityDraftCreate` draft-create and `ArticleEntityUpdateCoverMedia` cover mutations; and the pitfalls (rotating queryIds, `x-client-transaction-id`, UTF-16 offsets, entity key numbering, no `depth` field, rejected block/style types). All fields were captured from real requests and verified by tests. The document body is written in Chinese; the reference implementation lives at [`packages/x-article/`](../packages/x-article/) — see its [README](../packages/x-article/README.md) for English API documentation. Unofficial: these endpoints may break whenever X rotates queryIds; use at your own risk and do not mass-automate.
+
 > 目标：把「一键把 Markdown 发成 X（Twitter）长文 Article」的完整链路讲清楚，
-> 并给出一份可直接复用的 TypeScript 参考实现（见仓库 `src/`）。后续做类似的「导入/发布到某个富文本平台」的活儿，可以照这个分层套。
+> 并给出一份可直接复用的 TypeScript 参考实现（见仓库 `packages/x-article/src/`）。后续做类似的「导入/发布到某个富文本平台」的活儿，可以照这个分层套。
 >
 > 本文档记录 x.com 网页端发布一篇 Article 草稿时所用的私有接口、请求参数与数据模型，
-> 全部字段以真实请求为准，并用 `src/` 的测试逐条验证。
+> 全部字段以真实请求为准，并用 `packages/x-article/` 的测试逐条验证。
 
 ---
 
@@ -232,7 +234,7 @@ X Article 正文用的是 **Draft.js 的 `RawDraftContentState`**，但 X 做了
 
 一个实现细节：代码块/ASCII 图统一包成 ` ```plaintext ` 的 MARKDOWN 实体（X Article 编辑器对所有代码块都用 `plaintext` 渲染）。
 
-> 算法实现见 `src/contentState.ts`：一次从上到下的遍历，同时维护 `blocks`、`entity_map` 和递增的 entity key 计数器；行内用递归处理 `strong/em/link` 的嵌套并按累计文本长度算 offset。
+> 算法实现见 `packages/x-article/src/contentState.ts`：一次从上到下的遍历，同时维护 `blocks`、`entity_map` 和递增的 entity key 计数器；行内用递归处理 `strong/em/link` 的嵌套并按累计文本长度算 offset。
 
 ---
 
@@ -324,10 +326,10 @@ Content-Type: application/json
 **给复用者的分层建议**（后续做「发普通推文 / 发 thread / 导入到别的富文本编辑器」都能套）：
 
 ```
-鉴权 & HTTP        →  src/xArticleClient.ts   （换接口只改这层）
-内容模型转换        →  src/contentState.ts     （换目标编辑器就重写映射，这层最值钱）
-端到端编排          →  src/publishArticle.ts   （收集资源→上传→转换→提交，骨架不变）
-数据类型            →  src/types.ts
+鉴权 & HTTP        →  packages/x-article/src/xArticleClient.ts   （换接口只改这层）
+内容模型转换        →  packages/x-article/src/contentState.ts     （换目标编辑器就重写映射，这层最值钱）
+端到端编排          →  packages/x-article/src/publishArticle.ts   （收集资源→上传→转换→提交，骨架不变）
+数据类型            →  packages/x-article/src/types.ts
 ```
 
 ---
@@ -335,13 +337,14 @@ Content-Type: application/json
 ## 8. 参考实现怎么用
 
 ```bash
+cd packages/x-article
 npm install
 npm run typecheck        # 类型检查
 npm run build            # 编译到 dist/
 ```
 
 ```ts
-import { publishXArticle } from './src';
+import { publishXArticle } from '@kaitox/x-article';
 
 const { restId, contentState, mediaMap, skippedImages } = await publishXArticle({
   markdown,                                  // 你的 Markdown
@@ -358,4 +361,4 @@ const { restId, contentState, mediaMap, skippedImages } = await publishXArticle(
 - 只想要「Markdown → content_state」而不发布：直接用 `markdownToContentState(md, { src: media_id })`。
 - 想跑在浏览器扩展 content script 里：`credentialsMode` 用默认 `'include'`，`cookie`/`csrfToken` 可从页面取，同源 fetch 自动带登录态。
 
-> 转换正确性由 `npm test`（`test/validate.mjs`）覆盖：21 条断言逐条比对期望真值，包括那条 CJK 加粗 `offset:27,length:19`。
+> 转换正确性由 `npm test`（`packages/x-article/test/validate.mjs`）覆盖：35 条断言逐条比对期望真值，包括那条 CJK 加粗 `offset:27,length:19`。

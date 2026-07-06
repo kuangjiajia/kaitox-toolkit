@@ -1,91 +1,121 @@
-# kaitox-x-publisher
+English | [简体中文](README.zh-CN.md)
 
-把**本地 Markdown 一键发成 X (Twitter) Article 草稿**的完整工具链：本地选一份 `.md` → 检查推特友好度 → 同步到本地 relay → 在 X 草稿页用 Chrome 插件点「上传草稿」，图片与格式一次性写进 X Article 草稿。
+# kaitox
 
-底层不走官方开放 API，而是借用你浏览器里已登录 x.com 的会话直接调网页端的私有接口。完整的数据模型与协议说明见 **[`docs/x-article-publish-protocol.md`](docs/x-article-publish-protocol.md)**。
+A **local publishing platform**: CLI + local relay + Obsidian plugin + Chrome extension. The first feature is publishing local Markdown as **X (Twitter) Article drafts** — pick a `.md` file, style-check it, push it to a local relay, then click "上传草稿" (upload draft) in the browser extension on the X draft page. Images and formatting land in the Article draft in one go. More publishing targets will slot in later via the bundle's `kind` discriminator.
 
-## 为什么这么设计
+It does not use the official public API. Instead, the extension drives the **web endpoints of your own logged-in x.com session**. The full data model and protocol are documented in [`docs/x-article-publish-protocol.md`](docs/x-article-publish-protocol.md).
 
-Chrome 插件跑在**已登录的 x.com 页面里**，所以由**插件**来上传图片 + 建草稿——同源/同站请求自动带 cookie，绕开了「手动塞 cookie」和 `x-client-transaction-id` 两个大坑。于是：
+## Why this design
 
-- 上传端只负责**检查 + 打包**（原始 Markdown + 图片字节），投递到本地 relay。
-- 插件收到后在页面里**上传图片拿 `media_id` → `markdownToContentState` → 建草稿**，全程同源。
+The Chrome extension runs **inside the logged-in x.com page**, so the extension does the image uploads and draft creation — same-origin requests carry cookies automatically (`credentials: 'include'`, `ct0` cookie as `x-csrf-token`), sidestepping both "manually injecting cookies" and the `x-client-transaction-id` problem. Consequently:
+
+- Upload clients only **check + package** (raw Markdown + image bytes) and deliver the bundle to the local relay.
+- The extension then, from within the page: **upload images to get `media_id`s → `markdownToContentState` → create the draft** — all same-origin.
+
+The bundle deliberately carries **raw Markdown, not a prebuilt `content_state`**: image `media_id`s only exist after the images are uploaded from the logged-in page, so the conversion has to happen on the extension side.
 
 ```
-上传端（CLI / Claude skill / Obsidian）
-   │  读 md + 解析本地图片字节 + styleCheck（推特友好度）
-   │  不友好→建议改；用户不改→ 纯文本兜底
-   ▼  POST 草稿包（bundle.json + 图片字节）
-本地 relay  http://127.0.0.1:8765   ── 存 ~/.kaitox/outbox/<id>/
-   ▲  GET 轮询列表 / 拉取字节（CORS 只放行 x.com / Obsidian / 本插件）
+Upload clients (CLI / Obsidian / your own service)
+   │  read .md + collect local image bytes + style check (X-friendliness)
+   │  unfriendly → suggest fixes; plaintext fallback if the user declines
+   ▼  POST draft bundle (raw Markdown + image bytes, base64, one JSON)
+Local relay  http://127.0.0.1:8765   ── stores ~/.kaitox/outbox/<id>/
+   ▲  GET poll list / fetch bytes (CORS allowlist: x.com / Obsidian / extensions)
    │
-Chrome 插件（content script，跑在 x.com/compose/articles 页面）
-   │  面板列出待办草稿；点「上传草稿」：
-   │   ① 读 document.cookie 的 ct0  ② 逐图同源 upload（INIT/APPEND/FINALIZE）
-   │   ③ markdownToContentState(md, {src→media_id})  ④ ArticleEntityDraftCreate
-   ▼  跳转 x.com/compose/articles/edit/<rest_id>
+Chrome extension (MV3 content script on x.com/compose/articles, polls every 5s)
+   │  panel lists pending drafts; on "上传草稿":
+   │   ① read ct0 from document.cookie   ② upload each image same-origin (INIT/APPEND/FINALIZE)
+   │   ③ markdownToContentState(md, {src → media_id})   ④ ArticleEntityDraftCreate
+   ▼  navigates to x.com/compose/articles/edit/<rest_id>
 ```
 
-## 仓库结构（npm workspaces）
+## Packages (npm workspaces)
 
-| 路径 | 内容 |
+All published packages are ESM-only, require Node >= 18, and version together (currently 0.3.0; npm publish pending).
+
+| Package | Purpose |
 |---|---|
-| `packages/core` | `@kaitox/core`：**Markdown→content_state 转换**（`contentState.ts`，最值钱）、X 私有接口客户端（`xArticleClient.ts`）、编排（`publishArticle.ts`）、**风格检查 + 纯文本兜底**（`styleCheck.ts`）、草稿包契约（`bundle.ts`）、relay 客户端（`relayClient.ts`） |
-| `packages/relay` | `@kaitox/relay`：本地 HTTP 中转（零第三方依赖），存草稿包、放行 CORS |
-| `packages/cli` | `@kaitox/cli`：`kaitox` 命令行 + `skills/x-article/SKILL.md`（Claude/Codex skill） |
-| `apps/extension` | Chrome MV3 插件（esbuild 打包，内置 core） |
-| `apps/obsidian` | Obsidian 插件：当前笔记一键同步（解析 `![[wikilink]]` 与相对/远程图片） |
-| `docs/` | 协议文档（数据模型 + 映射规则 + 坑） |
+| [`@kaitox/x-article`](packages/x-article/README.md) | The X engine: `markdownToContentState`, `collectImageSources`, `XArticleClient`, `publishXArticle`, style check + plaintext fallback, X constants. Runs in the browser (same-origin on x.com) and in Node. |
+| [`@kaitox/relay-protocol`](packages/relay-protocol/README.md) | Zero-dependency wire contract: `DraftBundle` / `DraftAsset` / `StyleReport` types, `RelayClient` interface, `HttpRelayClient`, base64 helpers. |
+| [`@kaitox/relay`](packages/relay/README.md) | Local relay server (bin `kaitox-relay`), stores draft bundles under `~/.kaitox/outbox/`, zero third-party deps. |
+| [`@kaitox/cli`](packages/cli/README.md) | The `kaitox` command line: `kaitox x push/list/status`, `kaitox relay ...`. |
 
-## 快速开始
+Private apps (not published):
+
+| App | Purpose |
+|---|---|
+| `apps/extension` | Chrome MV3 extension — the uploader that runs on x.com/compose/articles. |
+| `apps/obsidian` | Obsidian plugin — sync the current note as an X Article draft (resolves `![[wikilinks]]`, relative and remote images; `cover:` frontmatter). Desktop only. |
+
+## Quick start
 
 ```bash
 npm install
-npm run build            # 构建 core / relay / cli
-npm test                 # core 转换正确性（21 条断言）
-npm run test:integration # 端到端集成测试（进程内起 relay，28 条断言，含封面链路）
-npm run build:extension  # 打包 Chrome 插件 → apps/extension/dist/
-npm run build:obsidian   # 打包 Obsidian 插件 → apps/obsidian/dist/
+npm run build            # builds relay-protocol → x-article → relay → cli
+npm test                 # x-article engine tests (35 assertions)
+npm run test:integration # end-to-end: in-process relay + upload pipeline (31 assertions)
+npm run test:protocol    # relay-protocol wire smoke test (10 assertions)
+npm run test:all         # build + all of the above
+npm run build:extension  # bundle the Chrome extension → apps/extension/dist/
+npm run build:obsidian   # bundle the Obsidian plugin → apps/obsidian/dist/
 ```
 
-### 1. 用 CLI 推一份 Markdown
+### 1. Push a Markdown file with the CLI
 
 ```bash
-node packages/cli/dist/kaitox.js push path/to/post.md
-#   会先打印「推特友好度」报告；不友好时问你：修改 / 纯文本兜底 / 原样上传
-#   --plaintext 纯文本兜底 · --force 原样上传 · --title 覆盖标题
-#   --cover <图片路径或URL> 指定文章封面（不进正文，建草稿后单独设为封面）
-# relay 会被自动拉起。也可手动：kaitox relay --daemon
+kaitox x push path/to/post.md
+#   Prints an X-friendliness report first; if unfriendly, asks:
+#   fix it / plaintext fallback / upload as-is
+#   --title T          override the title
+#   --cover IMG        article cover (local path or http(s) URL; kept out of the body,
+#                      set as cover after the draft is created)
+#   --plaintext        degrade to plaintext mode
+#   --force            upload as-is (rich) even when unfriendly
+kaitox x list            # pending drafts on the relay
+kaitox x status <id>     # status of one draft
 ```
 
-> Obsidian 里则在笔记 frontmatter 写 `cover: [[封面图.png]]`（也支持相对路径或 http(s) URL）。
+The relay is started automatically by `push`. You can also manage it yourself: `kaitox relay --daemon` / `kaitox relay stop` / `kaitox relay status`. Until the packages are on npm, run the bin from the workspace (`node packages/cli/dist/kaitox.js ...`) or `npm link` it. The legacy top-level `kaitox push|list|status` still work but print a deprecation note and delegate to `kaitox x ...`.
 
-（`npm link` 或把 `packages/cli/dist/kaitox.js` 加进 PATH 后可直接 `kaitox push`。Claude/Codex 里让 agent 用 `skills/x-article` 这个 skill 即可。）
+Configuration: `KAITOX_HOME` (default `~/.kaitox`), `KAITOX_RELAY_PORT` (default `8765`); the relay binds to `127.0.0.1` only. An optional per-install token in `~/.kaitox/config.json` is enforced as the `x-kaitox-token` header (`GET /health` exempt).
 
-### 2. 装 Chrome 插件
+### 2. Load the Chrome extension
 
-`chrome://extensions` → 打开「开发者模式」→「加载已解压的扩展程序」→ 选 `apps/extension/dist/`。
-然后打开 <https://x.com/compose/articles>，右下角出现 kaitox 面板 → 点「上传草稿」。
+`chrome://extensions` → enable "Developer mode" → "Load unpacked" → select `apps/extension/dist/`.
+Then open <https://x.com/compose/articles>; the kaitox panel appears in the corner → click "上传草稿" (upload draft).
 
-### 3.（可选）装 Obsidian 插件
+### 3. (Optional) Install the Obsidian plugin
 
-把 `apps/obsidian/dist/` 拷进 vault 的 `.obsidian/plugins/kaitox-x-article/`，在设置里启用。
-命令面板或左侧 ribbon 「同步当前笔记为 X Article 草稿」。桌面端专用（需本机 relay）。
+Copy `apps/obsidian/dist/` into your vault at `.obsidian/plugins/kaitox/` and enable it in Settings. Use the command palette or ribbon action to sync the current note as an X Article draft. Set a cover via frontmatter: `cover: [[image.png]]` (relative paths and http(s) URLs also work). Desktop only — the plugin talks to the local relay.
 
-## 推特友好度检查 & 纯文本兜底
+## Integrate kaitox into your own tools
 
-`styleCheck.ts` 按转换器的**真实降级行为**报问题（不报假警）：表格→退化成代码块、嵌套列表→子项丢失、HTML 块→被丢弃、脚注→当字面量、`>h3`→钳到 h3、远程/缺失/过大图片等。
+Any program that can POST JSON to `127.0.0.1` can be an upload client, and the relay's REST surface is small and stable:
 
-不友好时可选**纯文本兜底**（`mode: 'plaintext'`）：确定性预处理器只降级不友好构造（表格→段落、代码/HTML→纯段落、嵌套列表→拍平），**标题、粗斜体、链接、图片全部保留**。
+- [`docs/integrate-local-service.md`](docs/integrate-local-service.md) — post draft bundles to the relay from your own script or service (with `@kaitox/relay-protocol` or plain HTTP).
+- [`docs/integrate-browser-extension.md`](docs/integrate-browser-extension.md) — how the extension side works, and how to build your own uploader on `@kaitox/x-article`.
 
-## 关键不变量（改代码时守住）
+## Key invariants (keep these when changing code)
 
-- 草稿包 `assets[].src` 必须 === 插件里 `collectImageSources(markdown)` 的原样 src（两端靠它对齐）。
-- 图片上传 `media_category=tweet_image`，正文引用 `DraftTweetImage`；`media_id` 用字符串版；offset 按 UTF-16；entity key 全局递增；MEDIA 的 `local_media_id === key`。均由 core 保证，`packages/core/test/validate.mjs` 是回归基线。
+- `bundle.assets[].src` must exactly equal the output of `collectImageSources(markdown)` — both ends align on it.
+- Cover images use the sentinel src `'__cover__'` and travel in the wire assets under `cover.fileName`; they never appear in the body.
+- A bundle without `kind` means `'x-article'`. The relay stores and forwards `kind` without interpreting it — that is how future features slot in.
+- The bundle carries raw Markdown, never a prebuilt `content_state` (media_ids only exist after upload from the logged-in page).
+- Engine invariants (string `media_id`s, UTF-16 offsets, globally incrementing entity keys, `local_media_id === key`, `media_category=tweet_image`) are guaranteed by `@kaitox/x-article`; `packages/x-article/test/validate.mjs` is the regression baseline.
 
-## 已知边界
+## Known limitations
 
-- **queryId 轮换**：`ArticleEntityDraftCreate` 的 queryId 会变。插件解析顺序：设置里手动覆盖 → 内置常量（运行时抓取见后续）。失效时在插件设置里更新。
-- **`extractRestId`**：建草稿的响应体结构随 X 变化，rest_id 解析做的是「宽松探测」，真机首次跑请对照实际响应校正（拿不到就退回文章列表页）。
-- **Obsidian 移动端**无 Node、无法起 relay，桌面端专用。
-- **合规**：本质是拿你自己的登录态操作你自己的账号，属自动化脚本。别高频、别跨账号批量，注意 X 的自动化政策与频控。
+- **queryId rotation**: X rotates the queryIds of `ArticleEntityDraftCreate` and friends. The extension resolves in order: manual override in its settings → built-in constants. When creation starts failing, update the queryId in the extension settings.
+- **`extractRestId` fragility**: the response shape of draft creation changes with X; the `rest_id` extraction is a loose probe. If it comes back empty the extension stays on the drafts page and tells you to find the created draft in your article list.
+- **Obsidian is desktop-only**: mobile Obsidian has no Node and cannot reach a local relay.
+- **Compliance**: this drives your own logged-in browser session against X's private web endpoints. It is unofficial, may break at any time when X rotates queryIds, and is automation of your own account — use at your own risk, keep the frequency low, and do not mass-automate across accounts. Mind X's automation policy and rate limits.
+
+## Learn more
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — component map, lifecycle of a draft, design decisions.
+- [`docs/x-article-publish-protocol.md`](docs/x-article-publish-protocol.md) — the full data model, Markdown → `content_state` mapping rules, and pitfalls.
+
+## License
+
+[MIT](LICENSE)
