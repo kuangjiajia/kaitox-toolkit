@@ -1,0 +1,18 @@
+{
+  "name": "@kaitox/extension",
+  "version": "0.2.0",
+  "description": "kaitox Chrome 插件（MV3）：在 x.com 文章草稿页把 relay 里的待办草稿一键上传为 X Article",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "npm run build -w @kaitox/core --prefix ../.. && node esbuild.mjs",
+    "build:only": "node esbuild.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@kaitox/core": "*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268"
+  }
+}

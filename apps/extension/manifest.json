@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "kaitox X Article 草稿同步",
+  "version": "0.2.0",
+  "description": "把本地 Markdown 一键上传成 X (Twitter) Article 草稿：从本地 relay 拉取待办，在草稿页上传图片并建草稿。",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "*://x.com/*",
+    "*://upload.x.com/*",
+    "*://twitter.com/*",
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/compose/articles*",
+        "https://twitter.com/compose/articles*"
+      ],
+      "js": ["content.js"],
+      "css": ["panel.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "kaitox 草稿同步"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "kaitox-x-publisher",
+  "version": "0.2.0",
+  "description": "本地 Markdown → X (Twitter) Article 草稿：上传端（CLI/Obsidian）+ 本地 relay + Chrome 插件",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @kaitox/core && npm run build -w @kaitox/relay && npm run build -w @kaitox/cli",
+    "build:extension": "npm run build -w @kaitox/extension",
+    "build:obsidian": "npm run build -w @kaitox/obsidian",
+    "typecheck": "npm run typecheck -w @kaitox/core && npm run typecheck -w @kaitox/relay && npm run typecheck -w @kaitox/cli",
+    "test": "npm test -w @kaitox/core",
+    "test:integration": "npm run build && node test/integration.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "esbuild": "^0.20.0"
+  }
+}

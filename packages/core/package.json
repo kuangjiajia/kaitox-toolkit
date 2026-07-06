@@ -1,0 +1,24 @@
+{
+  "name": "@kaitox/core",
+  "version": "0.2.0",
+  "description": "Markdown → X Article content_state 转换 + X 私有接口客户端 + 草稿包/风格检查（共享核心）",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node test/validate.mjs"
+  },
+  "dependencies": {
+    "marked": "^12.0.0"
+  }
+}

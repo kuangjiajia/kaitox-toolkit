@@ -1,0 +1,18 @@
+{
+  "name": "@kaitox/cli",
+  "version": "0.2.0",
+  "description": "kaitox 命令行：把本地 Markdown 检查、打包并投递到本地 relay，供 Chrome 插件同步为 X Article 草稿",
+  "type": "module",
+  "bin": {
+    "kaitox": "dist/kaitox.js"
+  },
+  "files": ["dist", "skills"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@kaitox/core": "*",
+    "@kaitox/relay": "*"
+  }
+}

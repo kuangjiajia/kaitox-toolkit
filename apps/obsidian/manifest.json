@@ -1,0 +1,10 @@
+{
+  "id": "kaitox-x-article",
+  "name": "kaitox X Article Sync",
+  "version": "0.2.0",
+  "minAppVersion": "1.4.0",
+  "description": "把当前笔记一键同步为 X (Twitter) Article 草稿。配合 kaitox 本地 relay 与 Chrome 插件使用。",
+  "author": "kaitox",
+  "authorUrl": "https://kaitox.ai",
+  "isDesktopOnly": true
+}

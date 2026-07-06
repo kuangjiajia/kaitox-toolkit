@@ -1,0 +1,172 @@
+/* kaitox 样式。作用域限定在注入的按钮 #kaitox-hdr-btn 和下拉 #kaitox-dropdown 下，避免污染 x.com。 */
+
+/* --- 注入到 Articles 标题行的按钮 --- */
+#kaitox-hdr-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+#kaitox-hdr-btn .kx-hdr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #0f1419;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 8px 4px 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#kaitox-hdr-btn .kx-hdr-btn:hover { background: #272c30; }
+/* 黑白头像块：白底 + 黑 logo（currentColor=黑），让头像本体露出来 */
+#kaitox-hdr-btn .kx-hdr-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  color: #0f1419;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+#kaitox-hdr-btn .kx-hdr-logo svg { width: 100%; height: 100%; display: block; }
+#kaitox-hdr-btn .kx-hdr-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 2px;
+  background: #1d9bf0;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+#kaitox-hdr-btn .kx-hidden { display: none; }
+
+/* --- 下拉面板（fixed，位置由 JS 对齐到按钮下方）--- */
+#kaitox-dropdown {
+  position: fixed;
+  width: 320px;
+  max-height: 70vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #eff3f4;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  z-index: 2147483000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #0f1419;
+}
+#kaitox-dropdown.kx-hidden { display: none; }
+
+#kaitox-dropdown .kx-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eff3f4;
+  font-weight: 700;
+}
+#kaitox-dropdown .kx-header-actions { display: flex; gap: 4px; }
+#kaitox-dropdown .kx-icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #536471;
+}
+#kaitox-dropdown .kx-icon-btn:hover { background: #f0f3f4; }
+
+#kaitox-dropdown .kx-status {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #536471;
+}
+#kaitox-dropdown .kx-status-error { color: #c0392b; }
+#kaitox-dropdown .kx-status-ok { color: #17803d; }
+
+#kaitox-dropdown .kx-list { overflow-y: auto; }
+
+#kaitox-dropdown .kx-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #f2f4f5;
+}
+#kaitox-dropdown .kx-row-main { min-width: 0; flex: 1; }
+#kaitox-dropdown .kx-row-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#kaitox-dropdown .kx-row-meta { color: #536471; font-size: 11px; margin-top: 2px; }
+#kaitox-dropdown .kx-badge {
+  display: inline-block;
+  background: #e8f5fe;
+  color: #1d9bf0;
+  border-radius: 5px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+#kaitox-dropdown .kx-badge-plain { background: #fdf1e3; color: #c77414; }
+
+#kaitox-dropdown .kx-upload-btn {
+  background: #0f1419;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#kaitox-dropdown .kx-upload-btn:hover { background: #272c30; }
+#kaitox-dropdown .kx-upload-btn:disabled { opacity: 0.6; cursor: default; }
+
+#kaitox-dropdown .kx-row-actions { display: flex; align-items: center; gap: 4px; }
+#kaitox-dropdown .kx-del-btn { font-size: 14px; }
+#kaitox-dropdown .kx-del-btn:hover { background: #fdeaea; color: #c0392b; }
+#kaitox-dropdown .kx-upload-btn.kx-danger { background: #c0392b; }
+#kaitox-dropdown .kx-upload-btn.kx-danger:hover { background: #a93226; }
+
+#kaitox-dropdown .kx-row-status { font-size: 11px; margin-top: 3px; }
+#kaitox-dropdown .kx-row-status-info { color: #536471; }
+#kaitox-dropdown .kx-row-status-ok { color: #17803d; }
+#kaitox-dropdown .kx-row-status-error { color: #c0392b; }
+
+@media (prefers-color-scheme: dark) {
+  #kaitox-hdr-btn .kx-hdr-btn { background: #eff3f4; color: #0f1419; }
+  #kaitox-hdr-btn .kx-hdr-btn:hover { background: #d7dbdc; }
+
+  #kaitox-dropdown { background: #000; border-color: #2f3336; color: #e7e9ea; }
+  #kaitox-dropdown .kx-header { border-color: #2f3336; }
+  #kaitox-dropdown .kx-icon-btn { color: #71767b; }
+  #kaitox-dropdown .kx-icon-btn:hover { background: #16181c; }
+  #kaitox-dropdown .kx-row { border-color: #16181c; }
+  #kaitox-dropdown .kx-upload-btn { background: #eff3f4; color: #0f1419; }
+  #kaitox-dropdown .kx-status, #kaitox-dropdown .kx-row-meta { color: #71767b; }
+  #kaitox-dropdown .kx-del-btn:hover { background: #2a1416; color: #f26d6d; }
+  #kaitox-dropdown .kx-upload-btn.kx-danger { background: #c0392b; color: #fff; }
+  #kaitox-dropdown .kx-upload-btn.kx-danger:hover { background: #d0402f; }
+}
