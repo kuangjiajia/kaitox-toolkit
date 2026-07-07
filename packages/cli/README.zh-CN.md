@@ -4,7 +4,7 @@
 
 [Kaitox](https://kaitox.ai) 个人工具集的命令行产品。当前功能：对本地 Markdown 文件做风格检查，把它和图片字节打包在一起，投递到本地 [Kaitox relay](../relay)，成为一份 **X (Twitter) Article 草稿**。之后由 Kaitox Chrome 插件在你自己已登录的浏览器会话里把草稿写进 X。
 
-CLI 从不直接和 X 通信——它只和 `127.0.0.1` 上的 relay 打交道。各部分如何协作见[发布协议](../../docs/x-article-publish-protocol.md)。
+CLI 从不直接和 X 通信——它只和 `127.0.0.1` 上的 relay 打交道。各部分如何协作见[发布协议](../../docs/x-article-publish-protocol.zh-CN.md)。
 
 ## 安装
 

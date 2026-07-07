@@ -2,159 +2,117 @@ English | [简体中文](README.zh-CN.md)
 
 # Kaitox
 
-Kaitox is a **personal toolkit**: a small family of personal products — the `kaitox` CLI, an Obsidian plugin, a Chrome extension, and agent skills — sharing one local infrastructure. Features cut across the products; the first feature is publishing local Markdown as **X (Twitter) Article drafts**.
+A personal toolkit — the `kaitox` CLI, an Obsidian plugin, a Chrome extension, and agent skills — on shared local infrastructure. First feature: **publish local Markdown as X (Twitter) Article drafts**, images, formatting and cover included.
+
+```bash
+kaitox x push post.md
+```
+
+Then open [x.com/compose/articles](https://x.com/compose/articles) and click "上传草稿" (upload draft) in the Kaitox panel. Done.
+
+## How it works
+
+1. **Push** — the CLI (or the Obsidian plugin, or your own script) style-checks the Markdown, packages it with its image bytes, and delivers it to a local relay on `127.0.0.1`.
+2. **Relay** — a loopback-only server stores pending drafts on disk. Nothing leaves your machine.
+3. **Upload** — the Chrome extension picks the draft up on the X drafts page and creates the Article draft inside your own logged-in session.
+
+No official API, no API keys: the extension drives the web endpoints of your own logged-in x.com session, so your normal browser login is all it needs. Full architecture and design decisions: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Products
 
-### CLI — [`@kaitox/cli`](packages/cli/README.md)
+| Product | What it does | Details |
+|---|---|---|
+| **CLI** | `kaitox x push / list / status` — check, package and deliver; manages the relay for you | [`packages/cli`](packages/cli/README.md) |
+| **Obsidian plugin** | Sync the current note as a draft: wikilinks, images, `cover:` frontmatter (desktop only) | [`apps/obsidian`](apps/obsidian/README.md) |
+| **Chrome extension** | Uploads pending drafts from the X drafts page, in your own session | [`apps/extension`](apps/extension/README.md) |
+| **Agent skills** | Teach Claude Code (and compatible agents) to run the whole loop for you | [`skills/`](skills/README.md) |
 
-The `kaitox` command. Features live under namespaces (`kaitox x push|list|status`); infrastructure lives under `kaitox relay ...`. Adding a feature adds a namespace, not a new binary.
+Under the hood, three npm packages (ESM-only, Node >= 18):
 
-### Obsidian plugin — [`apps/obsidian`](apps/obsidian/README.md)
-
-Sync the current note as an X Article draft straight from your vault: resolves `![[wikilinks]]`, relative and remote images, and a `cover:` frontmatter key. Desktop only (it talks to the local relay).
-
-### Chrome extension — [`apps/extension`](apps/extension/README.md)
-
-MV3 companion that executes the browser-side steps of features inside your own logged-in session. For X Article publishing it runs on `x.com/compose/articles`, polls the local relay, and uploads pending drafts.
-
-### Agent skills — [`skills/`](skills/README.md)
-
-Skills teach coding agents (Claude Code and compatible hosts) to drive the other products. Currently: [`x-article`](skills/x-article/SKILL.md) — check and sync a Markdown file to an X Article draft via `kaitox x push`.
-
-## Features
-
-Features cut across the products. Each feature is an engine package, a CLI namespace, a `kind` on the draft bundle, and surfaces on whichever products need it. New features slot in via the bundle's `kind` discriminator (see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)).
-
-### X Article publishing
-
-Pick a `.md` file, style-check it, push it to the local relay, then click "上传草稿" (upload draft) in the browser extension on the X draft page. Images and formatting land in the Article draft in one go.
-
-It does not use the official public API. Instead, the extension drives the **web endpoints of your own logged-in x.com session**. The full data model and protocol are documented in [`docs/x-article-publish-protocol.md`](docs/x-article-publish-protocol.md).
-
-The Chrome extension runs **inside the logged-in x.com page**, so the extension does the image uploads and draft creation — same-origin requests carry cookies automatically (`credentials: 'include'`, `ct0` cookie as `x-csrf-token`), sidestepping both "manually injecting cookies" and the `x-client-transaction-id` problem. Consequently:
-
-- Upload clients only **check + package** (raw Markdown + image bytes) and deliver the bundle to the local relay.
-- The extension then, from within the page: **upload images to get `media_id`s → `markdownToContentState` → create the draft** — all same-origin.
-
-The bundle deliberately carries **raw Markdown, not a prebuilt `content_state`**: image `media_id`s only exist after the images are uploaded from the logged-in page, so the conversion has to happen on the extension side.
-
-```
-Upload clients (CLI / Obsidian / your own service)
-   │  read .md + collect local image bytes + style check (X-friendliness)
-   │  unfriendly → suggest fixes; plaintext fallback if the user declines
-   ▼  POST draft bundle (raw Markdown + image bytes, base64, one JSON)
-Local relay  http://127.0.0.1:8765   ── stores ~/.kaitox/outbox/<id>/
-   ▲  GET poll list / fetch bytes (CORS allowlist: x.com / Obsidian / extensions)
-   │
-Chrome extension (MV3 content script on x.com/compose/articles, polls every 5s)
-   │  panel lists pending drafts; on "上传草稿":
-   │   ① read ct0 from document.cookie   ② upload each image same-origin (INIT/APPEND/FINALIZE)
-   │   ③ markdownToContentState(md, {src → media_id})   ④ ArticleEntityDraftCreate
-   ▼  navigates to x.com/compose/articles/edit/<rest_id>
-```
-
-## Repo layout (npm workspaces)
-
-All published packages are ESM-only and require Node >= 18 (versions managed by changesets; npm publish pending).
-
-**Products:**
-
-| Product | Purpose |
+| Package | Role |
 |---|---|
-| [`@kaitox/cli`](packages/cli/README.md) | The `kaitox` command line: `kaitox x push/list/status`, `kaitox relay ...`. |
-| [`apps/extension`](apps/extension/README.md) | Chrome MV3 extension (private, not published) — the uploader that runs on x.com/compose/articles. |
-| [`apps/obsidian`](apps/obsidian/README.md) | Obsidian plugin (private, not published) — sync the current note as an X Article draft. Desktop only. |
-| [`skills/`](skills/README.md) | Agent skills for Claude Code / compatible hosts (Markdown, not an npm package). |
+| [`@kaitox/x-article`](packages/x-article/README.md) | The X engine: Markdown → article conversion, style check, preview renderer, X client. Embeddable in your own tools. |
+| [`@kaitox/relay`](packages/relay/README.md) | The local relay server (bin: `kaitox-relay`). |
+| [`@kaitox/relay-protocol`](packages/relay-protocol/README.md) | Zero-dependency wire contract + HTTP client for talking to the relay. |
 
-**Feature engines:**
+## Install
 
-| Package | Purpose |
-|---|---|
-| [`@kaitox/x-article`](packages/x-article/README.md) | The X engine: `markdownToContentState`, `collectImageSources`, `XArticleClient`, `publishXArticle`, style check + plaintext fallback, X constants. Runs in the browser (same-origin on x.com) and in Node. |
+**Requirements:** Node.js ≥ 18, an X account you stay logged into, and Chrome (or any Chromium browser) for the upload step.
 
-**Infrastructure:**
-
-| Package | Purpose |
-|---|---|
-| [`@kaitox/relay`](packages/relay/README.md) | Local relay server (bin `kaitox-relay`), stores draft bundles under `~/.kaitox/outbox/`, transparently re-encodes oversized images at ingest. |
-| [`@kaitox/relay-protocol`](packages/relay-protocol/README.md) | Zero-dependency wire contract: `DraftBundle` / `DraftAsset` / `StyleReport` types, `RelayClient` interface, `HttpRelayClient`, base64 helpers. |
-
-## Quick start
+Install the CLI from npm — it pulls in the local relay and gives you the `kaitox` command:
 
 ```bash
-npm install
-npm run build            # builds relay-protocol → x-article → relay → cli
-npm test                 # x-article engine tests (35 assertions)
-npm run test:integration # end-to-end: in-process relay + upload pipeline (31 assertions)
-npm run test:protocol    # relay-protocol wire smoke test (10 assertions)
-npm run test:all         # build + all of the above
-npm run build:extension  # bundle the Chrome extension → apps/extension/dist/
-npm run build:obsidian   # bundle the Obsidian plugin → apps/obsidian/dist/
+npm i -g @kaitox/cli
+kaitox --version
 ```
 
-### 1. Push a Markdown file with the CLI
+Install the Chrome extension from the [latest release](https://github.com/kuangjiajia/kaitox-toolkit/releases): download `kaitox-extension-<version>.zip` and unzip it, then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the unzipped folder.
+
+> 🖼️ _Tutorial image — loading the unpacked extension in `chrome://extensions`._ — `docs/images/01-load-extension.png`
+<!-- ![Load the unpacked extension](docs/images/01-load-extension.png) -->
+
+Open <https://x.com/compose/articles> while logged in; the Kaitox panel should appear in the corner.
+
+> 🖼️ _Tutorial image — the Kaitox panel on the X drafts page._ — `docs/images/02-panel.png`
+<!-- ![Kaitox panel on x.com/compose/articles](docs/images/02-panel.png) -->
+
+(Optional) the [Obsidian plugin](apps/obsidian/README.md) pushes drafts straight from your vault: from the same [release](https://github.com/kuangjiajia/kaitox-toolkit/releases), drop `main.js` and `manifest.json` into `.obsidian/plugins/kaitox/` and enable it in Settings. The [agent skill](skills/README.md) lets a coding agent run the whole loop for you.
+
+> Placeholders above are commented-out image tags. Drop the screenshot at the given `docs/images/…` path and uncomment the line right below each caption. See [`docs/images/README.md`](docs/images/README.md).
+
+## Using the X feature
+
+Turn any Markdown file into an X Article draft in two moves — push from the terminal, upload from the browser.
+
+### 1. Push the Markdown
 
 ```bash
 kaitox x push path/to/post.md
-#   Prints an X-friendliness report first; if unfriendly, asks:
-#   fix it / plaintext fallback / upload as-is
-#   --title T          override the title
-#   --cover IMG        article cover (local path or http(s) URL; kept out of the body,
-#                      set as cover after the draft is created)
-#   --plaintext        degrade to plaintext mode
-#   --force            upload as-is (rich) even when unfriendly
-kaitox x list            # pending drafts on the relay
-kaitox x status <id>     # status of one draft
 ```
 
-The relay is started automatically by `push`. You can also manage it yourself: `kaitox relay --daemon` / `kaitox relay stop` / `kaitox relay status`. Until the packages are on npm, run the bin from the workspace (`node packages/cli/dist/kaitox.js ...`) or `npm link` it.
+`push` style-checks the file, resolves its images to bytes, starts the local relay if it isn't running, and queues the draft on your machine. It prints an **X-friendliness report** first; if the content isn't X-friendly it asks whether to fix it, fall back to plaintext, or upload as-is.
 
-Configuration: `KAITOX_HOME` (default `~/.kaitox`), `KAITOX_RELAY_PORT` (default `8765`); the relay binds to `127.0.0.1` only. An optional per-install token in `~/.kaitox/config.json` is enforced as the `x-kaitox-token` header (`GET /health` exempt).
+> 🖼️ _Tutorial image — `kaitox x push` output with the style report and draft id._ — `docs/images/03-push.png`
+<!-- ![kaitox x push output](docs/images/03-push.png) -->
 
-### 2. Load the Chrome extension
+Common flags:
 
-`chrome://extensions` → enable "Developer mode" → "Load unpacked" → select `apps/extension/dist/`.
-Then open <https://x.com/compose/articles>; the Kaitox panel appears in the corner → click "上传草稿" (upload draft).
+| Flag | Effect |
+|---|---|
+| `--title "…"` | Override the article title (default: `title:` frontmatter → first heading → file name). |
+| `--cover img.png` | Set the article cover — a local path or `http(s)` URL. Kept out of the body. |
+| `--plaintext` | Degrade tables / code / HTML / nested lists to safe plain text. |
+| `--force` | Upload as-is even when the style check flags issues. |
 
-### 3. (Optional) Install the Obsidian plugin
-
-Copy `apps/obsidian/dist/` into your vault at `.obsidian/plugins/kaitox/` and enable it in Settings. Use the command palette or ribbon action to sync the current note as an X Article draft. Set a cover via frontmatter: `cover: [[image.png]]` (relative paths and http(s) URLs also work). Desktop only — the plugin talks to the local relay.
-
-### 4. (Optional) Install the agent skill
+Check the queue and results:
 
 ```bash
-cp -r skills/x-article ~/.claude/skills/
+kaitox x list          # pending drafts on the relay
+kaitox x status <id>   # one draft's status + the article rest_id once created
 ```
 
-Your coding agent can then run the whole check-and-push loop for you. See [`skills/README.md`](skills/README.md).
+### 2. Upload from the browser
 
-## Integrate Kaitox into your own tools
+Open <https://x.com/compose/articles>, find your draft in the Kaitox panel, and click **上传草稿** (upload draft). The extension uploads the images and creates the Article draft inside your own logged-in session, then opens it in the editor. Images and formatting land together — review and publish from X when you're ready.
 
-Any program that can POST JSON to `127.0.0.1` can be an upload client, and the relay's REST surface is small and stable:
+> 🖼️ _Tutorial image — clicking 上传草稿 and the resulting Article draft in the X editor._ — `docs/images/04-upload-result.png`
+<!-- ![Uploading a draft and the result in the X editor](docs/images/04-upload-result.png) -->
 
-- [`docs/integrate-local-service.md`](docs/integrate-local-service.md) — post draft bundles to the relay from your own script or service (with `@kaitox/relay-protocol` or plain HTTP).
-- [`docs/integrate-browser-extension.md`](docs/integrate-browser-extension.md) — how the extension side works, and how to build your own uploader on `@kaitox/x-article`.
+Full flag reference, frontmatter and image-resolution rules, and troubleshooting live in the [CLI README](packages/cli/README.md).
 
-## Key invariants (keep these when changing code)
+## Build on it
 
-- `bundle.assets[].src` must exactly equal the output of `collectImageSources(markdown)` — both ends align on it.
-- Cover images use the sentinel src `'__cover__'` and travel in the wire assets under `cover.fileName`; they never appear in the body.
-- A bundle without `kind` means `'x-article'`. The relay stores and forwards `kind` without interpreting it — that is how future features slot in.
-- The bundle carries raw Markdown, never a prebuilt `content_state` (media_ids only exist after upload from the logged-in page).
-- Engine invariants (string `media_id`s, UTF-16 offsets, globally incrementing entity keys, `local_media_id === key`, `media_category=tweet_image`) are guaranteed by `@kaitox/x-article`; `packages/x-article/test/validate.mjs` is the regression baseline.
+Any program that can POST JSON to `127.0.0.1` can push drafts, and new features slot in via the bundle's `kind` discriminator:
 
-## Known limitations
+- [`docs/integrate-local-service.md`](docs/integrate-local-service.md) — push drafts from your own script or service.
+- [`docs/integrate-browser-extension.md`](docs/integrate-browser-extension.md) — build your own uploader on `@kaitox/x-article`.
+- [`docs/x-article-publish-protocol.md`](docs/x-article-publish-protocol.md) — the full X wire protocol.
 
-- **queryId rotation**: X rotates the queryIds of `ArticleEntityDraftCreate` and friends. The extension resolves in order: manual override in its settings → built-in constants. When creation starts failing, update the queryId in the extension settings.
-- **`extractRestId` fragility**: the response shape of draft creation changes with X; the `rest_id` extraction is a loose probe. If it comes back empty the extension stays on the drafts page and tells you to find the created draft in your article list.
-- **Obsidian is desktop-only**: mobile Obsidian has no Node and cannot reach a local relay.
-- **Compliance**: this drives your own logged-in browser session against X's private web endpoints. It is unofficial, may break at any time when X rotates queryIds, and is automation of your own account — use at your own risk, keep the frequency low, and do not mass-automate across accounts. Mind X's automation policy and rate limits.
+## Status & caveats
 
-## Learn more
+The `@kaitox/*` packages are on npm; the Chrome extension and Obsidian plugin are distributed as [GitHub Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases) (not in the Chrome Web Store or Obsidian community directory yet). Building from source and contributing: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — component map, lifecycle of a draft, design decisions.
-- [`docs/x-article-publish-protocol.md`](docs/x-article-publish-protocol.md) — the full data model, Markdown → `content_state` mapping rules, and pitfalls.
+Publishing drives X's private web endpoints with your own logged-in session: it is unofficial, may break when X rotates its internals, and is meant for publishing your own content at human pace — not mass automation. Per-product limitations are in each product README.
 
 ## License
 

@@ -2,159 +2,117 @@
 
 # Kaitox
 
-Kaitox 是一个**个人工具集**：一组共享同一套本地基础设施的个人产品——`kaitox` 命令行、Obsidian 插件、Chrome 插件和 agent skills。功能横跨各产品；第一个功能是把本地 Markdown 发成 **X (Twitter) Article 草稿**。
+个人工具集——`kaitox` 命令行、Obsidian 插件、Chrome 插件和 agent skills，共享同一套本地基础设施。第一个功能：**把本地 Markdown 发成 X (Twitter) Article 草稿**——图片、排版、封面一次到位。
+
+```bash
+kaitox x push post.md
+```
+
+然后打开 [x.com/compose/articles](https://x.com/compose/articles)，在 Kaitox 面板里点「上传草稿」。搞定。
+
+## 工作方式
+
+1. **推送** — CLI（或 Obsidian 插件、你自己的脚本）对 Markdown 做风格检查，连同图片字节打包，投递到 `127.0.0.1` 上的本地 relay。
+2. **中转** — relay 只监听回环地址，把待办草稿存在本地磁盘。数据不出你的机器。
+3. **上传** — Chrome 插件在 X 草稿页取走草稿，用你自己已登录的会话创建 Article 草稿。
+
+不走官方 API、不需要 API key：插件驱动的是你浏览器里已登录 x.com 会话的网页端接口，正常的浏览器登录态就是全部所需。完整架构与设计取舍见 [`docs/ARCHITECTURE.zh-CN.md`](docs/ARCHITECTURE.zh-CN.md)。
 
 ## 产品
 
-### CLI — [`@kaitox/cli`](packages/cli/README.zh-CN.md)
+| 产品 | 做什么 | 详情 |
+|---|---|---|
+| **CLI** | `kaitox x push / list / status`——检查、打包、投递；relay 也帮你管好 | [`packages/cli`](packages/cli/README.zh-CN.md) |
+| **Obsidian 插件** | 把当前笔记一键同步为草稿：wikilink、图片、`cover:` frontmatter（仅桌面端） | [`apps/obsidian`](apps/obsidian/README.zh-CN.md) |
+| **Chrome 插件** | 在 X 草稿页用你自己的会话上传待办草稿 | [`apps/extension`](apps/extension/README.zh-CN.md) |
+| **Agent skills** | 教会 Claude Code（及兼容 agent）替你跑完整个流程 | [`skills/`](skills/README.zh-CN.md) |
 
-`kaitox` 命令。功能按命名空间组织（`kaitox x push|list|status`），基础设施在 `kaitox relay ...` 下。新增功能只是新增一个命名空间，不需要新的二进制。
+底层是三个 npm 包（ESM-only，Node >= 18）：
 
-### Obsidian 插件 — [`apps/obsidian`](apps/obsidian/README.zh-CN.md)
-
-在 vault 里把当前笔记一键同步为 X Article 草稿：解析 `![[wikilink]]`、相对路径与远程图片，支持 `cover:` frontmatter。仅桌面端（插件需要访问本机 relay）。
-
-### Chrome 插件 — [`apps/extension`](apps/extension/README.zh-CN.md)
-
-MV3 companion，在你自己已登录的浏览器会话里执行各功能的浏览器侧步骤。对 X Article 发布功能而言，它跑在 `x.com/compose/articles` 上，轮询本地 relay 并上传待办草稿。
-
-### Agent skills — [`skills/`](skills/README.zh-CN.md)
-
-Skills 教会 coding agent（Claude Code 及兼容宿主）驱动其他产品。当前有：[`x-article`](skills/x-article/SKILL.md)——通过 `kaitox x push` 把 Markdown 检查并同步为 X Article 草稿。
-
-## 功能
-
-功能横跨各产品。每个功能 = 一个引擎包 + 一个 CLI 命名空间 + 草稿包上的一个 `kind` + 各产品上需要的表面。新功能通过草稿包的 `kind` 判别字段接入（见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)）。
-
-### X Article 发布
-
-选一份 `.md`，做风格检查，推到本地 relay，再在 X 草稿页的浏览器插件里点「上传草稿」，图片与格式一次性写进 Article 草稿。
-
-它不走官方开放 API，而是由插件驱动**你浏览器里已登录 x.com 会话**的网页端接口。完整的数据模型与协议说明见 [`docs/x-article-publish-protocol.md`](docs/x-article-publish-protocol.md)。
-
-Chrome 插件跑在**已登录的 x.com 页面里**，所以由插件来上传图片、创建草稿——同源请求自动带 cookie（`credentials: 'include'`，`ct0` cookie 作为 `x-csrf-token`），绕开了「手动塞 cookie」和 `x-client-transaction-id` 两个大坑。于是：
-
-- 上传端只负责**检查 + 打包**（原始 Markdown + 图片字节），投递到本地 relay。
-- 插件收到后在页面里**上传图片拿 `media_id` → `markdownToContentState` → 建草稿**，全程同源。
-
-草稿包刻意携带**原始 Markdown 而不是预先构建的 `content_state`**：图片的 `media_id` 只有在登录页面里上传之后才存在，所以转换必须放在插件这一侧。
-
-```
-上传端（CLI / Obsidian / 你自己的服务）
-   │  读 md + 收集本地图片字节 + 风格检查（推特友好度）
-   │  不友好 → 建议修改；用户不改 → 纯文本兜底
-   ▼  POST 草稿包（原始 Markdown + 图片字节，base64，单个 JSON）
-本地 relay  http://127.0.0.1:8765   ── 存 ~/.kaitox/outbox/<id>/
-   ▲  GET 轮询列表 / 拉取字节（CORS 白名单：x.com / Obsidian / 插件）
-   │
-Chrome 插件（MV3 content script，跑在 x.com/compose/articles，每 5 秒轮询）
-   │  面板列出待办草稿；点「上传草稿」：
-   │   ① 读 document.cookie 的 ct0   ② 逐图同源上传（INIT/APPEND/FINALIZE）
-   │   ③ markdownToContentState(md, {src → media_id})   ④ ArticleEntityDraftCreate
-   ▼  跳转 x.com/compose/articles/edit/<rest_id>
-```
-
-## 仓库结构（npm workspaces）
-
-所有发布包均为 ESM-only，要求 Node >= 18（版本号由 changesets 管理；尚未发布到 npm）。
-
-**产品：**
-
-| 产品 | 用途 |
+| 包 | 角色 |
 |---|---|
-| [`@kaitox/cli`](packages/cli/README.zh-CN.md) | `kaitox` 命令行：`kaitox x push/list/status`、`kaitox relay ...`。 |
-| [`apps/extension`](apps/extension/README.zh-CN.md) | Chrome MV3 插件（私有，不发布）——跑在 x.com/compose/articles 上的上传器。 |
-| [`apps/obsidian`](apps/obsidian/README.zh-CN.md) | Obsidian 插件（私有，不发布）——把当前笔记同步为 X Article 草稿。仅桌面端。 |
-| [`skills/`](skills/README.zh-CN.md) | 给 Claude Code 及兼容宿主的 agent skills（Markdown，不是 npm 包）。 |
+| [`@kaitox/x-article`](packages/x-article/README.zh-CN.md) | X 引擎：Markdown → 文章转换、风格检查、预览渲染、X 客户端。可嵌进你自己的工具。 |
+| [`@kaitox/relay`](packages/relay/README.zh-CN.md) | 本地 relay 服务（bin：`kaitox-relay`）。 |
+| [`@kaitox/relay-protocol`](packages/relay-protocol/README.zh-CN.md) | 零依赖线上契约 + 与 relay 通信的 HTTP 客户端。 |
 
-**功能引擎：**
+## 安装
 
-| 包 | 用途 |
-|---|---|
-| [`@kaitox/x-article`](packages/x-article/README.zh-CN.md) | X 引擎：`markdownToContentState`、`collectImageSources`、`XArticleClient`、`publishXArticle`、风格检查 + 纯文本兜底、X 常量。可跑在浏览器（x.com 同源）和 Node。 |
+**环境要求：** Node.js ≥ 18、一个你保持登录的 X 账号，上传那一步还需要 Chrome（或任意 Chromium 内核浏览器）。
 
-**基础设施：**
-
-| 包 | 用途 |
-|---|---|
-| [`@kaitox/relay`](packages/relay/README.zh-CN.md) | 本地 relay 服务（bin `kaitox-relay`），把草稿包存到 `~/.kaitox/outbox/`，入库时静默重编码超限图片。 |
-| [`@kaitox/relay-protocol`](packages/relay-protocol/README.zh-CN.md) | 零依赖线上契约：`DraftBundle` / `DraftAsset` / `StyleReport` 等类型、`RelayClient` 接口、`HttpRelayClient`、base64 工具。 |
-
-## 快速开始
+从 npm 安装 CLI——它会带上本地 relay，并提供 `kaitox` 命令：
 
 ```bash
-npm install
-npm run build            # 依次构建 relay-protocol → x-article → relay → cli
-npm test                 # x-article 引擎测试（35 条断言）
-npm run test:integration # 端到端：进程内 relay + 上传流水线（31 条断言）
-npm run test:protocol    # relay-protocol 线上契约冒烟测试（10 条断言）
-npm run test:all         # 构建 + 上面全部
-npm run build:extension  # 打包 Chrome 插件 → apps/extension/dist/
-npm run build:obsidian   # 打包 Obsidian 插件 → apps/obsidian/dist/
+npm i -g @kaitox/cli
+kaitox --version
 ```
 
-### 1. 用 CLI 推一份 Markdown
+从 [最新 release](https://github.com/kuangjiajia/kaitox-toolkit/releases) 安装 Chrome 插件：下载 `kaitox-extension-<版本>.zip` 并解压，然后打开 `chrome://extensions`，开启**开发者模式**，点**加载已解压的扩展程序**，选解压出来的文件夹。
+
+> 🖼️ _教程图 —— 在 `chrome://extensions` 加载已解压的扩展程序。_ —— `docs/images/01-load-extension.png`
+<!-- ![加载已解压的扩展程序](docs/images/01-load-extension.png) -->
+
+在登录状态下打开 <https://x.com/compose/articles>，页面角落应出现 Kaitox 面板。
+
+> 🖼️ _教程图 —— X 草稿页上的 Kaitox 面板。_ —— `docs/images/02-panel.png`
+<!-- ![x.com/compose/articles 上的 Kaitox 面板](docs/images/02-panel.png) -->
+
+（可选）[Obsidian 插件](apps/obsidian/README.zh-CN.md)可直接从 vault 推送草稿：从同一个 [release](https://github.com/kuangjiajia/kaitox-toolkit/releases) 下载 `main.js` 和 `manifest.json` 放进 `.obsidian/plugins/kaitox/`，在设置里启用。[agent skill](skills/README.zh-CN.md) 则能让 coding agent 替你跑完整个流程。
+
+> 上面的占位是注释掉的图片标签。把截图放到对应的 `docs/images/…` 路径，再取消每条说明下面那行的注释即可。见 [`docs/images/README.md`](docs/images/README.md)。
+
+## 使用 X 功能
+
+把任意 Markdown 变成 X Article 草稿只需两步——终端推送，浏览器上传。
+
+### 1. 推送 Markdown
 
 ```bash
 kaitox x push path/to/post.md
-#   会先打印「推特友好度」报告；不友好时问你：
-#   修改 / 纯文本兜底 / 原样上传
-#   --title T          覆盖标题
-#   --cover IMG        文章封面（本地路径或 http(s) URL；不进正文，
-#                      建草稿后单独设为封面）
-#   --plaintext        降级为纯文本模式
-#   --force            不友好也原样（rich）上传
-kaitox x list            # 列出 relay 上待上传的草稿
-kaitox x status <id>     # 查看单个草稿状态
 ```
 
-`push` 会自动拉起 relay。也可以手动管理：`kaitox relay --daemon` / `kaitox relay stop` / `kaitox relay status`。在包发布到 npm 之前，可直接跑 workspace 里的 bin（`node packages/cli/dist/kaitox.js ...`）或 `npm link`。
+`push` 会对文件做风格检查、把图片解析成字节、在 relay 没起时自动拉起它，并把草稿排到你本机的队列里。它先打印一份**推特友好度报告**；若内容不够 X-friendly，会问你：去修改、降级为纯文本，还是原样上传。
 
-配置：`KAITOX_HOME`（默认 `~/.kaitox`）、`KAITOX_RELAY_PORT`（默认 `8765`）；relay 只绑定 `127.0.0.1`。可选的每机 token 写在 `~/.kaitox/config.json`，以 `x-kaitox-token` 请求头校验（`GET /health` 豁免）。
+> 🖼️ _教程图 —— `kaitox x push` 的输出：风格报告与草稿 id。_ —— `docs/images/03-push.png`
+<!-- ![kaitox x push 输出](docs/images/03-push.png) -->
 
-### 2. 装 Chrome 插件
+常用参数：
 
-`chrome://extensions` → 打开「开发者模式」→「加载已解压的扩展程序」→ 选 `apps/extension/dist/`。
-然后打开 <https://x.com/compose/articles>，页面角落出现 Kaitox 面板 → 点「上传草稿」。
+| 参数 | 作用 |
+|---|---|
+| `--title "…"` | 覆盖文章标题（默认：frontmatter 的 `title:` → 第一个标题 → 文件名）。 |
+| `--cover img.png` | 设置文章封面——本地路径或 `http(s)` URL。不进正文。 |
+| `--plaintext` | 把表格 / 代码 / HTML / 嵌套列表降级为安全纯文本。 |
+| `--force` | 即使风格检查报问题也原样上传。 |
 
-### 3.（可选）装 Obsidian 插件
-
-把 `apps/obsidian/dist/` 拷进 vault 的 `.obsidian/plugins/kaitox/`，在设置里启用。用命令面板或左侧 ribbon 把当前笔记同步为 X Article 草稿。封面用 frontmatter 指定：`cover: [[封面图.png]]`（相对路径和 http(s) URL 也支持）。仅桌面端——插件需要访问本机 relay。
-
-### 4.（可选）装 agent skill
+查看队列与结果：
 
 ```bash
-cp -r skills/x-article ~/.claude/skills/
+kaitox x list          # relay 上待上传的草稿
+kaitox x status <id>   # 单个草稿的状态，以及创建后的文章 rest_id
 ```
 
-之后 coding agent 就能替你跑完整个检查加投递的流程。详见 [`skills/README.zh-CN.md`](skills/README.zh-CN.md)。
+### 2. 在浏览器里上传
 
-## 把 Kaitox 接进你自己的工具
+打开 <https://x.com/compose/articles>，在 Kaitox 面板里找到你的草稿，点**上传草稿**。插件会用你自己已登录的会话上传图片、创建 Article 草稿，然后跳进编辑器。图片和排版一次到位——满意后在 X 里自行发布。
 
-任何能向 `127.0.0.1` POST JSON 的程序都可以当上传端，relay 的 REST 接口小而稳定：
+> 🖼️ _教程图 —— 点「上传草稿」以及在 X 编辑器里生成的 Article 草稿。_ —— `docs/images/04-upload-result.png`
+<!-- ![上传草稿及在 X 编辑器里的结果](docs/images/04-upload-result.png) -->
 
-- [`docs/integrate-local-service.md`](docs/integrate-local-service.md) — 从你自己的脚本或服务向 relay 投递草稿包（用 `@kaitox/relay-protocol` 或裸 HTTP）。
-- [`docs/integrate-browser-extension.md`](docs/integrate-browser-extension.md) — 插件侧的工作原理，以及如何基于 `@kaitox/x-article` 实现你自己的上传器。
+完整参数、frontmatter 与图片解析规则、以及排障说明见 [CLI README](packages/cli/README.zh-CN.md)。
 
-## 关键不变量（改代码时守住）
+## 接入你自己的工具
 
-- `bundle.assets[].src` 必须与 `collectImageSources(markdown)` 的输出逐字相等——两端靠它对齐。
-- 封面图使用哨兵 src `'__cover__'`，在线上 assets 里以 `cover.fileName` 传递；永不出现在正文中。
-- 草稿包缺省 `kind` 即为 `'x-article'`。relay 只存储和转发 `kind`，不做解释——后续功能就是这样接入的。
-- 草稿包携带原始 Markdown，永不携带预构建的 `content_state`（media_id 只有在登录页面上传之后才存在）。
-- 引擎级不变量（字符串版 `media_id`、UTF-16 offset、全局递增的 entity key、`local_media_id === key`、`media_category=tweet_image`）由 `@kaitox/x-article` 保证；`packages/x-article/test/validate.mjs` 是回归基线。
+任何能向 `127.0.0.1` POST JSON 的程序都可以推送草稿，新功能通过草稿包的 `kind` 判别字段接入：
 
-## 已知边界
+- [`docs/integrate-local-service.zh-CN.md`](docs/integrate-local-service.zh-CN.md) — 从你自己的脚本或服务推送草稿。
+- [`docs/integrate-browser-extension.zh-CN.md`](docs/integrate-browser-extension.zh-CN.md) — 基于 `@kaitox/x-article` 实现你自己的上传器。
+- [`docs/x-article-publish-protocol.zh-CN.md`](docs/x-article-publish-protocol.zh-CN.md) — 完整的 X 线上协议。
 
-- **queryId 轮换**：X 会轮换 `ArticleEntityDraftCreate` 等接口的 queryId。插件的解析顺序：设置里手动覆盖 → 内置常量。建草稿开始失败时，去插件设置里更新 queryId。
-- **`extractRestId` 脆弱**：建草稿的响应体结构随 X 变化，`rest_id` 解析做的是宽松探测；拿不到时插件停留在当前页，提示你到文章列表里查看刚建的草稿。
-- **Obsidian 仅桌面端**：移动端 Obsidian 没有 Node，也无法访问本机 relay。
-- **合规**：本质是用你自己的登录态调 X 的私有网页接口，属非官方用法，X 轮换 queryId 时随时可能失效；这是对你自己账号的自动化——风险自担，控制频率，不要跨账号批量操作，注意 X 的自动化政策与频控。
+## 状态与边界
 
-## 延伸阅读
+`@kaitox/*` 各包已发布到 npm；Chrome 插件与 Obsidian 插件以 [GitHub Release](https://github.com/kuangjiajia/kaitox-toolkit/releases) 分发（尚未上架 Chrome 应用商店或 Obsidian 社区插件目录）。从源码构建与参与贡献见 [`docs/ARCHITECTURE.zh-CN.md`](docs/ARCHITECTURE.zh-CN.md)。
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 组件全景、一份草稿的生命周期、设计取舍。
-- [`docs/x-article-publish-protocol.md`](docs/x-article-publish-protocol.md) — 完整数据模型、Markdown → `content_state` 映射规则与坑。
+发布走的是 X 的私有网页接口加你自己的登录态：非官方用法，X 调整内部实现时随时可能失效，仅用于以人类节奏发布你自己的内容——不要批量自动化。各产品的具体限制见对应 README。
 
 ## 许可证
 

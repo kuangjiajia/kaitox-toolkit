@@ -18,15 +18,17 @@
 
 ## 安装
 
-在仓库根目录：
+从 [Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases) 下载 `main.js` 和 `manifest.json`，放进 vault 的 `.obsidian/plugins/kaitox/`（目录自行创建），然后在「设置 → 第三方插件」里启用 **Kaitox**。`kaitox-obsidian-<版本>.zip` 那个资产就是这两个文件打成的、可直接拖入的 `kaitox/` 文件夹。
+
+**仅桌面端**（`isDesktopOnly: true`）：插件要访问 `127.0.0.1` 上的本地 relay，移动端 Obsidian 做不到。
+
+### 从源码构建
+
+开发时可自行构建，在仓库根目录执行，再把 `apps/obsidian/dist/` 拷进 `.obsidian/plugins/kaitox/`：
 
 ```bash
 npm run build:obsidian   # 打包插件 → apps/obsidian/dist/
 ```
-
-把 `apps/obsidian/dist/` 拷进 vault 的 `.obsidian/plugins/kaitox/`，在「设置 → 第三方插件」里启用。
-
-**仅桌面端**（`isDesktopOnly: true`）：插件要访问 `127.0.0.1` 上的本地 relay，移动端 Obsidian 做不到。
 
 ## 用法
 
@@ -63,7 +65,7 @@ cover: "[[cover.png]]"       # 可选；wikilink、vault 相对路径或 http(s)
 
 ## 合规
 
-与[根 README](../../README.zh-CN.md#已知边界) 相同的提醒：整条流水线是用你自己已登录的 x.com 会话调 X 的私有网页接口，属非官方用法，随时可能失效；这是对你自己账号的自动化——风险自担，控制频率，注意 X 的自动化政策。
+整条流水线是用你自己已登录的 x.com 会话调 X 的私有网页接口，属非官方用法，随时可能失效；这是对你自己账号的自动化——风险自担，控制频率，注意 X 的自动化政策。
 
 ## 相关
 
@@ -71,4 +73,4 @@ cover: "[[cover.png]]"       # 可选；wikilink、vault 相对路径或 http(s)
 - [`@kaitox/x-article`](../../packages/x-article/README.zh-CN.md) — 风格检查、纯文本兜底、标题推导。
 - [`@kaitox/relay-protocol`](../../packages/relay-protocol/README.zh-CN.md) — 投递草稿用的线上契约。
 - [`apps/extension`](../extension) — 完成上传的 Chrome 插件。
-- [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) · [`docs/x-article-publish-protocol.md`](../../docs/x-article-publish-protocol.md)
+- [`docs/ARCHITECTURE.zh-CN.md`](../../docs/ARCHITECTURE.zh-CN.md) · [`docs/x-article-publish-protocol.zh-CN.md`](../../docs/x-article-publish-protocol.zh-CN.md)

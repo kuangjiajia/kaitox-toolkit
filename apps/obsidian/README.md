@@ -18,15 +18,17 @@ In plaintext mode the Markdown is degraded once at upload time (`toPlaintextMark
 
 ## Install
 
-From the repo root:
+From [Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases), download `main.js` and `manifest.json` into your vault at `.obsidian/plugins/kaitox/` (create the folder), then enable **Kaitox** in Settings → Community plugins. The `kaitox-obsidian-<version>.zip` asset is the same two files in a ready-to-drop `kaitox/` folder.
+
+**Desktop only** (`isDesktopOnly: true`): the plugin talks to the local relay on `127.0.0.1`, which mobile Obsidian cannot reach.
+
+### Build from source
+
+For development, build it yourself from the repo root, then copy `apps/obsidian/dist/` into `.obsidian/plugins/kaitox/`:
 
 ```bash
 npm run build:obsidian   # bundles the plugin → apps/obsidian/dist/
 ```
-
-Copy `apps/obsidian/dist/` into your vault at `.obsidian/plugins/kaitox/` and enable the plugin in Settings → Community plugins.
-
-**Desktop only** (`isDesktopOnly: true`): the plugin talks to the local relay on `127.0.0.1`, which mobile Obsidian cannot reach.
 
 ## Usage
 
@@ -63,7 +65,7 @@ After a successful post you get a notice; open <https://x.com/compose/articles> 
 
 ## Compliance
 
-Same caveat as the [root README](../../README.md#known-limitations): the pipeline drives your own logged-in x.com session against X's private web endpoints. It is unofficial, may break at any time, and is automation of your own account — use at your own risk, keep the frequency low, and mind X's automation policy.
+The pipeline drives your own logged-in x.com session against X's private web endpoints. It is unofficial, may break at any time, and is automation of your own account — use at your own risk, keep the frequency low, and mind X's automation policy.
 
 ## Related
 

@@ -1,3 +1,5 @@
+English | [简体中文](integrate-browser-extension.zh-CN.md)
+
 # Consume kaitox drafts and publish X Articles from your own browser extension
 
 This guide shows how to build a Chrome extension (Manifest V3) that consumes draft
@@ -185,7 +187,7 @@ bundle only when the user actually clicks upload.
 
 The full lifecycle for a single draft, mirroring
 [`apps/extension/src/uploader.ts`](../apps/extension/src/uploader.ts) and the
-`doUpload` flow in [`apps/extension/src/panel.ts`](../apps/extension/src/panel.ts):
+`doUpload` flow in [`apps/extension/src/panel.tsx`](../apps/extension/src/panel.tsx):
 
 1. `ack(id, { status: 'uploading' })` — so other consumers/UIs see it is being handled.
 2. `getDraft(id)` — fetch the full `DraftBundle` (Markdown + asset metadata).
@@ -370,7 +372,7 @@ everything above (private, not published to npm):
 - [`manifest.json`](../apps/extension/manifest.json) — the MV3 manifest this guide's snippet is distilled from.
 - [`src/uploader.ts`](../apps/extension/src/uploader.ts) — the exact `fetchImage`/`fetchCover`/`publishXArticle` wiring.
 - [`src/xsession.ts`](../apps/extension/src/xsession.ts) — `ct0` reading, relay client construction, settings with queryId overrides.
-- [`src/panel.ts`](../apps/extension/src/panel.ts) — 5s polling, `status` filtering (kind routing is server-side via the kind-scoped client), the ack lifecycle around uploads, busy-guarding, delete with confirmation.
+- [`src/panel.tsx`](../apps/extension/src/panel.tsx) — 5s polling, `status` filtering (kind routing is server-side via the kind-scoped client), the ack lifecycle around uploads, busy-guarding, delete with confirmation.
 - [`src/background.ts`](../apps/extension/src/background.ts) — optional service-worker badge counter using `alarms` (1-minute period; service workers can't poll every 5s — Chrome suspends them).
 - [`esbuild.mjs`](../apps/extension/esbuild.mjs) — the IIFE bundling setup.
 

@@ -16,15 +16,19 @@ The extension is the publishing end of the Kaitox pipeline — upload clients (t
 
 Drafts can also be deleted from the dropdown (with an in-place confirmation).
 
-## Build & load
+## Install
 
-From the repo root:
+Grab the latest build from [Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases): download `kaitox-extension-<version>.zip`, unzip it, then `chrome://extensions` → **Developer mode** → **Load unpacked** → select the unzipped folder. Open <https://x.com/compose/articles>; the Kaitox button appears in the page header.
+
+### Build from source
+
+For development, build the unpacked extension yourself from the repo root:
 
 ```bash
 npm run build:extension   # bundles the extension → apps/extension/dist/
 ```
 
-Then `chrome://extensions` → enable "Developer mode" → "Load unpacked" → select `apps/extension/dist/`. Open <https://x.com/compose/articles>; the button appears in the page header. The button's tooltip shows the build timestamp, so you can confirm which build is live after reloading.
+Then load `apps/extension/dist/` unpacked as above. The button's tooltip shows the build timestamp, so you can confirm which build is live after reloading.
 
 ## Settings
 
@@ -41,7 +45,7 @@ To set one, run e.g. `chrome.storage.sync.set({ queryId: '...' })` from the exte
 
 ## Compliance
 
-Same caveat as the [root README](../../README.md#known-limitations): the upload drives your own logged-in x.com session against X's private web endpoints. It is unofficial, may break whenever X rotates queryIds or response shapes, and is automation of your own account — use at your own risk, keep the frequency low, and mind X's automation policy.
+The upload drives your own logged-in x.com session against X's private web endpoints. It is unofficial, may break whenever X rotates queryIds or response shapes, and is automation of your own account — use at your own risk, keep the frequency low, and mind X's automation policy.
 
 ## Related
 

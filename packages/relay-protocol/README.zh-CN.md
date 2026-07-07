@@ -277,7 +277,7 @@ const bytes = base64ToBytes(b64);
 2. **relay 原样存储和转发 `kind`。** 它从不解释这个字段；你的草稿包和 `x-article` 草稿在磁盘上躺在同一个 outbox 里，但拥有自己的路由命名空间（`/my-feature/drafts`）——跨 kind 访问一律 404。
 3. **消费**时用同一个 kind 作用域客户端：`listDrafts()` 只返回你的 kind（服务端已过滤），再用 `ack` 驱动 `pending → uploading → done | failed` 生命周期。
 
-你的功能免费获得持久化、REST 接口、CORS、可选 token 鉴权和一个共享客户端。完整演练见[接入你自己的本地服务](../../docs/integrate-local-service.md)；运行 relay 本身见 [`@kaitox/relay`](../relay/README.md)。
+你的功能免费获得持久化、REST 接口、CORS、可选 token 鉴权和一个共享客户端。完整演练见[接入你自己的本地服务](../../docs/integrate-local-service.zh-CN.md)；运行 relay 本身见 [`@kaitox/relay`](../relay/README.md)。
 
 ## 许可证
 

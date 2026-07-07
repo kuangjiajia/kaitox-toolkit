@@ -1,3 +1,5 @@
+English | [简体中文](integrate-local-service.zh-CN.md)
+
 # Push drafts to kaitox from your own local service
 
 Kaitox's relay is a plain local HTTP server. The Kaitox CLI and Obsidian plugin are just two clients of it — anything that can speak HTTP to `http://127.0.0.1:8765` can queue drafts the same way. This guide shows how to push X (Twitter) Article drafts from your own Node service, script, or any other stack.

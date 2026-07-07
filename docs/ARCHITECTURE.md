@@ -1,3 +1,5 @@
+English | [简体中文](ARCHITECTURE.zh-CN.md)
+
 # Kaitox Architecture
 
 Contributor/maintainer documentation for the Kaitox monorepo. For user-facing
@@ -335,7 +337,16 @@ Exact extension points, in summary:
   feature (plus a catalog row in [`skills/README.md`](../skills/README.md)).
 - A changeset for the release (section 6).
 
-## 5. Testing
+## 5. Building & testing
+
+The `@kaitox/*` packages are published on npm (`npm i -g @kaitox/cli` for end users). To work on the monorepo, build from source — the four packages build in dependency order, the two private apps bundle separately:
+
+```bash
+npm install
+npm run build             # relay-protocol → x-article → relay → cli
+npm run build:extension   # → apps/extension/dist/  (load unpacked in Chrome)
+npm run build:obsidian    # → apps/obsidian/dist/   (copy into a vault's .obsidian/plugins/kaitox/)
+```
 
 Three suites, all runnable offline (the X API is always mocked):
 
@@ -404,12 +415,7 @@ workflow is **inert today** — it requires:
 
 ## 7. Language & naming policy
 
-- **Published surfaces are English**: package READMEs, docs under `docs/`,
-  CLI `--help` output, npm package descriptions, and manifests.
-- **Every README ships a Chinese mirror**: each `README.md` has a
-  `README.zh-CN.md` next to it, linked via a switcher line at the top of both
-  (`English | [简体中文](README.zh-CN.md)` / `[English](README.md) | 简体中文`).
-  Keep the two in sync when editing either.
+- **Every published doc ships in English + Chinese.** Package READMEs and every file under `docs/` have a `*.md` (English, canonical) next to a `*.zh-CN.md` (Chinese mirror), linked by a switcher line at the top of each (`English | [简体中文](X.zh-CN.md)` / `[English](X.md) | 简体中文`). English is the source of truth — keep the two in sync when editing either. CLI `--help` output, npm package descriptions, and manifests stay English-only.
 - **Legacy Chinese code comments stay as-is** — do not bulk-translate them;
   they carry design context (see `packages/relay-protocol/src/bundle.ts`).
 - **App UI strings are currently Chinese** (extension panel, Obsidian

@@ -16,15 +16,19 @@
 
 下拉面板里也可以删除草稿（就地二次确认，避免误删）。
 
-## 构建与加载
+## 安装
 
-在仓库根目录：
+从 [Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases) 拿最新构建：下载 `kaitox-extension-<版本>.zip` 解压，然后 `chrome://extensions` → 打开「开发者模式」→「加载已解压的扩展程序」→ 选解压出来的文件夹。打开 <https://x.com/compose/articles>，Kaitox 按钮出现在页面标题行。
+
+### 从源码构建
+
+开发时可自行构建已解压的插件，在仓库根目录：
 
 ```bash
 npm run build:extension   # 打包插件 → apps/extension/dist/
 ```
 
-然后 `chrome://extensions` → 打开「开发者模式」→「加载已解压的扩展程序」→ 选 `apps/extension/dist/`。打开 <https://x.com/compose/articles>，按钮出现在页面标题行。按钮的悬浮提示会显示构建时间戳，重新加载后可以据此确认生效的是哪个构建。
+然后按上面的方式加载 `apps/extension/dist/`。按钮的悬浮提示会显示构建时间戳，重新加载后可以据此确认生效的是哪个构建。
 
 ## 设置
 
@@ -41,7 +45,7 @@ npm run build:extension   # 打包插件 → apps/extension/dist/
 
 ## 合规
 
-与[根 README](../../README.zh-CN.md#已知边界) 相同的提醒：上传是用你自己已登录的 x.com 会话调 X 的私有网页接口，属非官方用法，X 轮换 queryId 或改响应结构时随时可能失效；这是对你自己账号的自动化——风险自担，控制频率，注意 X 的自动化政策。
+上传是用你自己已登录的 x.com 会话调 X 的私有网页接口，属非官方用法，X 轮换 queryId 或改响应结构时随时可能失效；这是对你自己账号的自动化——风险自担，控制频率，注意 X 的自动化政策。
 
 ## 相关
 
@@ -49,5 +53,5 @@ npm run build:extension   # 打包插件 → apps/extension/dist/
 - [`@kaitox/x-article`](../../packages/x-article/README.zh-CN.md) — 插件运行的引擎（转换器、客户端、编排）。
 - [`@kaitox/relay-protocol`](../../packages/relay-protocol/README.zh-CN.md) — 轮询 relay 用的线上契约。
 - [`apps/obsidian`](../obsidian) — 从 vault 推草稿过来的 Obsidian 插件。
-- [`docs/integrate-browser-extension.md`](../../docs/integrate-browser-extension.md) — 基于同一个 relay 实现你自己的上传器。
-- [`docs/x-article-publish-protocol.md`](../../docs/x-article-publish-protocol.md) — 完整的 X 线上协议。
+- [`docs/integrate-browser-extension.zh-CN.md`](../../docs/integrate-browser-extension.zh-CN.md) — 基于同一个 relay 实现你自己的上传器。
+- [`docs/x-article-publish-protocol.zh-CN.md`](../../docs/x-article-publish-protocol.zh-CN.md) — 完整的 X 线上协议。
