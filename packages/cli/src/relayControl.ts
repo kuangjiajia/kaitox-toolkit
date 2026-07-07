@@ -7,6 +7,7 @@ import {
   isRelayUp as relayIsUp,
   spawnDaemon,
   stopDaemon,
+  killPortOccupants,
   relayBaseUrl as relayBase,
   startRelay,
 } from '@kaitox/relay';
@@ -59,4 +60,11 @@ export async function runRelayForeground(): Promise<void> {
 
 export async function stopRelay(): Promise<boolean> {
   return stopDaemon();
+}
+
+/** 重启 relay：先杀掉端口上的旧进程（pidfile 优雅停 + 端口兜底清扫），再 detached 拉起。 */
+export async function restartRelay(): Promise<void> {
+  await stopDaemon();
+  await killPortOccupants();
+  await spawnDaemon(relayCliPath());
 }

@@ -198,9 +198,11 @@ X Article 正文用的是 **Draft.js 的 `RawDraftContentState`**，但 X 做了
 // 分割线 ---
 { "key": 2, "value": { "type": "DIVIDER", "mutability": "Immutable", "data": {} } }
 
-// 代码块 / ASCII 图：整段围栏原样塞进 markdown 字段（这是 X 的「万能转义」块）
-{ "key": 0, "value": { "type": "MARKDOWN", "mutability": "Immutable",
-    "data": { "markdown": "```plaintext\nHarness Engineering …\n```" } } }
+// 代码块 / ASCII 图 / 表格：markdown 原文塞进 markdown 字段，X 端按 markdown 渲染
+//（表格显示为原生表格）。注意 mutability 必须是 Mutable（X 编辑器实测载荷，2026-07 抓包）：
+// Immutable 能过 GraphQL 校验，但渲染端会丢内容。markdown 字段前后要带换行。
+{ "key": 0, "value": { "type": "MARKDOWN", "mutability": "Mutable",
+    "data": { "markdown": "\n```plaintext\nHarness Engineering …\n```\n" } } }
 
 // 链接：被普通/列表 block 的 entity_range 引用，覆盖显示文字
 { "key": 30, "value": { "type": "LINK", "mutability": "Mutable",
@@ -228,9 +230,9 @@ X Article 正文用的是 **Draft.js 的 `RawDraftContentState`**，但 X 做了
 | `` `行内代码` `` | 普通文本（X 无行内代码样式，`Code` 枚举实测被拒） |
 | `[文字](url)` | 新建 `LINK` 实体 + `entity_range` 覆盖「文字」 |
 | `![alt](src)` | **先上传图片** → 新建 `MEDIA` 实体 + 一个 `atomic` block |
-| ` ```代码``` ` | 新建 `MARKDOWN` 实体（`data.markdown` = 完整围栏串）+ 一个 `atomic` block |
+| ` ```代码``` ` | 新建 `MARKDOWN` 实体（`data.markdown` = 完整围栏串，换行包裹）+ 一个 `atomic` block |
 | `---` | 新建 `DIVIDER` 实体 + 一个 `atomic` block |
-| 表格 | X 无原生表格 → 退化为 `MARKDOWN` 实体（保留原始 markdown） |
+| 表格 | `MARKDOWN` 实体（原始 markdown，换行包裹）——X 端按 markdown 原生渲染为表格 |
 
 一个实现细节：代码块/ASCII 图统一包成 ` ```plaintext ` 的 MARKDOWN 实体（X Article 编辑器对所有代码块都用 `plaintext` 渲染）。
 

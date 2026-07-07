@@ -30,7 +30,9 @@ export type {
   RelayClient,
   PostDraftInput,
   DraftAssetInput,
+  SetCoverInput,
   PostDraftWireBody,
+  SetCoverWireBody,
   HttpRelayClientOptions,
 } from './relayClient.js';
 export { bytesToBase64, base64ToBytes } from './base64.js';

@@ -1,15 +1,12 @@
 #!/usr/bin/env node
 /**
- * kaitox — local publishing platform CLI.
+ * kaitox — CLI of the Kaitox personal toolkit.
  *
  * Commands are grouped by feature namespace so new features slot in as
  * `kaitox <feature> <action>`:
  *
  *   kaitox x push|list|status   X (Twitter) Article publishing
  *   kaitox relay ...            local relay lifecycle (infrastructure)
- *
- * Legacy top-level aliases (push/list/status) delegate to `kaitox x ...`
- * with a deprecation note; they will not be removed before 1.0.
  */
 import { createRequire } from 'node:module';
 import { runX, ARTICLES_URL } from './commands/x.js';
@@ -19,9 +16,6 @@ import { runRelay } from './commands/relay.js';
 const FEATURES: Record<string, (args: string[]) => Promise<void>> = {
   x: runX,
 };
-
-/** Legacy top-level commands that now live under `kaitox x`. */
-const X_ALIASES = new Set(['push', 'list', 'status']);
 
 function cliVersion(): string {
   try {
@@ -52,18 +46,13 @@ async function main(): Promise<void> {
     await feature(argv.slice(1));
     return;
   }
-  if (X_ALIASES.has(cmd)) {
-    console.error(`note: "kaitox ${cmd}" is deprecated, use "kaitox x ${cmd}"`);
-    await runX(argv);
-    return;
-  }
   console.error(`Unknown command: ${cmd}\n`);
   printHelp();
   process.exit(1);
 }
 
 function printHelp(): void {
-  console.log(`kaitox — local publishing platform CLI (v${cliVersion()})
+  console.log(`kaitox — personal toolkit CLI (v${cliVersion()})
 
 Usage:
   kaitox <feature> <action> [options]
@@ -76,10 +65,8 @@ Features:
 Infrastructure:
   kaitox relay [--daemon]     run the local relay (foreground / background)
   kaitox relay stop           stop the background relay
+  kaitox relay restart        restart the relay (kill whatever holds the port, then start)
   kaitox relay status         show relay status
-
-Aliases (deprecated):
-  kaitox push|list|status     → kaitox x push|list|status
 
 After pushing: open ${ARTICLES_URL} and use the kaitox browser extension
 to upload pending drafts.`);

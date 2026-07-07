@@ -1,6 +1,8 @@
+English | [简体中文](README.zh-CN.md)
+
 # @kaitox/cli
 
-Command line for [Kaitox](https://kaitox.ai), a local publishing platform. The current feature: style-check a local Markdown file, bundle it together with its image bytes, and deliver it to your local [Kaitox relay](../relay) as an **X (Twitter) Article draft**. The Kaitox Chrome extension then writes the draft into X from your own logged-in browser session.
+The command-line product of [Kaitox](https://kaitox.ai), a personal toolkit. The current feature: style-check a local Markdown file, bundle it together with its image bytes, and deliver it to your local [Kaitox relay](../relay) as an **X (Twitter) Article draft**. The Kaitox Chrome extension then writes the draft into X from your own logged-in browser session.
 
 The CLI never talks to X directly — it only talks to the relay on `127.0.0.1`. See [the publish protocol](../../docs/x-article-publish-protocol.md) for how the pieces fit together.
 
@@ -56,6 +58,7 @@ Relay lifecycle. You rarely need these — `kaitox x push` starts the relay on d
 kaitox relay            # run in the foreground (Ctrl-C to stop)
 kaitox relay --daemon   # start in the background (no-op if already running)
 kaitox relay stop       # stop the background relay
+kaitox relay restart    # kill whatever holds the port, then start again
 kaitox relay status     # is it running, and on which URL
 ```
 
@@ -67,10 +70,6 @@ The relay listens on `http://127.0.0.1:8765` and stores drafts under `~/.kaitox/
 kaitox --version   # or -v
 kaitox help        # or -h / --help; also: kaitox x --help
 ```
-
-### Deprecated aliases
-
-The top-level `kaitox push`, `kaitox list` and `kaitox status` still work: they print a deprecation note on stderr and delegate to `kaitox x push|list|status`. They will not be removed before 1.0, but new scripts should use the `kaitox x ...` form.
 
 ## Frontmatter support
 
@@ -104,7 +103,7 @@ Bundle file names are sanitized and de-duplicated, so images with the same base 
 
 ## Agent skill
 
-The npm package ships an agent skill at [`skills/x-article/SKILL.md`](skills/x-article/SKILL.md) for Claude Code / Codex-style coding agents. It teaches an agent the full loop: run `kaitox x push`, translate every style error/warning into plain language, offer the fix / `--plaintext` / `--force` choice to the user (agents run without a TTY, so the explicit flags matter), and hand off to the browser step. Point your agent's skill discovery at the installed package directory, or copy the folder into your project's skills directory.
+Agent skills are their own product of the Kaitox toolkit, living at the repo root under [`skills/`](../../skills/README.md). The [`x-article` skill](../../skills/x-article/SKILL.md) teaches Claude Code / Codex-style coding agents the full loop around this CLI: run `kaitox x push`, translate every style error/warning into plain language, offer the fix / `--plaintext` / `--force` choice to the user (agents run without a TTY, so the explicit flags matter), and hand off to the browser step. See [`skills/README.md`](../../skills/README.md) for how to install it.
 
 ## What happens after push
 

@@ -1,22 +1,32 @@
 {
   "name": "@kaitox/cli",
-  "version": "0.3.0",
-  "description": "kaitox CLI — local publishing platform. Current feature: style-check, bundle and deliver local Markdown to the local relay as X (Twitter) Article drafts (kaitox x push).",
+  "version": "0.3.1",
+  "description": "The kaitox command line — CLI product of the Kaitox personal toolkit. Current feature: style-check, bundle and deliver local Markdown to the local relay as X (Twitter) Article drafts (kaitox x push).",
   "license": "MIT",
   "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",
   "homepage": "https://kaitox.ai",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kaitox/kaitox.git",
+    "url": "git+https://github.com/kuangjiajia/kaitox-toolkit.git",
     "directory": "packages/cli"
   },
-  "bugs": "https://github.com/kaitox/kaitox/issues",
-  "keywords": ["kaitox", "cli", "x", "twitter", "article", "markdown", "publishing"],
+  "bugs": "https://github.com/kuangjiajia/kaitox-toolkit/issues",
+  "keywords": [
+    "kaitox",
+    "cli",
+    "x",
+    "twitter",
+    "article",
+    "markdown",
+    "publishing"
+  ],
   "type": "module",
   "bin": {
     "kaitox": "dist/kaitox.js"
   },
-  "files": ["dist", "skills"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -28,8 +38,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@kaitox/relay": "^0.3.0",
-    "@kaitox/relay-protocol": "^0.3.0",
-    "@kaitox/x-article": "^0.3.0"
+    "@kaitox/relay": "^0.4.0",
+    "@kaitox/relay-protocol": "^0.4.0",
+    "@kaitox/x-article": "^0.4.0"
   }
 }

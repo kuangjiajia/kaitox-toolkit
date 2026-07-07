@@ -3,6 +3,7 @@
  *
  *   kaitox relay [--daemon]   run in foreground / start in background
  *   kaitox relay stop         stop the background relay
+ *   kaitox relay restart      kill whatever holds the port, then start again
  *   kaitox relay status       show whether the relay is running
  */
 import {
@@ -10,6 +11,7 @@ import {
   runRelayForeground,
   spawnRelay,
   stopRelay,
+  restartRelay,
   relayBaseUrl,
 } from '../relayControl.js';
 
@@ -18,6 +20,11 @@ export async function runRelay(args: string[]): Promise<void> {
   if (sub === 'stop') {
     const ok = await stopRelay();
     console.log(ok ? 'relay 已停止。' : '没有找到运行中的 relay（pidfile 缺失）。');
+    return;
+  }
+  if (sub === 'restart') {
+    await restartRelay();
+    console.log(`relay 已重启：${relayBaseUrl()}`);
     return;
   }
   if (sub === 'status') {

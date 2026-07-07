@@ -1,8 +1,10 @@
+English | [简体中文](README.zh-CN.md)
+
 # @kaitox/relay
 
-Local, loopback-only draft relay for the [Kaitox](https://kaitox.ai) publishing platform. Upload clients (the [`@kaitox/cli`](../cli/README.md), the Obsidian plugin, or your own service) POST draft bundles — raw Markdown plus image bytes — to `http://127.0.0.1:8765`; the relay stores them on disk under `~/.kaitox/outbox/`, and the Kaitox Chrome extension polls it from `https://x.com/compose/articles` to publish drafts using your own logged-in session.
+Local, loopback-only draft relay for the [Kaitox](https://kaitox.ai) toolkit. Upload clients (the [`@kaitox/cli`](../cli/README.md), the Obsidian plugin, or your own service) POST draft bundles — raw Markdown plus image bytes — to `http://127.0.0.1:8765`; the relay stores them on disk under `~/.kaitox/outbox/`, and the Kaitox Chrome extension polls it from `https://x.com/compose/articles` to publish drafts using your own logged-in session.
 
-Zero third-party dependencies: pure `node:http`, plus the zero-dep [`@kaitox/relay-protocol`](../relay-protocol/README.md) wire contract. Ships the `kaitox-relay` CLI.
+Pure `node:http` server on top of the zero-dep [`@kaitox/relay-protocol`](../relay-protocol/README.md) wire contract; [sharp](https://sharp.pixelplumbing.com) transparently re-encodes images over X's 5MB upload limit at ingest. Ships the `kaitox-relay` CLI.
 
 Requires Node.js >= 18 (global `fetch`). ESM only.
 
@@ -29,7 +31,7 @@ kaitox-relay start      # start in the background (daemon; returns once /health 
 kaitox-relay dev        # run in the foreground (blocks; Ctrl-C to exit — use for debugging)
 kaitox-relay stop       # stop the background daemon (SIGTERM via pidfile)
 kaitox-relay status     # is it running, and where
-kaitox-relay restart    # stop, then start
+kaitox-relay restart    # kill whatever holds the port (even without a pidfile), then start again
 kaitox-relay --version  # print the version
 ```
 
@@ -106,6 +108,7 @@ Exports:
 | `isRelayUp()` | `async fn` | `GET /health` probe → `boolean` |
 | `spawnDaemon(entryScript)` | `async fn` | Detach a background relay (re-runs the given CLI script with `dev`) and wait until `/health` is ready (~5 s timeout) |
 | `stopDaemon()` | `async fn` | Read the pidfile, `SIGTERM`, wait for the port to free; `true` if a process was signalled |
+| `killPortOccupants()` | `async fn` | Kill whatever listens on the relay port (`SIGTERM`, then `SIGKILL` after a grace period) — the pidfile-free fallback behind `restart`; `true` if anything was signalled |
 | `relayBaseUrl()` | fn | `http://127.0.0.1:<port>` for the configured port |
 | `RELAY_VERSION`, `DEFAULT_PORT`, `HOST` | consts | Version string, `8765`, `'127.0.0.1'` |
 | `relayPort()`, `kaitoxHome()`, `outboxDir()`, `sentDir()`, `configPath()`, `pidPath()` | fns | Resolved config values and paths (env-aware) |

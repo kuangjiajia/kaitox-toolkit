@@ -1,17 +1,24 @@
 {
   "name": "@kaitox/relay",
-  "version": "0.3.0",
-  "description": "kaitox local relay: stores draft bundles on 127.0.0.1 — upload clients POST, browser extensions poll. Zero third-party dependencies. Ships the kaitox-relay CLI (start/dev/stop/status).",
+  "version": "0.4.0",
+  "description": "Local draft relay for the Kaitox toolkit: stores draft bundles on 127.0.0.1 — upload clients POST, browser extensions poll. Images over X's upload limit are transparently re-encoded at ingest. Ships the kaitox-relay CLI (start/dev/stop/status/restart).",
   "license": "MIT",
   "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",
   "homepage": "https://kaitox.ai",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kaitox/kaitox.git",
+    "url": "git+https://github.com/kuangjiajia/kaitox-toolkit.git",
     "directory": "packages/relay"
   },
-  "bugs": "https://github.com/kaitox/kaitox/issues",
-  "keywords": ["kaitox", "relay", "draft", "publishing", "daemon", "cli"],
+  "bugs": "https://github.com/kuangjiajia/kaitox-toolkit/issues",
+  "keywords": [
+    "kaitox",
+    "relay",
+    "draft",
+    "toolkit",
+    "daemon",
+    "cli"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,7 +33,9 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -41,6 +50,7 @@
     "stop": "node dist/cli.js stop"
   },
   "dependencies": {
-    "@kaitox/relay-protocol": "^0.3.0"
+    "@kaitox/relay-protocol": "^0.4.0",
+    "sharp": "^0.35.3"
   }
 }

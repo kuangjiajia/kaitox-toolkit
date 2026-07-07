@@ -46,6 +46,13 @@ export interface PostDraftInput {
   cover?: DraftAssetInput;
 }
 
+/** 设置/替换封面所需的输入（内存字节形态）。 */
+export interface SetCoverInput {
+  fileName: string;
+  mime: string;
+  bytes: Uint8Array;
+}
+
 /** relay 客户端接口。本地 relay 与云端 relay 共用。 */
 export interface RelayClient {
   health(): Promise<{ ok: boolean; version: string; port?: number }>;
@@ -53,6 +60,8 @@ export interface RelayClient {
   listDrafts(): Promise<DraftListItem[]>;
   getDraft(id: string): Promise<DraftBundle>;
   getAsset(id: string, fileName: string): Promise<Uint8Array>;
+  /** 设置/替换草稿封面（写回 relay，落盘到 assets/；插件「上传封面」用）。 */
+  setCover(id: string, cover: SetCoverInput): Promise<void>;
   ack(id: string, patch: { status: DraftStatus; restId?: string; error?: string }): Promise<void>;
   deleteDraft(id: string): Promise<void>;
 }
@@ -61,6 +70,13 @@ export interface RelayClient {
 export interface PostDraftWireBody {
   bundle: Omit<DraftBundle, 'status' | 'restId' | 'error'>;
   assets: Array<{ fileName: string; mime: string; base64: string }>;
+}
+
+/** PUT /drafts/:id/cover 的线上 JSON 形态（与 POST /drafts 的资源编码一致，base64 免 multipart）。 */
+export interface SetCoverWireBody {
+  fileName: string;
+  mime: string;
+  base64: string;
 }
 
 export interface HttpRelayClientOptions {
@@ -180,6 +196,20 @@ export class HttpRelayClient implements RelayClient {
     );
     if (!res.ok) throw new Error(`relay GET asset ${res.status}`);
     return new Uint8Array(await res.arrayBuffer());
+  }
+
+  async setCover(id: string, cover: SetCoverInput): Promise<void> {
+    const body: SetCoverWireBody = {
+      fileName: cover.fileName,
+      mime: cover.mime,
+      base64: bytesToBase64(cover.bytes),
+    };
+    const res = await this.fetchImpl(`${this.base}/drafts/${encodeURIComponent(id)}/cover`, {
+      method: 'PUT',
+      headers: this.headers({ 'content-type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`relay PUT /drafts/${id}/cover ${res.status}: ${await safeText(res)}`);
   }
 
   async ack(id: string, patch: { status: DraftStatus; restId?: string; error?: string }): Promise<void> {

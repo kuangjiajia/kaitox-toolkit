@@ -1,7 +1,10 @@
 /** 后台守护进程的拉起 / 探活 / 停止。供 relay 自己的 CLI 与外部（@kaitox/cli）复用。 */
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { readFile, rm } from 'node:fs/promises';
 import { HOST, relayPort, pidPath } from './config.js';
+
+const execFileP = promisify(execFile);
 
 export function relayBaseUrl(): string {
   return `http://${HOST}:${relayPort()}`;
@@ -66,6 +69,63 @@ export async function waitUntilDown(timeoutMs = 3000): Promise<void> {
     if (!(await isRelayUp())) return;
     await sleep(100);
   }
+}
+
+/**
+ * 清扫占用 relay 端口的进程（restart 的兜底）：不依赖 pidfile，能杀掉 pidfile
+ * 丢失/过期的孤儿 relay。先 SIGTERM 等优雅退出，超时仍占着端口就 SIGKILL。
+ * 返回是否发过信号（端口本来就空闲时为 false）。
+ */
+export async function killPortOccupants(): Promise<boolean> {
+  const port = relayPort();
+  const pids = await pidsOnPort(port);
+  if (!pids.length) return false;
+  for (const pid of pids) tryKill(pid, 'SIGTERM');
+  if (!(await waitPortFree(port))) {
+    for (const pid of await pidsOnPort(port)) tryKill(pid, 'SIGKILL');
+    await waitPortFree(port);
+  }
+  await rm(pidPath(), { force: true }).catch(() => {});
+  return true;
+}
+
+/** 监听指定端口的进程 pid（macOS/Linux 用 lsof，Windows 解析 netstat；查不到按空闲算）。 */
+async function pidsOnPort(port: number): Promise<number[]> {
+  try {
+    if (process.platform === 'win32') {
+      const { stdout } = await execFileP('netstat', ['-ano', '-p', 'tcp']);
+      const pids = stdout
+        .split('\n')
+        .filter((l) => l.includes(`:${port} `) && /LISTENING/i.test(l))
+        .map((l) => parseInt(l.trim().split(/\s+/).pop() ?? '', 10));
+      return [...new Set(pids.filter((n) => Number.isFinite(n) && n > 0))];
+    }
+    const { stdout } = await execFileP('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN']);
+    return stdout
+      .split('\n')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0);
+  } catch {
+    return []; // lsof 无匹配时以非零码退出，一并视作端口空闲
+  }
+}
+
+function tryKill(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(pid, signal);
+  } catch {
+    /* 进程已自行退出 */
+  }
+}
+
+/** 轮询直到端口上不再有监听进程（或超时）；返回端口是否已释放。 */
+async function waitPortFree(port: number, timeoutMs = 3000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await pidsOnPort(port)).length) return true;
+    await sleep(100);
+  }
+  return false;
 }
 
 function sleep(ms: number): Promise<void> {

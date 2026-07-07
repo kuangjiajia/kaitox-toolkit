@@ -6,7 +6,7 @@
  *
  *   构造            转换器实际行为（contentState.ts）        →  规则/级别
  *   ------------------------------------------------------------------------
- *   表格            退化成 MARKDOWN atomic，原样显示管道符      →  table / warning
+ *   表格            MARKDOWN atomic，X 原生渲染为表格           →  table / info
  *   嵌套列表        collectListItemInline 丢弃子列表            →  nested-list / warning
  *   HTML 块         case 'html' 直接 break，内容丢失            →  html-block / warning
  *   代码块          MARKDOWN plaintext atomic（可接受）         →  code-block / info
@@ -15,7 +15,8 @@
  *   任务列表 - [ ]  当普通列表项，勾选框丢失                     →  task-list / info
  *   远程图片        插件只上传本地字节，远程图需上传端预下载      →  image-remote / warning
  *   本地图缺失      无字节 → pushImage 跳过                     →  image-missing / error
- *   图片过大        上传可能被 X 拒                            →  image-too-large / warning
+ *   图片过大        PNG/JPEG/WebP 由 relay 入库自动压缩（无感）  →  不报
+ *                   GIF/SVG 等不可压缩格式仍可能被 X 拒          →  image-too-large / warning
  *   空文档          X 要求非空正文（转换器塞空段落兜底）          →  empty-doc / error
  */
 
@@ -43,12 +44,16 @@ interface LooseToken {
   raw?: string;
   text?: string;
   depth?: number;
+  lang?: string;
   items?: LooseToken[];
   tokens?: LooseToken[];
   task?: boolean;
 }
 
 const DEFAULT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** relay 入库时会自动重编码压缩的格式：超限也无需打扰用户，不报问题。 */
+const AUTO_COMPRESSED_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 /** 主入口：扫描 markdown，返回风格报告。 */
 export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {}): StyleReport {
@@ -65,11 +70,9 @@ export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {
       case 'table':
         issues.push({
           rule: 'table',
-          severity: 'warning',
-          message: '表格在 X Article 里没有原生支持，会退化成代码块原样显示管道符。',
-          suggestion: '改成列表、散文，或把表格截成图片插入。',
+          severity: 'info',
+          message: '表格会以 Markdown 块上传，X Article 原生渲染为表格。',
           line,
-          excerpt: excerpt(t.raw),
         });
         break;
       case 'html':
@@ -82,14 +85,18 @@ export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {
           excerpt: excerpt(t.raw),
         });
         break;
-      case 'code':
+      case 'code': {
+        const isMermaid = (t.lang ?? '').trim().split(/\s+/)[0].toLowerCase() === 'mermaid';
         issues.push({
-          rule: 'code-block',
+          rule: isMermaid ? 'mermaid-block' : 'code-block',
           severity: 'info',
-          message: '代码块会以纯文本代码框呈现（无语法高亮），一般可接受。',
+          message: isMermaid
+            ? 'mermaid 代码块会在上传时渲染成图片（语法错误会导致上传失败，请先确认图能画出来）。'
+            : '代码块会以纯文本代码框呈现（无语法高亮），一般可接受。',
           line,
         });
         break;
+      }
       case 'heading': {
         // 层级约定：h1 = 主标题（不进正文），h2 = Heading，h3 = SubHeading。
         const d = t.depth ?? 2;
@@ -199,12 +206,19 @@ export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {
       });
       continue;
     }
-    if (meta && typeof meta.bytesLen === 'number' && meta.bytesLen > maxBytes) {
+    // 超限的 PNG/JPEG/WebP 由 relay 入库时静默压缩，不打扰；只有不可压缩的格式才值得报。
+    if (
+      meta &&
+      typeof meta.bytesLen === 'number' &&
+      meta.bytesLen > maxBytes &&
+      meta.mime !== undefined &&
+      !AUTO_COMPRESSED_MIMES.has(meta.mime)
+    ) {
       issues.push({
         rule: 'image-too-large',
         severity: 'warning',
-        message: `图片 ${src} 约 ${(meta.bytesLen / 1024 / 1024).toFixed(1)}MB，超过 ${(maxBytes / 1024 / 1024).toFixed(0)}MB，X 可能拒绝。`,
-        suggestion: '压缩或缩小图片。',
+        message: `图片 ${src} 约 ${(meta.bytesLen / 1024 / 1024).toFixed(1)}MB，超过 ${(maxBytes / 1024 / 1024).toFixed(0)}MB，且 ${meta.mime} 不会被自动压缩，X 可能拒绝。`,
+        suggestion: '换成 PNG / JPEG / WebP（超限会自动压缩），或手动缩小。',
         line,
         excerpt: src,
       });
@@ -237,10 +251,11 @@ export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {
 // ---------------------------------------------------------------------------
 
 /**
- * 用户不修改「不友好」构造时的兜底：只降级会渲染坏/丢内容的构造，其余（标题、粗斜体、
- * 链接、图片）原样保留。产物仍是 Markdown，交给 markdownToContentState 即可。
+ * 用户不修改「不友好」构造时的兜底：只降级转换器真正会丢内容的构造——
+ * HTML 块（转换时整段丢弃）→ 去标签的普通段落；嵌套列表（子项被丢弃）→ 拍平一级。
+ * 其余一切原样保留，包括表格与代码围栏（两者经 MARKDOWN 实体上传，X 原生渲染，
+ * 打平反而是内容损失）。产物仍是 Markdown，交给 markdownToContentState 即可。
  *
- * 降级：表格→单元格文字拼成段落；代码/HTML→去围栏/去标签的普通段落；嵌套列表→拍平一级。
  * 实现：遍历 top-level token，友好的直接拷贝 token.raw（原样），不友好的替换成降级文本。
  */
 export function toPlaintextMarkdown(markdown: string): string {
@@ -248,12 +263,6 @@ export function toPlaintextMarkdown(markdown: string): string {
   let out = '';
   for (const t of tokens) {
     switch (t.type) {
-      case 'table':
-        out += degradeTable(t) + '\n\n';
-        break;
-      case 'code':
-        out += (t.text ?? '').trim() + '\n\n';
-        break;
       case 'html':
         out += stripHtml(t.raw ?? '').trim() + '\n\n';
         break;
@@ -282,19 +291,6 @@ function hasNestedList(listToken: LooseToken): boolean {
 
 function hasTaskItem(listToken: LooseToken): boolean {
   return (listToken.items ?? []).some((it) => it.task === true);
-}
-
-function degradeTable(t: any): string {
-  const rows: string[] = [];
-  const cellText = (cell: any): string =>
-    typeof cell === 'string' ? cell : (cell?.text ?? '');
-  if (Array.isArray(t.header)) {
-    rows.push(t.header.map(cellText).filter(Boolean).join(' · '));
-  }
-  for (const row of t.rows ?? []) {
-    if (Array.isArray(row)) rows.push(row.map(cellText).filter(Boolean).join(' · '));
-  }
-  return rows.filter((r) => r.trim().length > 0).join('\n');
 }
 
 function stripHtml(raw: string): string {

@@ -39,7 +39,6 @@ description: 把本地 Markdown 检查并同步为 X (Twitter) Article 草稿。
 - `kaitox x list` —— 看有哪些待上传草稿。
 - `kaitox x status <id>` —— 看某草稿的上传状态 / 文章 rest_id。
 - `kaitox relay status|--daemon|stop` —— relay 一般会被 `kaitox x push` 自动拉起，通常不用手动管。
-- 旧的顶层 `kaitox push|list|status` 仍可用（会打 deprecation 提示），新脚本请一律用 `kaitox x ...`。
 
 ## 提醒用户的要点
 

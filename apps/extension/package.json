@@ -1,7 +1,7 @@
 {
   "name": "@kaitox/extension",
   "version": "0.3.0",
-  "description": "kaitox Chrome 插件（MV3）：在 x.com 文章草稿页把 relay 里的待办草稿一键上传为 X Article",
+  "description": "Kaitox Chrome extension (MV3) — browser product of the Kaitox toolkit. Current feature: uploads pending Markdown drafts from the local relay as X (Twitter) Article drafts on x.com.",
   "type": "module",
   "private": true,
   "scripts": {
@@ -10,10 +10,15 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@kaitox/relay-protocol": "^0.3.0",
-    "@kaitox/x-article": "^0.3.0"
+    "@kaitox/relay-protocol": "^0.4.0",
+    "@kaitox/x-article": "^0.4.0",
+    "mermaid": "^11.16.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.268"
+    "@types/chrome": "^0.2.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3"
   }
 }

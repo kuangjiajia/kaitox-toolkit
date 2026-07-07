@@ -1,4 +1,5 @@
-/* kaitox 样式。作用域限定在注入的按钮 #kaitox-hdr-btn 和下拉 #kaitox-dropdown 下，避免污染 x.com。 */
+/* kaitox 样式。作用域限定在注入的按钮 #kaitox-hdr-btn 和弹窗 .kx-overlay/#kaitox-modal 下，避免污染 x.com。
+   弹窗配色参照「草稿箱」设计稿：白卡片两栏布局 + 黑色主按钮；设置面板沿用 YouMind 米白风格。 */
 
 /* --- 注入到 Articles 标题行的按钮 --- */
 #kaitox-hdr-btn {
@@ -10,18 +11,20 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #0f1419;
+  background: #1a1a1a;
   color: #fff;
   border: none;
   border-radius: 999px;
   padding: 4px 8px 4px 4px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s ease, transform 0.12s ease;
 }
-#kaitox-hdr-btn .kx-hdr-btn:hover { background: #272c30; }
+#kaitox-hdr-btn .kx-hdr-btn:hover { background: #333331; }
+#kaitox-hdr-btn .kx-hdr-btn:active { transform: scale(0.96); }
 /* 黑白头像块：白底 + 黑 logo（currentColor=黑），让头像本体露出来 */
 #kaitox-hdr-btn .kx-hdr-logo {
   display: inline-flex;
@@ -32,7 +35,7 @@
   height: 20px;
   border-radius: 50%;
   background: #fff;
-  color: #0f1419;
+  color: #1a1a1a;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
@@ -44,129 +47,1058 @@
   min-width: 16px;
   height: 16px;
   padding: 2px;
-  background: #1d9bf0;
-  color: #fff;
+  background: #fff;
+  color: #1a1a1a;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
+  animation: kx-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 #kaitox-hdr-btn .kx-hidden { display: none; }
 
-/* --- 下拉面板（fixed，位置由 JS 对齐到按钮下方）--- */
-#kaitox-dropdown {
+/* --- 遮罩 + 草稿箱弹窗（两栏大卡片） --- */
+.kx-overlay {
   position: fixed;
-  width: 320px;
-  max-height: 70vh;
+  inset: 0;
+  background: rgba(20, 20, 20, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 2147483000;
+  animation: kx-fade-in 0.18s ease both;
+}
+.kx-overlay.kx-hidden { display: none; }
+/* 关闭时 JS 先加 .kx-closing 播退场动画，动画播完（use-closing.ts 的 KX_CLOSE_MS）才卸载 */
+.kx-overlay.kx-closing { animation: kx-fade-out 0.15s ease both; }
+
+#kaitox-modal {
+  /* 设计 token（浅色）。暗色在文件底部的 media 块里整套重声明，组件一律读变量。 */
+  --kx-text: #1c1c1c;
+  --kx-text-2: #8f8f8b;
+  --kx-text-3: #a3a39f;
+  --kx-text-4: #b5b5b1;
+  --kx-card: #ffffff;
+  --kx-side: #fbfbfa;
+  --kx-border: #e7e7e5;
+  --kx-border-soft: #eeeeec;
+  --kx-hairline: #f1f1ef;
+  --kx-hover: #f2f2f1;
+  --kx-row-sel: #f6f6f4;
+  --kx-box: #f4f4f2;
+  --kx-thumb-bg: #f5f5f3;
+  --kx-btn-gray: #f1f1ef;
+  --kx-btn-gray-h: #eaeae7;
+  --kx-btn-gray-fg: #3a3a37;
+  --kx-primary: #1c1c1c;
+  --kx-primary-h: #333331;
+  --kx-primary-fg: #ffffff;
+  --kx-green: #2f8f4e;
+  --kx-green-bg: #eaf5ec;
+  --kx-green-dot: #37a35a;
+  --kx-amber: #c98a2e;
+  --kx-amber-bg: #fdf3e3;
+  --kx-blue: #3a72b0;
+  --kx-blue-bg: #e9f0f8;
+  --kx-red: #d0463f;
+  --kx-red-bg: #fbf0ef;
+
+  width: min(1300px, 100%);
+  height: min(820px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   overflow: hidden;
+  background: var(--kx-card);
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 12px 40px rgba(0, 0, 0, 0.18);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--kx-text);
+  animation: kx-pop-in 0.24s cubic-bezier(0.32, 0.72, 0.33, 1) both;
+}
+.kx-overlay.kx-closing > #kaitox-modal { animation: kx-pop-out 0.15s ease both; }
+#kaitox-modal * { box-sizing: border-box; }
+
+#kaitox-modal .kx-svg { display: inline-flex; align-items: center; }
+#kaitox-modal .kx-svg svg { display: block; }
+
+/* --- 左栏 --- */
+#kaitox-modal .kx-left {
+  min-height: 0;
+  padding: 40px 40px 22px;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #eff3f4;
-  border-radius: 14px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
-  z-index: 2147483000;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  font-size: 13px;
-  line-height: 1.4;
-  color: #0f1419;
 }
-#kaitox-dropdown.kx-hidden { display: none; }
 
-#kaitox-dropdown .kx-header {
+#kaitox-modal .kx-lhead {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  border-bottom: 1px solid #eff3f4;
-  font-weight: 700;
+  margin-bottom: 26px;
 }
-#kaitox-dropdown .kx-header-actions { display: flex; gap: 4px; }
-#kaitox-dropdown .kx-icon-btn {
+#kaitox-modal .kx-ltitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+}
+#kaitox-modal .kx-logo {
+  display: block;
+  border-radius: 50%;
+}
+#kaitox-modal .kx-lhead-actions { display: flex; align-items: center; gap: 10px; }
+#kaitox-modal .kx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 13px;
+  border-radius: 999px;
+  transition: background 0.25s ease, color 0.25s ease; /* 连接状态切换时颜色柔和过渡 */
+}
+#kaitox-modal .kx-pill-dot { width: 6px; height: 6px; border-radius: 50%; transition: background 0.25s ease; }
+#kaitox-modal .kx-pill-ok { background: var(--kx-green-bg); color: var(--kx-green); }
+#kaitox-modal .kx-pill-ok .kx-pill-dot { background: var(--kx-green-dot); }
+#kaitox-modal .kx-pill-down { background: var(--kx-red-bg); color: var(--kx-red); }
+#kaitox-modal .kx-pill-down .kx-pill-dot { background: var(--kx-red); }
+
+#kaitox-modal .kx-icon-btn38 {
+  width: 38px;
+  height: 38px;
   border: none;
   background: transparent;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  color: var(--kx-text-2);
+  transition: transform 0.5s ease, background 0.15s ease, color 0.15s ease;
+}
+#kaitox-modal .kx-icon-btn38:hover { background: var(--kx-hover); color: var(--kx-text); }
+/* 按压反馈缩在内层图标上：按钮本体的 transform 留给刷新旋转用 */
+#kaitox-modal .kx-icon-btn38 .kx-svg { transition: transform 0.12s ease; }
+#kaitox-modal .kx-icon-btn38:active .kx-svg { transform: scale(0.85); }
+
+#kaitox-modal .kx-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--kx-card);
+  border: 1px solid var(--kx-border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#kaitox-modal .kx-search:focus-within {
+  border-color: var(--kx-text-4);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02), 0 0 0 3px rgba(0, 0, 0, 0.04);
+}
+#kaitox-modal .kx-search-ico { color: var(--kx-text-2); flex: none; }
+#kaitox-modal .kx-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
   font-size: 16px;
+  font-family: inherit;
+  background: transparent;
+  color: var(--kx-text);
+  padding: 0;
+}
+#kaitox-modal .kx-search input::placeholder { color: var(--kx-text-3); }
+#kaitox-modal .kx-search-kbd { color: var(--kx-text-4); font-size: 14px; font-weight: 500; }
+
+#kaitox-modal .kx-tabs {
+  display: flex;
+  gap: 34px;
+  border-bottom: 1px solid var(--kx-border-soft);
+  margin-bottom: 4px;
+}
+#kaitox-modal .kx-tab {
+  padding-bottom: 13px;
+  font-size: 16px;
+  cursor: pointer;
+  position: relative;
+  color: var(--kx-text-2);
+  font-weight: 400;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+#kaitox-modal .kx-tab:hover { color: var(--kx-text); }
+#kaitox-modal .kx-tab-n { color: var(--kx-text-4); font-weight: 400; }
+#kaitox-modal .kx-tab-on { color: var(--kx-text); font-weight: 700; }
+#kaitox-modal .kx-tab-on .kx-tab-n { color: var(--kx-text); }
+#kaitox-modal .kx-tab-bar {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
   width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  color: #536471;
+  height: 2px;
+  background: var(--kx-text);
+  border-radius: 2px;
+  transform-origin: left center;
+  animation: kx-bar-in 0.25s cubic-bezier(0.33, 1, 0.68, 1) both;
 }
-#kaitox-dropdown .kx-icon-btn:hover { background: #f0f3f4; }
 
-#kaitox-dropdown .kx-status {
-  padding: 8px 12px;
+/* 负边距放在滚动容器上（行本身不超宽），否则行的 -12px 会被 overflow 裁掉右侧时间列 */
+#kaitox-modal .kx-dlist {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0 -12px;
+  padding: 0 12px;
+}
+#kaitox-modal .kx-list-empty {
+  padding: 80px 24px;
+  text-align: center;
+  color: var(--kx-text-4);
+  font-size: 15px;
+  animation: kx-fade-in 0.2s ease both;
+}
+#kaitox-modal .kx-list-empty-err { color: var(--kx-red); }
+
+#kaitox-modal .kx-drow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 82px;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 12px;
+  border-radius: 12px;
+  border-bottom: 1px solid var(--kx-hairline);
+  cursor: pointer;
+  transition: background 0.12s;
+  /* 换页/换 Tab 时新行渐入；轮询刷新复用 DOM 节点，不会反复重播 */
+  animation: kx-row-in 0.22s ease both;
+}
+#kaitox-modal .kx-drow:nth-child(2) { animation-delay: 0.03s; }
+#kaitox-modal .kx-drow:nth-child(3) { animation-delay: 0.06s; }
+#kaitox-modal .kx-drow:nth-child(4) { animation-delay: 0.09s; }
+#kaitox-modal .kx-drow:nth-child(5) { animation-delay: 0.12s; }
+#kaitox-modal .kx-drow:nth-child(n + 6) { animation-delay: 0.15s; }
+#kaitox-modal .kx-drow:hover,
+#kaitox-modal .kx-drow-sel { background: var(--kx-row-sel); }
+#kaitox-modal .kx-thumb {
+  width: 64px;
+  height: 46px;
+  border-radius: 10px;
+  background: var(--kx-thumb-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--kx-text-2);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#kaitox-modal .kx-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#kaitox-modal .kx-drow-main { min-width: 0; }
+#kaitox-modal .kx-drow-title {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 5px;
+}
+#kaitox-modal .kx-drow-sum {
+  font-size: 13px;
+  color: var(--kx-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 1.5em;
+}
+#kaitox-modal .kx-badge {
+  display: inline-block;
   font-size: 12px;
-  color: #536471;
+  font-weight: 500;
+  padding: 4px 9px;
+  border-radius: 7px;
+  white-space: nowrap;
+  transition: background 0.25s ease, color 0.25s ease; /* 上传状态切换时颜色柔和过渡 */
 }
-#kaitox-dropdown .kx-status-error { color: #c0392b; }
-#kaitox-dropdown .kx-status-ok { color: #17803d; }
+#kaitox-modal .kx-badge-pending { background: var(--kx-amber-bg); color: var(--kx-amber); }
+#kaitox-modal .kx-badge-uploading { background: var(--kx-blue-bg); color: var(--kx-blue); }
+#kaitox-modal .kx-badge-done { background: var(--kx-green-bg); color: var(--kx-green); }
+#kaitox-modal .kx-badge-failed { background: var(--kx-red-bg); color: var(--kx-red); }
+#kaitox-modal .kx-dtime { font-size: 14px; color: var(--kx-text-2); text-align: right; }
 
-#kaitox-dropdown .kx-list { overflow-y: auto; }
-
-#kaitox-dropdown .kx-row {
+#kaitox-modal .kx-lfoot {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  border-top: 1px solid #f2f4f5;
+  padding-top: 20px;
 }
-#kaitox-dropdown .kx-row-main { min-width: 0; flex: 1; }
-#kaitox-dropdown .kx-row-title {
+#kaitox-modal .kx-lfoot-total { font-size: 14px; color: var(--kx-text-3); }
+#kaitox-modal .kx-pgs { display: flex; align-items: center; gap: 8px; }
+#kaitox-modal .kx-pg,
+#kaitox-modal .kx-pg-nav {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--kx-border);
+  background: var(--kx-card);
+  color: var(--kx-text-2);
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+#kaitox-modal .kx-pg:hover,
+#kaitox-modal .kx-pg-nav:hover:not(:disabled) { background: var(--kx-box); }
+#kaitox-modal .kx-pg:active,
+#kaitox-modal .kx-pg-nav:active:not(:disabled) { transform: scale(0.93); }
+#kaitox-modal .kx-pg-nav { padding: 0; width: 34px; }
+#kaitox-modal .kx-pg-nav:disabled { color: var(--kx-text-4); cursor: default; }
+#kaitox-modal .kx-pg-on,
+#kaitox-modal .kx-pg-on:hover {
+  background: var(--kx-primary);
+  color: var(--kx-primary-fg);
+  border-color: var(--kx-primary);
+  font-weight: 600;
+}
+
+/* --- 右栏：详情 --- */
+#kaitox-modal .kx-detail {
+  min-height: 0;
+  background: var(--kx-side);
+  border-left: 1px solid var(--kx-border-soft);
+  padding: 32px 36px 28px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+/* 切换选中草稿时 DetailView 以 key 重挂载，内容整体上浮渐入；
+   排除嵌套的预览/裁切遮罩（它们是 fixed 全屏层，走自己的 overlay 动画） */
+#kaitox-modal .kx-detail > *:not(.kx-overlay) { animation: kx-rise-in 0.24s ease both; }
+#kaitox-modal .kx-detail-top { display: flex; justify-content: flex-end; align-items: center; gap: 2px; margin-bottom: 6px; }
+#kaitox-modal .kx-icon-btn34 {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  color: var(--kx-text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.12s ease;
+}
+#kaitox-modal .kx-icon-btn34:hover:not(:disabled) { background: var(--kx-hover); }
+#kaitox-modal .kx-icon-btn34:active:not(:disabled) { transform: scale(0.9); }
+#kaitox-modal .kx-icon-btn34:disabled { opacity: 0.4; cursor: default; }
+#kaitox-modal .kx-icon-danger:hover:not(:disabled) { color: var(--kx-red); background: var(--kx-red-bg); }
+
+/* 顶栏内联的删除确认（替代原操作区的整行确认） */
+#kaitox-modal .kx-del-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  font-size: 13px;
+  color: var(--kx-text-2);
+  animation: kx-rise-in 0.18s ease both;
+}
+#kaitox-modal .kx-del-confirm .kx-btn-danger,
+#kaitox-modal .kx-del-confirm .kx-btn-sm {
+  flex: none;
+  width: auto;
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 9px;
+}
+
+#kaitox-modal .kx-hero {
+  width: 100%;
+  /* 与 X Article 封面比例一致（封面裁切也按 5:2 出图） */
+  aspect-ratio: 5 / 2;
+  border-radius: 16px;
+  background: linear-gradient(150deg, #5a6b7a, #2b3a47);
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#kaitox-modal .kx-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#kaitox-modal .kx-hero-chip {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.32);
+  padding: 5px 11px;
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+/* 无封面时：hero 中央的「上传封面」入口 */
+#kaitox-modal .kx-cover-add {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+  height: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px dashed rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
+}
+#kaitox-modal .kx-cover-add:hover:not(:disabled) { background: rgba(0, 0, 0, 0.45); }
+#kaitox-modal .kx-cover-add:active:not(:disabled) { transform: scale(0.96); }
+#kaitox-modal .kx-cover-add:disabled { opacity: 0.6; cursor: default; }
+
+/* 已有封面时：右下角的「更换封面」小按钮（与左下角封面 chip 同款样式） */
+#kaitox-modal .kx-cover-btns {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+}
+#kaitox-modal .kx-cover-swap {
+  border: none;
+  background: rgba(0, 0, 0, 0.32);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 5px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
+}
+#kaitox-modal .kx-cover-swap:hover:not(:disabled) { background: rgba(0, 0, 0, 0.55); }
+#kaitox-modal .kx-cover-swap:active:not(:disabled) { transform: scale(0.95); }
+#kaitox-modal .kx-cover-swap:disabled { opacity: 0.6; cursor: default; }
+
+#kaitox-modal .kx-dhead { margin-bottom: 24px; }
+#kaitox-modal .kx-dtitle {
+  margin: 0 0 12px;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.3px;
+}
+#kaitox-modal .kx-dmeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--kx-text-2);
+}
+
+#kaitox-modal .kx-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+#kaitox-modal .kx-stat {
+  background: var(--kx-card);
+  border: 1px solid var(--kx-border-soft);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+#kaitox-modal .kx-stat-label { font-size: 13px; color: var(--kx-text-3); margin-bottom: 8px; }
+#kaitox-modal .kx-stat-value {
+  font-size: 17px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#kaitox-dropdown .kx-row-meta { color: #536471; font-size: 11px; margin-top: 2px; }
-#kaitox-dropdown .kx-badge {
-  display: inline-block;
-  background: #e8f5fe;
-  color: #1d9bf0;
-  border-radius: 5px;
-  padding: 0 5px;
-  font-size: 10px;
-  font-weight: 700;
-}
-#kaitox-dropdown .kx-badge-plain { background: #fdf1e3; color: #c77414; }
+#kaitox-modal .kx-stat-ok { color: var(--kx-green); }
+#kaitox-modal .kx-stat-warn { color: var(--kx-amber); }
+#kaitox-modal .kx-stat-err { color: var(--kx-red); }
 
-#kaitox-dropdown .kx-upload-btn {
-  background: #0f1419;
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  padding: 7px 12px;
+/* 格式检查问题列表（error/warning 才显示，位于 Markdown 摘要上方） */
+#kaitox-modal .kx-fmt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+#kaitox-modal .kx-fmt-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+#kaitox-modal .kx-fmt-sev {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-top: 1px;
+}
+#kaitox-modal .kx-fmt-err { color: var(--kx-red); background: var(--kx-red-bg); }
+#kaitox-modal .kx-fmt-warn { color: var(--kx-amber); background: var(--kx-amber-bg); }
+#kaitox-modal .kx-fmt-body { min-width: 0; }
+#kaitox-modal .kx-fmt-msg {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--kx-text-2);
+  overflow-wrap: break-word;
+}
+#kaitox-modal .kx-fmt-line {
+  margin-right: 6px;
   font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
+  color: var(--kx-text-4);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-#kaitox-dropdown .kx-upload-btn:hover { background: #272c30; }
-#kaitox-dropdown .kx-upload-btn:disabled { opacity: 0.6; cursor: default; }
+#kaitox-modal .kx-fmt-sug {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--kx-text-3);
+}
 
-#kaitox-dropdown .kx-row-actions { display: flex; align-items: center; gap: 4px; }
-#kaitox-dropdown .kx-del-btn { font-size: 14px; }
-#kaitox-dropdown .kx-del-btn:hover { background: #fdeaea; color: #c0392b; }
-#kaitox-dropdown .kx-upload-btn.kx-danger { background: #c0392b; }
-#kaitox-dropdown .kx-upload-btn.kx-danger:hover { background: #a93226; }
+#kaitox-modal .kx-sumlabel { font-size: 14px; color: var(--kx-text-3); margin-bottom: 12px; }
+#kaitox-modal .kx-sumbox {
+  background: var(--kx-box);
+  border-radius: 14px;
+  padding: 18px 20px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--kx-btn-gray-fg);
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+#kaitox-modal .kx-sumcount { font-size: 14px; color: var(--kx-text-3); margin-bottom: 24px; }
 
-#kaitox-dropdown .kx-row-status { font-size: 11px; margin-top: 3px; }
-#kaitox-dropdown .kx-row-status-info { color: #536471; }
-#kaitox-dropdown .kx-row-status-ok { color: #17803d; }
-#kaitox-dropdown .kx-row-status-error { color: #c0392b; }
+#kaitox-modal .kx-assets-label { font-size: 14px; color: var(--kx-text-2); margin-bottom: 14px; }
+#kaitox-modal .kx-assets-label span { color: var(--kx-text-3); }
+#kaitox-modal .kx-assets {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+#kaitox-modal .kx-asset {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: var(--kx-box);
+  overflow: hidden;
+}
+#kaitox-modal .kx-asset img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+#kaitox-modal .kx-actions { margin-top: auto; padding-top: 16px; }
+#kaitox-modal .kx-note { font-size: 13px; margin-bottom: 12px; text-align: center; }
+#kaitox-modal .kx-note-info { color: var(--kx-text-2); }
+#kaitox-modal .kx-note-ok { color: var(--kx-green); }
+#kaitox-modal .kx-note-error { color: var(--kx-red); }
+
+#kaitox-modal .kx-btn-primary {
+  width: 100%;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--kx-primary-fg);
+  background: var(--kx-primary);
+  border: none;
+  border-radius: 14px;
+  padding: 15px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.12s ease;
+}
+#kaitox-modal .kx-btn-primary:hover:not(:disabled) { background: var(--kx-primary-h); }
+#kaitox-modal .kx-btn-primary:active:not(:disabled) { transform: scale(0.985); }
+#kaitox-modal .kx-btn-primary:disabled { opacity: 0.55; cursor: default; }
+
+#kaitox-modal .kx-btn-gray {
+  width: 100%;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--kx-btn-gray-fg);
+  background: var(--kx-btn-gray);
+  border: none;
+  border-radius: 14px;
+  padding: 15px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+#kaitox-modal .kx-btn-gray:hover:not(:disabled) { background: var(--kx-btn-gray-h); }
+#kaitox-modal .kx-btn-gray:active:not(:disabled) { transform: scale(0.985); }
+#kaitox-modal .kx-btn-gray:disabled { opacity: 0.55; cursor: default; }
+
+#kaitox-modal .kx-btn-danger {
+  flex: 1;
+  border: none;
+  background: var(--kx-red);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+#kaitox-modal .kx-btn-danger:hover { background: #bb3d37; }
+#kaitox-modal .kx-btn-danger:active { transform: scale(0.97); }
+#kaitox-modal .kx-btn-sm { flex: 1; width: auto; padding: 12px; font-size: 14px; border-radius: 12px; }
+
+#kaitox-modal .kx-detail-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--kx-text-4);
+  gap: 16px;
+  font-size: 15px;
+}
+
+/* --- 右侧设置浮窗（点工具栏图标弹出，整高、圆角、悬浮，不带遮罩） --- */
+#kaitox-settings {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: 384px;
+  max-width: calc(100vw - 32px);
+  overflow-y: auto;
+  background: #fbfbfa;
+  border: 1px solid #ececea;
+  border-radius: 20px;
+  box-shadow: 0 12px 32px rgba(20, 20, 20, 0.16);
+  z-index: 2147482999;
+  padding: 20px 22px 24px;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  animation: kx-slide-in 0.26s cubic-bezier(0.32, 0.72, 0.33, 1) both;
+}
+#kaitox-settings.kx-closing { animation: kx-slide-out 0.15s ease both; }
+#kaitox-settings.kx-hidden { display: none; }
+#kaitox-settings * { box-sizing: border-box; }
+
+#kaitox-settings .kx-svg { display: inline-flex; align-items: center; }
+#kaitox-settings .kx-svg svg { display: block; }
+#kaitox-settings .kx-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: #9a9a97;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+#kaitox-settings .kx-icon-btn:hover { background: #f4f4f2; color: #6b6b68; }
+#kaitox-settings .kx-icon-btn:active { transform: scale(0.9); }
+
+#kaitox-settings .kx-set-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+#kaitox-settings .kx-set-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 600; }
+#kaitox-settings .kx-logo { display: block; border-radius: 50%; }
+#kaitox-settings .kx-set-topbar-right { display: flex; align-items: center; gap: 8px; }
+
+#kaitox-settings .kx-set-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  padding: 3px 11px;
+  font-size: 12px;
+}
+#kaitox-settings .kx-set-dot { width: 7px; height: 7px; border-radius: 50%; background: #c4c4c1; }
+#kaitox-settings .kx-set-pill-on { background: #eef5ef; color: #2f7a45; }
+#kaitox-settings .kx-set-pill-on .kx-set-dot { background: #3ba55d; }
+#kaitox-settings .kx-set-pill-off { background: #f4f4f2; color: #9a9a97; }
+#kaitox-settings .kx-set-pill-err { background: #fbf0ef; color: #d0463f; }
+#kaitox-settings .kx-set-pill-err .kx-set-dot { background: #d0463f; }
+
+#kaitox-settings .kx-set-help {
+  background: #f4f4f2;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #6b6b68;
+  margin-bottom: 16px;
+  animation: kx-help-in 0.2s ease both;
+}
+#kaitox-settings .kx-set-help.kx-hidden { display: none; }
+
+#kaitox-settings .kx-set-section { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+
+#kaitox-settings .kx-set-card {
+  background: #ffffff;
+  border: 1px solid #ececea;
+  border-radius: 14px;
+  padding: 0 16px;
+  margin-bottom: 24px;
+}
+#kaitox-settings .kx-set-card > * + * { border-top: 1px solid #f1f1ef; }
+
+#kaitox-settings .kx-set-field { padding: 14px 0; }
+#kaitox-settings .kx-set-field label { display: block; font-size: 14px; margin-bottom: 7px; }
+#kaitox-settings .kx-set-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #f4f4f2;
+  color: #1a1a1a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+#kaitox-settings .kx-set-input:focus { border-color: #d9d9d6; background: #ffffff; }
+
+#kaitox-settings .kx-set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+}
+#kaitox-settings .kx-set-row-toggle { padding: 16px 0; }
+#kaitox-settings .kx-set-label { font-size: 14px; }
+
+#kaitox-settings .kx-set-toggle {
+  flex: none;
+  width: 44px;
+  height: 26px;
+  border: none;
+  border-radius: 13px;
+  background: #d9d9d6;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+#kaitox-settings .kx-set-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.15);
+  transition: transform 0.22s cubic-bezier(0.3, 1.4, 0.6, 1); /* 轻微回弹 */
+}
+#kaitox-settings .kx-set-toggle[aria-checked="true"] { background: #1a1a1a; }
+#kaitox-settings .kx-set-toggle[aria-checked="true"] .kx-set-knob { transform: translateX(18px); }
+
+/* --- 封面裁切弹窗（嵌套在草稿箱之上） --- */
+#kaitox-modal .kx-crop-overlay { background: rgba(0, 0, 0, 0.55); }
+
+#kaitox-modal .kx-crop-card {
+  width: min(620px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: var(--kx-card);
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 12px 40px rgba(0, 0, 0, 0.22);
+  animation: kx-pop-in 0.22s cubic-bezier(0.32, 0.72, 0.33, 1) both;
+}
+#kaitox-modal .kx-overlay.kx-closing .kx-crop-card { animation: kx-pop-out 0.15s ease both; }
+
+#kaitox-modal .kx-crop-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#kaitox-modal .kx-crop-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--kx-text);
+}
+
+#kaitox-modal .kx-crop-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--kx-text-3);
+}
+
+#kaitox-modal .kx-crop-view {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 2;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--kx-thumb-bg);
+  cursor: grab;
+  touch-action: none;
+}
+#kaitox-modal .kx-crop-dragging { cursor: grabbing; }
+
+#kaitox-modal .kx-crop-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+#kaitox-modal .kx-crop-err {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: var(--kx-text-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+#kaitox-modal .kx-crop-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--kx-text-3);
+}
+
+#kaitox-modal .kx-crop-zoom {
+  flex: 1;
+  accent-color: var(--kx-primary);
+}
+
+#kaitox-modal .kx-crop-note {
+  font-size: 12px;
+  color: var(--kx-text-3);
+}
+
+#kaitox-modal .kx-crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+#kaitox-modal .kx-crop-actions .kx-btn-primary,
+#kaitox-modal .kx-crop-actions .kx-btn-gray {
+  width: auto;
+  flex: none;
+  padding: 10px 20px;
+  font-size: 14px;
+  border-radius: 12px;
+  margin-bottom: 0;
+}
+
+/* --- 预览弹窗（嵌套在草稿箱之上；正文排版见 preview.css 的 xp- 规则） --- */
+#kaitox-modal .kx-prev-overlay { background: rgba(0, 0, 0, 0.55); }
+
+#kaitox-modal .kx-prev-card {
+  /* 把面板 token 桥接给 preview.css 的 --xp-* 变量，暗色随 --kx 令牌自动生效 */
+  --xp-text: var(--kx-text);
+  --xp-text-muted: var(--kx-text-3);
+  --xp-border: var(--kx-border);
+  --xp-box: var(--kx-box);
+  --xp-link: var(--kx-blue);
+  --xp-placeholder: var(--kx-thumb-bg);
+
+  width: min(760px, 100%);
+  height: min(860px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--kx-card);
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 12px 40px rgba(0, 0, 0, 0.22);
+  animation: kx-pop-in 0.22s cubic-bezier(0.32, 0.72, 0.33, 1) both;
+}
+#kaitox-modal .kx-overlay.kx-closing .kx-prev-card { animation: kx-pop-out 0.15s ease both; }
+
+#kaitox-modal .kx-prev-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px 28px;
+  border-bottom: 1px solid var(--kx-hairline);
+  flex: none;
+}
+
+#kaitox-modal .kx-prev-caption {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--kx-text);
+}
+
+#kaitox-modal .kx-prev-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--kx-text-3);
+}
+
+#kaitox-modal .kx-prev-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#kaitox-modal .kx-prev-warnbar {
+  margin: 16px 28px 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--kx-amber-bg);
+  color: var(--kx-amber);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* --- 过渡动画 keyframes（注入 x.com 页面，名字统一带 kx- 前缀防撞） --- */
+@keyframes kx-fade-in {
+  from { opacity: 0; }
+}
+@keyframes kx-fade-out {
+  to { opacity: 0; }
+}
+/* 弹窗卡片：轻微缩放 + 上浮淡入 / 缩回淡出 */
+@keyframes kx-pop-in {
+  from { opacity: 0; transform: scale(0.965) translateY(10px); }
+}
+@keyframes kx-pop-out {
+  to { opacity: 0; transform: scale(0.97) translateY(8px); }
+}
+/* 详情面板/删除确认等局部内容：小幅上浮渐入 */
+@keyframes kx-rise-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+/* 列表行渐入（配合 nth-child 递增 delay 形成级联） */
+@keyframes kx-row-in {
+  from { opacity: 0; transform: translateY(5px); }
+}
+/* Tab 激活下划线：从左向右展开 */
+@keyframes kx-bar-in {
+  from { opacity: 0; transform: scaleX(0.3); }
+}
+/* 角标/小徽章弹出 */
+@keyframes kx-pop {
+  from { opacity: 0; transform: scale(0.4); }
+}
+/* 右侧设置浮窗：从右滑入/滑出 */
+@keyframes kx-slide-in {
+  from { opacity: 0; transform: translateX(26px); }
+}
+@keyframes kx-slide-out {
+  to { opacity: 0; transform: translateX(26px); }
+}
+/* 帮助提示条：向下展开渐入 */
+@keyframes kx-help-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+/* 系统开启「减弱动态效果」时全部动画即时完成（JS 卸载定时器不受影响） */
+@media (prefers-reduced-motion: reduce) {
+  #kaitox-hdr-btn *,
+  .kx-overlay,
+  #kaitox-modal,
+  #kaitox-modal *,
+  #kaitox-settings,
+  #kaitox-settings * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 @media (prefers-color-scheme: dark) {
-  #kaitox-hdr-btn .kx-hdr-btn { background: #eff3f4; color: #0f1419; }
+  #kaitox-hdr-btn .kx-hdr-btn { background: #eff3f4; color: #1a1a1a; }
   #kaitox-hdr-btn .kx-hdr-btn:hover { background: #d7dbdc; }
+  #kaitox-hdr-btn .kx-hdr-count { background: #1a1a1a; color: #fff; }
 
-  #kaitox-dropdown { background: #000; border-color: #2f3336; color: #e7e9ea; }
-  #kaitox-dropdown .kx-header { border-color: #2f3336; }
-  #kaitox-dropdown .kx-icon-btn { color: #71767b; }
-  #kaitox-dropdown .kx-icon-btn:hover { background: #16181c; }
-  #kaitox-dropdown .kx-row { border-color: #16181c; }
-  #kaitox-dropdown .kx-upload-btn { background: #eff3f4; color: #0f1419; }
-  #kaitox-dropdown .kx-status, #kaitox-dropdown .kx-row-meta { color: #71767b; }
-  #kaitox-dropdown .kx-del-btn:hover { background: #2a1416; color: #f26d6d; }
-  #kaitox-dropdown .kx-upload-btn.kx-danger { background: #c0392b; color: #fff; }
-  #kaitox-dropdown .kx-upload-btn.kx-danger:hover { background: #d0402f; }
+  .kx-overlay { background: rgba(0, 0, 0, 0.6); }
+  /* 弹窗组件一律读 token，暗色只需整套重声明变量 + 少量非 token 细节 */
+  #kaitox-modal {
+    --kx-text: #e8e8e6;
+    --kx-text-2: #8a8a87;
+    --kx-text-3: #6f6f6c;
+    --kx-text-4: #5f5f5c;
+    --kx-card: #1e1e1d;
+    --kx-side: #232322;
+    --kx-border: #343432;
+    --kx-border-soft: #2c2c2a;
+    --kx-hairline: #2c2c2a;
+    --kx-hover: #2c2c2a;
+    --kx-row-sel: #2f2f2d;
+    --kx-box: #2c2c2a;
+    --kx-thumb-bg: #2c2c2a;
+    --kx-btn-gray: #2c2c2a;
+    --kx-btn-gray-h: #383836;
+    --kx-btn-gray-fg: #d4d4d1;
+    --kx-primary: #eff3f4;
+    --kx-primary-h: #d7dbdc;
+    --kx-primary-fg: #1a1a1a;
+    --kx-green: #6fbf8a;
+    --kx-green-bg: rgba(55, 163, 90, 0.15);
+    --kx-green-dot: #37a35a;
+    --kx-amber: #d9a35b;
+    --kx-amber-bg: rgba(201, 138, 46, 0.16);
+    --kx-blue: #7aa7d9;
+    --kx-blue-bg: rgba(58, 114, 176, 0.18);
+    --kx-red: #f08a84;
+    --kx-red-bg: rgba(208, 70, 63, 0.16);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 12px 40px rgba(0, 0, 0, 0.5);
+  }
+  #kaitox-modal .kx-btn-danger { background: #d0463f; color: #fff; }
+  #kaitox-modal .kx-btn-danger:hover { background: #dd554e; }
+  #kaitox-modal .kx-search:focus-within {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02), 0 0 0 3px rgba(255, 255, 255, 0.06);
+  }
+
+  #kaitox-settings { background: #1e1e1d; border-color: #343432; color: #e8e8e6; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); }
+  #kaitox-settings .kx-icon-btn { color: #8a8a87; }
+  #kaitox-settings .kx-icon-btn:hover { background: #2c2c2a; color: #c4c4c1; }
+  #kaitox-settings .kx-set-pill-off { background: #2c2c2a; color: #8a8a87; }
+  #kaitox-settings .kx-set-help { background: #2c2c2a; color: #a5a5a2; }
+  #kaitox-settings .kx-set-card { background: #262625; border-color: #343432; }
+  #kaitox-settings .kx-set-card > * + * { border-color: #2c2c2a; }
+  #kaitox-settings .kx-set-input { background: #2c2c2a; color: #e8e8e6; }
+  #kaitox-settings .kx-set-input:focus { border-color: #4a4a47; background: #1e1e1d; }
+  #kaitox-settings .kx-set-toggle { background: #4a4a47; }
+  #kaitox-settings .kx-set-toggle[aria-checked="true"] { background: #eff3f4; }
+  #kaitox-settings .kx-set-toggle[aria-checked="true"] .kx-set-knob { background: #1a1a1a; }
 }

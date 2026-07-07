@@ -67,10 +67,34 @@ try {
   const got = await client.getAsset(id, 'a.bin');
   check('getAsset bytes round-trip', got.length === bytes.length && got.every((b, i) => b === bytes[i]));
 
+  // setCover（无封面 → 设置 → 替换，旧封面文件被清理）
+  check('draft starts without cover', !draft.cover);
+  await client.setCover(id, { fileName: 'c1.png', mime: 'image/png', bytes });
+  const withCover = await client.getDraft(id);
+  check(
+    'setCover persists cover meta',
+    withCover.cover?.fileName === 'cover-c1.png' &&
+      withCover.cover?.mime === 'image/png' &&
+      withCover.cover?.bytesLen === bytes.length,
+  );
+  const coverBytes = await client.getAsset(id, 'cover-c1.png');
+  check('cover bytes round-trip', coverBytes.length === bytes.length && coverBytes.every((b, i) => b === bytes[i]));
+  await client.setCover(id, { fileName: 'c2.png', mime: 'image/png', bytes });
+  const swapped = await client.getDraft(id);
+  check('setCover replaces cover', swapped.cover?.fileName === 'cover-c2.png');
+  const oldCoverGone = await client.getAsset(id, 'cover-c1.png').then(
+    () => false,
+    () => true,
+  );
+  check('old cover file cleaned up', oldCoverGone);
+
   // ack
   await client.ack(id, { status: 'done', restId: 'R_1' });
   const done = await client.getDraft(id);
   check('ack persists status + restId', done.status === 'done' && done.restId === 'R_1');
+  // done 草稿迁入 sent/ 后必须仍出现在列表里（草稿箱「已上传」Tab 依赖这一点）
+  const doneInList = (await client.listDrafts()).find((d) => d.id === id);
+  check('done draft stays in list', doneInList?.status === 'done');
 
   // deleteDraft
   await client.deleteDraft(id);

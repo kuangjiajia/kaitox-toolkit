@@ -5,6 +5,7 @@ export {
   isRelayUp,
   spawnDaemon,
   stopDaemon,
+  killPortOccupants,
   relayBaseUrl,
 } from './daemon.js';
 export {

@@ -19,7 +19,7 @@
  *   ![alt](src)              →  atomic block + MEDIA 实体（图片需先上传拿 media_id）
  *   ```代码```               →  atomic block + MARKDOWN 实体（整段围栏原样塞进去）
  *   ---（分割线）             →  atomic block + DIVIDER 实体
- *   表格                      →  atomic block + MARKDOWN 实体（X 无原生表格）
+ *   表格                      →  atomic block + MARKDOWN 实体（X 按 markdown 原生渲染成表格）
  *
  * 关键约定：
  *   - entity 的 key 是从 0 开始、按「文档从上到下的出现顺序」递增的整数。
@@ -133,6 +133,16 @@ class ContentStateBuilder {
     });
   }
 
+  /**
+   * MARKDOWN 实体（代码块/表格）。X 编辑器实测载荷（2026-07 抓包）：
+   * mutability 是 Mutable、markdown 前后带换行——Immutable 能过校验但渲染端丢内容。
+   */
+  private pushMarkdownEntity(markdown: string): void {
+    const md = '\n' + markdown + (markdown.endsWith('\n') ? '' : '\n');
+    const key = this.addEntity({ type: 'MARKDOWN', mutability: 'Mutable', data: { markdown: md } });
+    this.pushAtomic(key);
+  }
+
   // --- block 级分发 ---------------------------------------------------------
 
   private handleBlockToken(token: MdToken): void {
@@ -174,15 +184,12 @@ class ContentStateBuilder {
         // 围栏代码 / ASCII 图 → MARKDOWN 实体，data.markdown 是完整围栏串。
         const lang = (token.lang || 'plaintext').trim() || 'plaintext';
         const fenced = '```' + lang + '\n' + (token.text ?? '') + '\n```';
-        const key = this.addEntity({ type: 'MARKDOWN', mutability: 'Immutable', data: { markdown: fenced } });
-        this.pushAtomic(key);
+        this.pushMarkdownEntity(fenced);
         break;
       }
       case 'table': {
-        // X 没有原生表格，退化为 MARKDOWN 实体，保留原始 markdown。
-        const md = token.raw ?? '';
-        const key = this.addEntity({ type: 'MARKDOWN', mutability: 'Immutable', data: { markdown: md } });
-        this.pushAtomic(key);
+        // 表格走 MARKDOWN 实体，X 编辑器/阅读页会把它按 markdown 原生渲染成表格。
+        this.pushMarkdownEntity(token.raw ?? '');
         break;
       }
       case 'hr': {

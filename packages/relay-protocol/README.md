@@ -1,3 +1,5 @@
+English | [简体中文](README.zh-CN.md)
+
 # @kaitox/relay-protocol
 
 The wire contract between kaitox upload clients and a kaitox relay, plus a portable HTTP client.

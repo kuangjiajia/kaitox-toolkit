@@ -7,6 +7,7 @@
  *   GET    /drafts
  *   GET    /drafts/:id
  *   GET    /drafts/:id/assets/:fileName    （回二进制）
+ *   PUT    /drafts/:id/cover               （body: SetCoverWireBody，设置/替换封面）
  *   PATCH  /drafts/:id                     （body: { status, restId?, error? }）
  *   DELETE /drafts/:id
  *
@@ -16,7 +17,7 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { writeFile, rm, mkdir } from 'node:fs/promises';
-import type { PostDraftWireBody } from '@kaitox/relay-protocol';
+import type { PostDraftWireBody, SetCoverWireBody } from '@kaitox/relay-protocol';
 import {
   HOST,
   RELAY_VERSION,
@@ -31,6 +32,7 @@ import {
   listDrafts,
   getDraft,
   getAssetPath,
+  setCover,
   patchDraft,
   deleteDraft,
 } from './storage.js';
@@ -74,7 +76,7 @@ function setCors(req: IncomingMessage, res: ServerResponse): void {
   if (isAllowedOrigin(origin)) {
     if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'content-type,x-kaitox-token');
   }
 }
@@ -161,6 +163,28 @@ async function handle(req: IncomingMessage, res: ServerResponse, token?: string)
         return;
       }
       sendJson(req, res, 200, d);
+      return;
+    }
+
+    // PUT /drafts/:id/cover
+    if (method === 'PUT' && parts.length === 3 && parts[2] === 'cover') {
+      const body = JSON.parse(await readBody(req)) as SetCoverWireBody;
+      if (!body?.fileName || !body?.mime || !body?.base64) {
+        sendJson(req, res, 400, { error: '缺少 fileName/mime/base64' });
+        return;
+      }
+      let updated: Awaited<ReturnType<typeof setCover>>;
+      try {
+        updated = await setCover(id, body);
+      } catch {
+        sendJson(req, res, 400, { error: '非法文件名' });
+        return;
+      }
+      if (!updated) {
+        sendJson(req, res, 404, { error: 'not found' });
+        return;
+      }
+      sendJson(req, res, 200, updated);
       return;
     }
 

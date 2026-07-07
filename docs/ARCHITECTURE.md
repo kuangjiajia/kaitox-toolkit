@@ -1,13 +1,15 @@
-# kaitox Architecture
+# Kaitox Architecture
 
-Contributor/maintainer documentation for the kaitox monorepo. For user-facing
+Contributor/maintainer documentation for the Kaitox monorepo. For user-facing
 setup see the [root README](../README.md); for the X Article wire details see
 [x-article-publish-protocol.md](./x-article-publish-protocol.md).
 
-kaitox is a local publishing platform: a CLI, a local relay, an Obsidian
-plugin, and a Chrome extension (MV3). Publishing Markdown as X (Twitter)
-Article drafts is the first feature; more features slot in later via the
-`kind` discriminator on draft bundles.
+Kaitox is a personal toolkit: a family of products — the `kaitox` CLI, an
+Obsidian plugin, a Chrome extension (MV3), and agent skills under `skills/` —
+on shared local infrastructure (the relay and its wire protocol). Features cut
+across products; publishing Markdown as X (Twitter) Article drafts is the
+first feature, and more features slot in later via the `kind` discriminator
+on draft bundles.
 
 The data flow for the X feature:
 
@@ -48,12 +50,14 @@ kaitox/
 │   ├── x-article/           # @kaitox/x-article — X engine: Markdown → content_state,
 │   │                        #   XArticleClient, publishXArticle, style checker, plaintext fallback
 │   ├── relay/               # @kaitox/relay — local relay server on 127.0.0.1,
-│   │                        #   zero third-party deps, bin: kaitox-relay (start|dev|stop|status|restart)
+│   │                        #   re-encodes oversized images at ingest, bin: kaitox-relay (start|dev|stop|status|restart)
 │   └── cli/                 # @kaitox/cli — bin: kaitox (kaitox x push|list|status, kaitox relay ...)
 ├── apps/
 │   ├── extension/           # Chrome extension (MV3), private — polls the relay on
 │   │                        #   x.com/compose/articles and uploads drafts on click
 │   └── obsidian/            # Obsidian plugin, private — pushes the current note to the relay
+├── skills/
+│   └── x-article/SKILL.md   # agent skill: teaches coding agents to drive kaitox x push
 ├── test/
 │   ├── integration.mjs             # end-to-end suite: in-process relay + mocked X API
 │   └── relay-protocol.smoke.mjs    # protocol-only smoke, uses relay-protocol like a third party
@@ -184,7 +188,7 @@ is the hot, bandwidth-sensitive path for the extension. Parsing lives in
   ([`packages/relay/src/storage.ts`](../packages/relay/src/storage.ts)).
 - Consumers apply the default when reading, e.g. the extension panel filter
   `(d.kind ?? 'x-article') === 'x-article'` in
-  [`apps/extension/src/panel.ts`](../apps/extension/src/panel.ts).
+  [`apps/extension/src/panel.tsx`](../apps/extension/src/panel.tsx).
 
 ### 3.5 Default port 8765 exists in four code sites plus the extension manifest
 
@@ -216,7 +220,7 @@ Do not count Unicode code points or grapheme clusters.
 
 ## 4. Adding a feature (worked example: `linkedin`)
 
-The platform is designed so a new publish target touches almost nothing that
+The toolkit is designed so a new feature touches almost nothing that
 exists. Suppose you want `kaitox linkedin push`:
 
 1. **New engine package `packages/linkedin`** — the analogue of
@@ -248,7 +252,7 @@ exists. Suppose you want `kaitox linkedin push`:
 5. **Consumer:** whatever delivers the draft (a browser extension, a script)
    polls `GET /drafts` and filters on its own kind:
    `(d.kind ?? 'x-article') === 'linkedin'`. The existing X panel already
-   ignores foreign kinds ([`apps/extension/src/panel.ts`](../apps/extension/src/panel.ts)),
+   ignores foreign kinds ([`apps/extension/src/panel.tsx`](../apps/extension/src/panel.tsx)),
    so multiple features coexist on one relay.
 
 Exact extension points, in summary:
@@ -259,6 +263,8 @@ Exact extension points, in summary:
 - `kind` string on `PostDraftInput` (no type change needed — `DraftKind` is
   open: `'x-article' | (string & {})`).
 - Per-kind filter in the consumer.
+- A skill under `skills/<feature>/SKILL.md` if agents should drive the
+  feature (plus a catalog row in [`skills/README.md`](../skills/README.md)).
 - A changeset for the release (section 6).
 
 ## 5. Testing
@@ -321,19 +327,27 @@ automates steps 2–3 via `changesets/action`: on push to `main` it opens (or
 updates) a "Version Packages" PR, and publishes when that PR merges. The
 workflow is **inert today** — it requires:
 
-- the GitHub repo to exist at `https://github.com/kaitox/kaitox` (pending
+- the GitHub repo to exist at `https://github.com/kuangjiajia/kaitox-toolkit` (pending
   creation), and
 - an `NPM_TOKEN` repository secret with publish rights, and
 - the npm org **`kaitox`** to exist, since all packages live under the
   `@kaitox` scope (each package also sets `publishConfig.access: public`).
 
-## 7. Language policy
+## 7. Language & naming policy
 
 - **Published surfaces are English**: package READMEs, docs under `docs/`,
   CLI `--help` output, npm package descriptions, and manifests.
+- **Every README ships a Chinese mirror**: each `README.md` has a
+  `README.zh-CN.md` next to it, linked via a switcher line at the top of both
+  (`English | [简体中文](README.zh-CN.md)` / `[English](README.md) | 简体中文`).
+  Keep the two in sync when editing either.
 - **Legacy Chinese code comments stay as-is** — do not bulk-translate them;
   they carry design context (see `packages/relay-protocol/src/bundle.ts`).
 - **App UI strings are currently Chinese** (extension panel, Obsidian
   settings). That is acceptable while `apps/*` are private; revisit before any
   public distribution.
 - **New code comments are written in English.**
+- **Casing**: "Kaitox" (capital K) in prose, brand contexts, manifests, and
+  package descriptions; lowercase "kaitox" only for machine names — the CLI
+  command, npm names under the `@kaitox` scope, directory names, `~/.kaitox`,
+  and environment variables.

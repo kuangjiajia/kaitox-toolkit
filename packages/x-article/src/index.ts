@@ -7,6 +7,8 @@
  *   - xArticleClient.ts HTTP + auth + media upload + draft creation
  *   - publishArticle.ts end-to-end orchestration
  *   - styleCheck.ts     X-friendliness linter + plaintext fallback
+ *   - previewModel.ts   content_state → render-ready model (framework-free)
+ *   - previewHtml.ts    render-ready model → HTML string (pair with ./preview.css)
  *
  * See docs/x-article-publish-protocol.md for the protocol reference.
  */
@@ -44,3 +46,23 @@ export {
   toPlaintextMarkdown,
 } from './styleCheck.js';
 export type { AssetMeta, StyleCheckOptions } from './styleCheck.js';
+
+// --- mermaid 围栏 → 图片引用变换（渲染由消费方在浏览器里完成）---
+export {
+  extractMermaidBlocks,
+  MERMAID_SRC_PREFIX,
+} from './mermaid.js';
+export type { MermaidBlock, ExtractMermaidResult } from './mermaid.js';
+
+// --- preview（框架无关的渲染层，样式见包根 preview.css）---
+export {
+  buildPreviewModel,
+  segmentText,
+  groupBlocks,
+} from './previewModel.js';
+export type { PreviewModel, Segment, BlockGroup } from './previewModel.js';
+export {
+  renderPreviewHtml,
+  renderModelHtml,
+} from './previewHtml.js';
+export type { RenderPreviewOptions } from './previewHtml.js';

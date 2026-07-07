@@ -100,7 +100,9 @@ check('MEDIA.media_id 回填', media.value.data.media_items[0].media_id === '207
 check('MEDIA.media_category = DraftTweetImage', media.value.data.media_items[0].media_category === 'DraftTweetImage');
 
 // MARKDOWN / DIVIDER
-check('MARKDOWN = ```plaintext 围栏', ents.find((e) => e.value.type === 'MARKDOWN').value.data.markdown.startsWith('```plaintext\n'));
+const mdEnt = ents.find((e) => e.value.type === 'MARKDOWN');
+check('MARKDOWN = ```plaintext 围栏（换行包裹）', mdEnt.value.data.markdown.startsWith('\n```plaintext\n') && mdEnt.value.data.markdown.endsWith('\n'));
+check('MARKDOWN mutable（Immutable 会被 X 渲染端丢内容）', mdEnt.value.mutability === 'Mutable');
 check('DIVIDER.data = {}', JSON.stringify(ents.find((e) => e.value.type === 'DIVIDER').value.data) === '{}');
 
 // LINK

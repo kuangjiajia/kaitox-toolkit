@@ -77,7 +77,9 @@ export interface MediaItem {
 export type EntityValue =
   | { type: 'MEDIA'; mutability: 'Immutable'; data: { media_items: MediaItem[] } }
   | { type: 'DIVIDER'; mutability: 'Immutable'; data: Record<string, never> }
-  | { type: 'MARKDOWN'; mutability: 'Immutable'; data: { markdown: string } }
+  // MARKDOWN 必须是 Mutable：X 编辑器自己的载荷实测如此（2026-07 抓包），
+  // Immutable 的 MARKDOWN 实体能过 GraphQL 校验但渲染端会丢内容（表格/代码块消失）。
+  | { type: 'MARKDOWN'; mutability: 'Mutable'; data: { markdown: string } }
   | { type: 'LINK'; mutability: 'Mutable'; data: { url: string } };
 
 export interface EntityMapEntry {

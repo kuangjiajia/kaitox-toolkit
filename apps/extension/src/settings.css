@@ -1,0 +1,176 @@
+/* Kaitox 设置 popup。配色参照 YouMind：米白页面 + 白卡片 + 黑色开关。 */
+:root {
+  --kx-bg: #fbfbfa;
+  --kx-card: #ffffff;
+  --kx-border: #ececea;
+  --kx-hairline: #f1f1ef;
+  --kx-fg: #1a1a1a;
+  --kx-fg-2: #6b6b68;
+  --kx-muted: #9a9a97;
+  --kx-input-bg: #f4f4f2;
+  --kx-green: #3ba55d;
+  --kx-green-fg: #2f7a45;
+  --kx-green-bg: #eef5ef;
+  --kx-red: #d0463f;
+  --kx-red-bg: #fbf0ef;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  width: 360px;
+  background: var(--kx-bg);
+  color: var(--kx-fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* 初始隐藏，settings.ts 回填完存储值后加 body.kx-ready 再显示，避免默认开关状态闪动。 */
+.kx-page { padding: 18px 20px 22px; visibility: hidden; }
+body.kx-ready .kx-page { visibility: visible; animation: kx-fade-up 0.22s ease both; }
+
+.kx-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.kx-topbar-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 600; }
+.kx-logo { display: block; border-radius: 50%; }
+.kx-topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.kx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  padding: 3px 11px;
+  font-size: 12px;
+  transition: background 0.25s ease, color 0.25s ease; /* 连接状态切换时颜色柔和过渡 */
+}
+.kx-pill .kx-dot { width: 7px; height: 7px; border-radius: 50%; transition: background 0.25s ease; }
+.kx-pill-on { background: var(--kx-green-bg); color: var(--kx-green-fg); }
+.kx-pill-on .kx-dot { background: var(--kx-green); }
+.kx-pill-off { background: var(--kx-input-bg); color: var(--kx-muted); }
+.kx-pill-off .kx-dot { background: #c4c4c1; }
+.kx-pill-err { background: var(--kx-red-bg); color: var(--kx-red); }
+.kx-pill-err .kx-dot { background: var(--kx-red); }
+
+.kx-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--kx-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.kx-help:hover { background: var(--kx-input-bg); color: var(--kx-fg-2); }
+.kx-help:active { transform: scale(0.9); }
+
+.kx-help-box {
+  background: var(--kx-input-bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--kx-fg-2);
+  margin-bottom: 16px;
+  animation: kx-help-in 0.2s ease both;
+}
+.kx-help-box code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  background: #eaeae7;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.kx-section-title { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+
+.kx-card {
+  background: var(--kx-card);
+  border: 1px solid var(--kx-border);
+  border-radius: 14px;
+  padding: 0 16px;
+  margin-bottom: 24px;
+}
+.kx-card > * + * { border-top: 1px solid var(--kx-hairline); }
+
+.kx-field { padding: 14px 0; }
+.kx-field label { display: block; font-size: 14px; margin-bottom: 7px; }
+.kx-field input {
+  width: 100%;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--kx-input-bg);
+  color: var(--kx-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.kx-field input:focus { border-color: #d9d9d6; background: #ffffff; }
+
+.kx-row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+}
+.kx-row-toggle { padding: 16px 0; }
+.kx-label { font-size: 14px; }
+
+.kx-toggle {
+  flex: none;
+  width: 44px;
+  height: 26px;
+  border: none;
+  border-radius: 13px;
+  background: #d9d9d6;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.kx-toggle .kx-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.15);
+  transition: transform 0.22s cubic-bezier(0.3, 1.4, 0.6, 1); /* 轻微回弹 */
+}
+.kx-toggle[aria-checked="true"] { background: var(--kx-fg); }
+.kx-toggle[aria-checked="true"] .kx-knob { transform: translateX(18px); }
+
+.kx-hidden { display: none; }
+
+/* React 图标组件的 <span class="kx-svg"> 包装：贴齐按钮内居中 */
+.kx-svg { display: inline-flex; align-items: center; }
+.kx-svg svg { display: block; }
+
+/* --- 过渡动画 --- */
+@keyframes kx-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+}
+@keyframes kx-help-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+/* 系统开启「减弱动态效果」时全部动画即时完成 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

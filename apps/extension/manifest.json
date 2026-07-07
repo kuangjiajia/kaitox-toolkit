@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Kaitox",
   "version": "0.3.0",
-  "description": "Kaitox browser companion. Current feature: publish local Markdown as X (Twitter) Article drafts — syncs pending drafts from the local Kaitox relay and uploads them on the drafts page.",
-  "permissions": ["storage", "alarms"],
+  "description": "Kaitox toolkit browser companion. Uploads pending Markdown drafts from the local Kaitox relay as X (Twitter) Article drafts.",
+  "permissions": ["storage", "alarms", "activeTab", "scripting"],
   "host_permissions": [
     "*://x.com/*",
     "*://upload.x.com/*",
@@ -17,15 +17,25 @@
   "content_scripts": [
     {
       "matches": [
-        "https://x.com/compose/articles*",
-        "https://twitter.com/compose/articles*"
+        "https://x.com/*",
+        "https://twitter.com/*"
       ],
       "js": ["content.js"],
-      "css": ["panel.css"],
+      "css": ["panel.css", "preview.css"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["mermaid-lib.js"],
+      "matches": ["https://x.com/*", "https://twitter.com/*"]
     }
   ],
   "action": {
     "default_title": "Kaitox"
+  },
+  "options_ui": {
+    "page": "settings.html",
+    "open_in_tab": false
   }
 }

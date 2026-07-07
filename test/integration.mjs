@@ -128,20 +128,22 @@ try {
   const idxCover = calls.findIndex((c) => c.url.includes('/ArticleEntityUpdateCoverMedia'));
   check('先建草稿再设封面', idxCreate >= 0 && idxCover > idxCreate);
 
-  // done → sent
+  // done → sent（迁移目录归档，但列表仍要能看到——草稿箱「已上传」Tab 依赖）
   await client.ack(id, { status: 'done', restId: 'ART_777' });
-  check('done 后离开 outbox', !(await client.listDrafts()).some((d) => d.id === id));
+  const doneItem = (await client.listDrafts()).find((d) => d.id === id);
+  check('done 后仍在列表且 status=done', doneItem?.status === 'done');
   await client.deleteDraft(id);
 
   // ---- 3. styleCheck + plaintext ----
   console.log('\n[3] styleCheck + plaintext');
   const md = '# T\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n- x\n  - nested\n\n![r](https://cdn.x/y.png)\n';
   const rep = checkMarkdownStyle(md);
-  check('检测到表格 warning', rep.issues.some((i) => i.rule === 'table'));
+  check('表格降为 info（X 原生渲染表格）', rep.issues.some((i) => i.rule === 'table' && i.severity === 'info'));
   check('检测到嵌套列表 warning', rep.issues.some((i) => i.rule === 'nested-list'));
   check('不友好', rep.friendly === false);
   const pt = toPlaintextMarkdown(md);
-  check('纯文本降级去掉表格管道', !/\|/.test(pt));
+  check('纯文本降级保留表格（不再打平）', /\| a \| b \|/.test(pt));
+  check('纯文本降级拍平嵌套列表', !/ {2}- nested/.test(pt) && /- nested/.test(pt));
   check('纯文本保留远程图片 src', collectImageSources(pt).includes('https://cdn.x/y.png'));
 } finally {
   await handle.close();

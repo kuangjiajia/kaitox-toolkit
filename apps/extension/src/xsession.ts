@@ -12,13 +12,21 @@ export interface Settings {
   queryId: string;
   coverQueryId: string;
   token?: string;
+  /** 是否在 X 文章草稿页显示「上传草稿」按钮（设置页开关，默认开）。 */
+  showUploadButton: boolean;
 }
 
 /** 读取插件设置（chrome.storage.sync），带默认值。 */
 export async function getSettings(): Promise<Settings> {
   let stored: Record<string, any> = {};
   try {
-    stored = await chrome.storage.sync.get(['relayBase', 'queryId', 'coverQueryId', 'relayToken']);
+    stored = await chrome.storage.sync.get([
+      'relayBase',
+      'queryId',
+      'coverQueryId',
+      'relayToken',
+      'showUploadButton',
+    ]);
   } catch {
     /* storage 不可用时用默认 */
   }
@@ -28,6 +36,7 @@ export async function getSettings(): Promise<Settings> {
     queryId: stored.queryId || ARTICLE_DRAFT_CREATE_QUERY_ID,
     coverQueryId: stored.coverQueryId || ARTICLE_UPDATE_COVER_MEDIA_QUERY_ID,
     token: stored.relayToken || undefined,
+    showUploadButton: stored.showUploadButton !== false,
   };
 }
 

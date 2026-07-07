@@ -1,7 +1,7 @@
 {
   "name": "kaitox",
   "version": "0.3.0",
-  "description": "kaitox — local publishing platform: CLI / Obsidian / Chrome extension. First feature: publish local Markdown as X (Twitter) Article drafts.",
+  "description": "Kaitox — a personal toolkit: CLI, Obsidian plugin, Chrome extension, and agent skills. First feature: publish local Markdown as X (Twitter) Article drafts.",
   "private": true,
   "type": "module",
   "workspaces": [

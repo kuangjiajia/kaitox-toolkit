@@ -6,12 +6,14 @@
  *   - clientOptions：同源 fetch + credentials:'include'（页面已登录，自动带 cookie），
  *     并用解析出的 queryId。
  *
- * bundle.markdown 已由上传端按 mode 处理完（plaintext 已降级），这里无需再转换。
+ * bundle.markdown 已由上传端按 mode 处理完（plaintext 已降级），这里无需再转换；
+ * 唯一的额外变换是 mermaid 围栏：默认渲染成 PNG 走图片通道（X 没有 mermaid 支持）。
  */
-import { publishXArticle } from '@kaitox/x-article';
+import { publishXArticle, extractMermaidBlocks } from '@kaitox/x-article';
 import type { ImageFetcher, CoverFetcher } from '@kaitox/x-article';
 import type { DraftBundle, HttpRelayClient } from '@kaitox/relay-protocol';
 import { readCt0, getSettings } from './xsession.js';
+import { renderMermaidPng } from './mermaid-render.js';
 
 export interface UploadResult {
   restId?: string;
@@ -23,7 +25,20 @@ export async function uploadDraft(draft: DraftBundle, client: HttpRelayClient): 
   if (!ct0) throw new Error('读取不到 ct0——请确认当前已登录 x.com 再试。');
   const { queryId, coverQueryId } = await getSettings();
 
+  // mermaid 围栏 → 图片引用；先串行预渲染，语法错误在上传前就报清楚（不半途丢图）。
+  const { markdown, blocks: mermaidBlocks } = extractMermaidBlocks(draft.markdown);
+  const mermaidPngBySrc = new Map<string, { bytes: Uint8Array; mimeType: string }>();
+  for (let i = 0; i < mermaidBlocks.length; i++) {
+    try {
+      mermaidPngBySrc.set(mermaidBlocks[i].src, await renderMermaidPng(mermaidBlocks[i].code));
+    } catch (err: any) {
+      throw new Error(`第 ${i + 1} 个 mermaid 图渲染失败：${err?.message ?? err}`);
+    }
+  }
+
   const fetchImage: ImageFetcher = async (src: string) => {
+    const mermaidPng = mermaidPngBySrc.get(src);
+    if (mermaidPng) return mermaidPng;
     const asset = draft.assets.find((a) => a.src === src);
     if (!asset) throw new Error(`草稿包内找不到图片资源：${src}`);
     const bytes = await client.getAsset(draft.id, asset.fileName);
@@ -37,7 +52,7 @@ export async function uploadDraft(draft: DraftBundle, client: HttpRelayClient): 
     : undefined;
 
   const result = await publishXArticle({
-    markdown: draft.markdown,
+    markdown,
     title: draft.title,
     credentials: { bearerToken: '', csrfToken: ct0 },
     clientOptions: {

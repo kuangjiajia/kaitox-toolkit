@@ -6,7 +6,7 @@
  *   kaitox-relay dev       前台启动（阻塞，Ctrl-C 退出；调试用）
  *   kaitox-relay stop      停止后台服务
  *   kaitox-relay status    查看运行状态
- *   kaitox-relay restart   停止后重新后台启动
+ *   kaitox-relay restart   重启：杀掉端口上的旧进程后重新后台启动
  *
  * 需要 Node 18+（用到全局 fetch）。数据落在 ~/.kaitox/outbox（可用 KAITOX_HOME 覆盖），
  * 端口默认 8765（可用 KAITOX_RELAY_PORT 覆盖）。
@@ -14,7 +14,7 @@
 import { fileURLToPath } from 'node:url';
 import { startRelay, type RelayServerHandle } from './server.js';
 import { RELAY_VERSION } from './config.js';
-import { isRelayUp, spawnDaemon, stopDaemon, relayBaseUrl } from './daemon.js';
+import { isRelayUp, spawnDaemon, stopDaemon, killPortOccupants, relayBaseUrl } from './daemon.js';
 
 /** 本脚本（cli.js）的绝对路径，供 spawnDaemon 重跑自身。 */
 const SELF = fileURLToPath(import.meta.url);
@@ -35,8 +35,7 @@ async function main(): Promise<void> {
       await cmdStatus();
       break;
     case 'restart':
-      await cmdStop();
-      await cmdStart();
+      await cmdRestart();
       break;
     case undefined:
     case 'help':
@@ -95,6 +94,15 @@ async function cmdStop(): Promise<void> {
   console.log(ok ? 'relay 已停止。' : '没有找到运行中的 relay（pidfile 缺失）。');
 }
 
+/** 重启：先杀掉端口上的旧进程（pidfile 优雅停 + 端口兜底清扫），再后台拉起。 */
+async function cmdRestart(): Promise<void> {
+  const stopped = await stopDaemon();
+  const swept = await killPortOccupants();
+  if (stopped || swept) console.log('旧 relay 已停止。');
+  await spawnDaemon(SELF);
+  console.log(`relay 已重启：${relayBaseUrl()}`);
+}
+
 async function cmdStatus(): Promise<void> {
   console.log((await isRelayUp()) ? `relay 运行中：${relayBaseUrl()}` : 'relay 未运行。');
 }
@@ -107,7 +115,7 @@ function printHelp(): void {
   kaitox-relay dev        前台启动（阻塞，Ctrl-C 退出；调试用）
   kaitox-relay stop       停止后台服务
   kaitox-relay status     查看运行状态
-  kaitox-relay restart    重启（stop 后 start）
+  kaitox-relay restart    重启（杀掉端口上的旧进程后重新启动）
 
 环境变量：
   KAITOX_HOME         数据目录（默认 ~/.kaitox）

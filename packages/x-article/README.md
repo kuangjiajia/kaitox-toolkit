@@ -1,8 +1,10 @@
+English | [简体中文](README.zh-CN.md)
+
 # @kaitox/x-article
 
-Publish Markdown as **X (Twitter) Article drafts**: a Markdown → `content_state` converter, a client for X's private web API, end-to-end publish orchestration, and an X-friendliness style checker. Works in browsers (same-origin on x.com) and in Node (>= 18). ESM-only.
+Publish Markdown as **X (Twitter) Article drafts**: a Markdown → `content_state` converter, a client for X's private web API, end-to-end publish orchestration, an X-friendliness style checker, and a framework-free preview renderer. Works in browsers (same-origin on x.com) and in Node (>= 18). ESM-only.
 
-This is the engine behind the [Kaitox](https://kaitox.ai) publishing platform (CLI, local relay, Obsidian plugin, Chrome extension). It has no dependency on the rest of Kaitox — you can embed it in your own browser extension or server.
+This is the engine behind the X-publishing feature of the [Kaitox](https://kaitox.ai) toolkit (CLI, local relay, Obsidian plugin, Chrome extension). It has no dependency on the rest of Kaitox — you can embed it in your own browser extension or server.
 
 > **Unofficial.** This library drives the user's own logged-in x.com session against X's private GraphQL endpoints. See [Known limitations & compliance](#known-limitations--compliance) before shipping anything on top of it.
 
@@ -110,7 +112,11 @@ A runnable version lives at [`examples/publish.ts`](examples/publish.ts).
 | `deriveTitle(markdown)` | First H1's text, falling back to the first heading of any level, then `''`. |
 | `sanitizeContentState(cs)` | Whitelist-rebuild a `content_state` so X accepts it: strips unknown fields, drops invalid inline styles, downgrades unsupported block types (`header-three` → `header-two`, `code-block` → `unstyled`). Applied automatically by `createArticleDraft`. |
 | `checkMarkdownStyle(markdown, opts?)` | Lint Markdown for X-friendliness; returns a `StyleReport`. See [Style checker](#style-checker). |
-| `toPlaintextMarkdown(markdown)` | Degrade unfriendly constructs (tables, code/HTML blocks, nested lists) into plain Markdown that converts cleanly. |
+| `toPlaintextMarkdown(markdown)` | Degrade constructs the converter would lose (HTML blocks, nested lists) into plain Markdown; tables and code fences are kept — X renders them natively. |
+| `extractMermaidBlocks(markdown)` | Replace top-level ```` ```mermaid ```` fences with `![...](mermaid://diagram-N)` image references, returning the transformed markdown plus the extracted blocks — render each block to an image yourself (needs a browser; the Kaitox extension uses mermaid.js) and serve the bytes through `fetchImage`. |
+| `renderPreviewHtml(markdown, opts?)` | Render an approximation of the published article as an escaped HTML string. See [Preview renderer](#preview-renderer). |
+| `renderModelHtml(model, opts?)` / `buildPreviewModel(markdown)` | The two halves of `renderPreviewHtml`: build a render-ready model, then render it. |
+| `segmentText(text, styles, entityRanges)` / `groupBlocks(blocks)` | Low-level preview helpers: split a block's text into uniformly-styled segments; group consecutive list items for `<ul>`/`<ol>`. Use these to write your own renderer (e.g. native DOM or React) instead of the HTML one. |
 | `DEFAULT_BEARER_TOKEN` | The public web bearer token shared by all x.com web clients. |
 | `ARTICLE_DRAFT_CREATE_QUERY_ID` | Default GraphQL queryId for `ArticleEntityDraftCreate` (X rotates these — override when stale). |
 | `ARTICLE_UPDATE_COVER_MEDIA_QUERY_ID` | Default GraphQL queryId for `ArticleEntityUpdateCoverMedia`. |
@@ -132,7 +138,8 @@ Exported types: `ContentState`, `ContentBlock`, `BlockType`, `EntityMapEntry`, `
 | `` `inline code` `` | Plain text (X has no inline code style) |
 | `[text](url)` | `LINK` entity |
 | `![alt](src)` | `atomic` block + `MEDIA` entity (needs an uploaded `media_id`) |
-| Fenced code, tables | `atomic` block + `MARKDOWN` entity (rendered as a plaintext code box) |
+| Fenced code | `atomic` block + `MARKDOWN` entity (rendered as a plaintext code box) |
+| Tables | `atomic` block + `MARKDOWN` entity — X renders them natively as tables |
 | `---` | `atomic` block + `DIVIDER` entity |
 
 Full rules, entity-key conventions, and UTF-16 offset semantics: [`docs/x-article-publish-protocol.md`](../../docs/x-article-publish-protocol.md).
@@ -143,7 +150,7 @@ Full rules, entity-key conventions, and UTF-16 offset semantics: [`docs/x-articl
 
 | Rule | Severity | Why |
 |---|---|---|
-| `table` | warning | No native tables on X; degrades to a code box showing raw pipes. |
+| `table` | info | Uploaded as a Markdown block; X renders it natively as a table. |
 | `nested-list` | warning | Nested list items are silently dropped (only one level survives). |
 | `html-block` | warning | HTML blocks are discarded entirely — content loss. |
 | `code-block` | info | Rendered as a plaintext code box (no highlighting); usually acceptable. |
@@ -153,16 +160,41 @@ Full rules, entity-key conventions, and UTF-16 offset semantics: [`docs/x-articl
 | `task-list` | info | Checkboxes are lost; items render as a plain list. |
 | `image-remote` | warning | Remote images aren't auto-downloaded; your uploader must fetch them itself. |
 | `image-missing` | error | No bytes available for the src — image will be skipped on upload. |
-| `image-too-large` | warning | Over the size limit (default 5 MB); X may reject the upload. |
+| `image-too-large` | warning | Over the size limit (default 5 MB) **and** in a format the relay cannot silently re-encode (anything but PNG/JPEG/WebP); X may reject the upload. Oversized PNG/JPEG/WebP are compressed automatically at relay ingest and no longer reported. |
 | `empty-doc` | error | X requires a non-empty body. |
 
 Pass `StyleCheckOptions.assetMap` (`src → { bytesLen, mime, resolved }`) so the image rules can distinguish missing/remote/oversized, and `maxImageBytes` to change the size limit.
 
-When the user won't fix the flagged constructs, `toPlaintextMarkdown(markdown)` is the fallback: tables become paragraphs of cell text, code/HTML blocks lose their fences/tags, nested lists are flattened — everything else (headings, emphasis, links, images) is preserved verbatim. The output is still Markdown; feed it to `markdownToContentState` as usual.
+When the user won't fix the flagged constructs, `toPlaintextMarkdown(markdown)` is the fallback: HTML blocks lose their tags, nested lists are flattened to one level — everything else (headings, emphasis, links, images, tables, code fences) is preserved verbatim, since tables and code convert cleanly via MARKDOWN entities. The output is still Markdown; feed it to `markdownToContentState` as usual.
 
-## Using with the kaitox relay
+## Preview renderer
 
-In the Kaitox platform this package runs inside the Chrome extension; upload clients (CLI, Obsidian, your own service) don't call X directly. Instead they POST a draft bundle — raw Markdown plus image bytes — to a local relay, and the extension picks it up on `x.com/compose/articles` and publishes with the page's own session. The bundle deliberately carries raw Markdown rather than a prebuilt `content_state`, because image `media_id`s only exist after upload from the logged-in page.
+`renderPreviewHtml` shows what an article will look like **before** publishing — and it can't drift from reality, because it renders the same `content_state` that `markdownToContentState` produces for publishing. Every degradation previews exactly as it will publish: inline code becomes plain text, nested list items are dropped, code fences show as a plaintext code box, tables render as native tables, unpackaged images show a "will be skipped" placeholder.
+
+It is framework-free (returns an escaped HTML string, no DOM required, Node-testable), so the same call powers a React modal (Kaitox Chrome extension), an Obsidian plugin view, or a plain web page:
+
+```ts
+import { renderPreviewHtml } from '@kaitox/x-article';
+// styles: import '@kaitox/x-article/preview.css' (bundler), or copy the file and <link> it
+
+const html = renderPreviewHtml(markdown, {
+  title: draft.title,               // omit to fall back to the first `#` heading
+  coverUrl: myCoverBlobUrl,         // omit to render no cover
+  resolveImage: (src) => {
+    // string → <img src>; undefined → "loading" placeholder; null → "will be skipped" placeholder
+    return myBlobUrlFor(src);
+  },
+});
+container.innerHTML = html; // output is fully escaped; unsafe link schemes are neutralized
+```
+
+The output is `<article class="xp-article">…</article>`; `preview.css` (exported as `@kaitox/x-article/preview.css`) styles it to approximate the X article reader. Theming is via `--xp-*` CSS variables (`--xp-text`, `--xp-text-muted`, `--xp-border`, `--xp-box`, `--xp-link`, `--xp-placeholder`) with light defaults — set them on any ancestor for dark mode or brand colors.
+
+Prefer building your own view (native DOM, React elements)? Use `buildPreviewModel` + `segmentText` + `groupBlocks` directly and skip the HTML layer.
+
+## Using with the Kaitox relay
+
+In the Kaitox toolkit this package runs inside the Chrome extension; upload clients (CLI, Obsidian, your own service) don't call X directly. Instead they POST a draft bundle — raw Markdown plus image bytes — to a local relay, and the extension picks it up on `x.com/compose/articles` and publishes with the page's own session. The bundle deliberately carries raw Markdown rather than a prebuilt `content_state`, because image `media_id`s only exist after upload from the logged-in page.
 
 - Wire types and HTTP client for the relay: [`@kaitox/relay-protocol`](https://www.npmjs.com/package/@kaitox/relay-protocol)
 - Building your own extension or upload client against the relay: [`docs/integrate-browser-extension.md`](../../docs/integrate-browser-extension.md)
