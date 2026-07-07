@@ -11,13 +11,18 @@ Kaitox's relay is a plain local HTTP server. The Kaitox CLI and Obsidian plugin 
 **How it fits together**
 
 ```text
-your service ──POST /drafts──▶ local relay (127.0.0.1:8765)
-                                   │  stores ~/.kaitox/outbox/<id>/
-                                   ▼
-                    Chrome extension on x.com/compose/articles
-                    polls every 5s → on click, uploads images and
-                    creates the Article draft in YOUR logged-in session
+your service ──POST /x-article/drafts──▶ local relay (127.0.0.1:8765)
+                                             │  stores ~/.kaitox/outbox/<id>/
+                                             ▼
+                          Chrome extension on x.com/compose/articles
+                          polls every 5s → on click, uploads images and
+                          creates the Article draft in YOUR logged-in session
 ```
+
+Draft routes are namespaced by `kind` (`/:kind/drafts...`): the path segment is
+the verbatim kind string, the relay treats it as opaque, and each feature gets
+its own namespace. `HttpRelayClient` handles this for you (it is kind-scoped,
+default `'x-article'`).
 
 The bundle you push carries **raw Markdown plus image bytes**, not a prebuilt X `content_state`. That is deliberate: image `media_id`s only exist after the extension uploads the images from the logged-in x.com page, so conversion has to happen there. The full pipeline is documented in [x-article-publish-protocol.md](./x-article-publish-protocol.md).
 
@@ -112,10 +117,9 @@ const mdPath = process.argv[2];
 const markdown = await readFile(mdPath, 'utf8');
 const assets = await buildAssets(markdown, dirname(resolve(mdPath)));
 
-const relay = new HttpRelayClient(); // defaults to http://127.0.0.1:8765
+const relay = new HttpRelayClient(); // defaults to http://127.0.0.1:8765, kind-scoped to 'x-article'
 
 const { id } = await relay.postDraft({
-  kind: 'x-article',            // feature discriminator; 'x-article' is also the default
   title: deriveTitle(markdown) || basename(mdPath),
   markdown,
   mode: 'rich',                 // 'rich' | 'plaintext'
@@ -149,7 +153,7 @@ const done = await waitForResult(relay, id);
 console.log(`draft created, rest_id = ${done.restId}`);
 ```
 
-Note: when a draft reaches `done` the relay moves it from `~/.kaitox/outbox/` to `~/.kaitox/sent/`. `GET /drafts/:id` still finds it there, but it disappears from the `GET /drafts` listing (which only shows the outbox).
+Note: when a draft reaches `done` the relay moves it from `~/.kaitox/outbox/` to `~/.kaitox/sent/`. Both `GET /:kind/drafts/:id` and the `GET /:kind/drafts` listing still include it (with `status: 'done'`).
 
 ### 5. Optional: cover image
 
@@ -213,7 +217,7 @@ For non-Node stacks, POST the `PostDraftWireBody` JSON directly. You must genera
 }
 ```
 
-Rules recap: `bundle.assets[].src` must equal `collectImageSources(bundle.markdown)` output exactly; the top-level `assets` array carries the actual bytes (base64) keyed by `fileName`, including the cover's bytes; `cover` and `kind` are optional (`kind` absent means `x-article`); `bundle.status` / `restId` / `error` must be omitted — the relay owns those.
+Rules recap: `bundle.assets[].src` must equal `collectImageSources(bundle.markdown)` output exactly; the top-level `assets` array carries the actual bytes (base64) keyed by `fileName`, including the cover's bytes; `cover` is optional; `bundle.kind` is optional but if present must equal the route's kind segment (the relay stamps the path kind onto the stored bundle either way); `bundle.status` / `restId` / `error` must be omitted — the relay owns those. Malformed bodies are rejected with `400 { error, issues }` where each issue has a JSONPath-style location.
 
 ```bash
 # Build the base64 payloads (tr strips GNU coreutils' line wrapping):
@@ -221,16 +225,16 @@ B64_DIAGRAM=$(base64 < diagram.png | tr -d '\n')
 B64_COVER=$(base64 < hero.jpg | tr -d '\n')
 # ...substitute them into draft.json, then:
 
-curl -sS -X POST http://127.0.0.1:8765/drafts \
+curl -sS -X POST http://127.0.0.1:8765/x-article/drafts \
   -H 'content-type: application/json' \
   --data @draft.json
 # → 201 {"id":"3f6c2f4e-9a1b-4c8d-b7e2-0d5f6a7b8c9d"}
 
 # Poll:
-curl -sS http://127.0.0.1:8765/drafts/3f6c2f4e-9a1b-4c8d-b7e2-0d5f6a7b8c9d | jq '{status, restId, error}'
+curl -sS http://127.0.0.1:8765/x-article/drafts/3f6c2f4e-9a1b-4c8d-b7e2-0d5f6a7b8c9d | jq '{status, restId, error}'
 ```
 
-Full REST surface: `GET /health`, `POST /drafts`, `GET /drafts`, `GET /drafts/:id`, `GET /drafts/:id/assets/:fileName` (binary), `PATCH /drafts/:id` (`{status, restId?, error?}`), `DELETE /drafts/:id`.
+Full REST surface: `GET /health`, `GET /setting`, `PATCH /setting` (`{token?}`), `POST /:kind/drafts`, `GET /:kind/drafts`, `GET /:kind/drafts/:id`, `GET /:kind/drafts/:id/assets/:fileName` (binary), `PUT /:kind/drafts/:id/cover`, `PATCH /:kind/drafts/:id` (`{status, restId?, error?}`), `DELETE /:kind/drafts/:id`. Kind segments must match `/^[a-z0-9][a-z0-9-]*$/` and not be a reserved word (`health`, `setting`, `drafts`). The pre-v0.5 root routes (`/drafts...`) return `410 Gone` with a migration hint.
 
 Server-side clients don't hit CORS (requests with no `Origin` header are always allowed). Browser pages on arbitrary origins *will* be blocked — the allowlist covers only x.com/twitter.com, `chrome-extension://`, and Obsidian.
 
@@ -242,31 +246,43 @@ By default the relay accepts any local request. To require a per-install token, 
 { "token": "some-long-random-string" }
 ```
 
-Then restart the relay (the token is read once at startup) and send the header on every request except `GET /health`:
+or set it on a running relay via `PATCH /setting` (takes effect immediately, no
+restart; if a token is already configured, the request must present it):
+
+```bash
+curl -sS -X PATCH http://127.0.0.1:8765/setting \
+  -H 'content-type: application/json' \
+  --data '{"token":"some-long-random-string"}'
+# → {"port":8765,"version":"...","tokenConfigured":true}
+```
+
+Then send the header on every request except `GET /health`:
 
 ```js
 const relay = new HttpRelayClient('http://127.0.0.1:8765', { token: 'some-long-random-string' });
 ```
 
 ```bash
-curl -sS http://127.0.0.1:8765/drafts -H 'x-kaitox-token: some-long-random-string'
+curl -sS http://127.0.0.1:8765/x-article/drafts -H 'x-kaitox-token: some-long-random-string'
 ```
 
-Missing or wrong token → `401 {"error":"unauthorized"}`.
+Missing or wrong token → `401 {"error":"unauthorized"}`. `GET /setting` reports
+`tokenConfigured` but never the token value itself; `PATCH /setting` with
+`{"token":null}` clears it.
 
 ## Custom kinds: use the relay for your own features
 
-X Articles are just the first `kind`. The relay stores and forwards `kind` without interpreting it, so you can push `kind: 'my-feature'` bundles through the same queue and write your own consumer — the Kaitox extension ignores anything that isn't `x-article`.
+X Articles are just the first `kind`. The relay treats the kind path segment as an opaque string, so `kind: 'my-feature'` bundles get their own route namespace (`/my-feature/drafts`) with zero relay changes — and the Kaitox extension never sees them, because it only polls `/x-article/drafts`.
 
-Producer side: identical to above, just set `kind: 'my-feature'`. Consumer side, using the same client:
+Producer and consumer both use a kind-scoped client:
 
 ```js
 import { HttpRelayClient } from '@kaitox/relay-protocol';
 
-const relay = new HttpRelayClient();
+const relay = new HttpRelayClient('http://127.0.0.1:8765', { kind: 'my-feature' });
 
-for (const item of await relay.listDrafts()) {
-  if (item.kind !== 'my-feature' || item.status !== 'pending') continue;
+for (const item of await relay.listDrafts()) { // GET /my-feature/drafts — already filtered
+  if (item.status !== 'pending') continue;
 
   const bundle = await relay.getDraft(item.id);
   await relay.ack(item.id, { status: 'uploading' });
@@ -283,18 +299,20 @@ for (const item of await relay.listDrafts()) {
 }
 ```
 
-Filter on `kind` strictly (treat *absent* `kind` as `'x-article'`, not yours) so your consumer never steals X Article drafts.
+Pick a kind that satisfies the path-segment rule: `/^[a-z0-9][a-z0-9-]*$/`, not one of the reserved words (`health`, `setting`, `drafts`). Cross-kind access is invisible: a draft posted under one kind 404s under any other.
 
 ## Troubleshooting
 
 | Symptom | Cause / fix |
 | --- | --- |
 | `ECONNREFUSED 127.0.0.1:8765` | Relay isn't running. `kaitox relay status` (or `npx @kaitox/relay status`), then `kaitox relay --daemon` / `npx @kaitox/relay start`. If you set `KAITOX_RELAY_PORT`, make sure your client targets the same port. |
-| `401 unauthorized` | A `token` is set in `~/.kaitox/config.json` but your request lacks a matching `x-kaitox-token` header. Also: the relay reads the token at startup — restart it after editing the config. `GET /health` never needs the token, so a passing health check doesn't prove your token works. |
+| `401 unauthorized` | A `token` is set in `~/.kaitox/config.json` but your request lacks a matching `x-kaitox-token` header. If you edited the config file by hand while the relay was running, restart it — or use `PATCH /setting`, which takes effect immediately. `GET /health` never needs the token, so a passing health check doesn't prove your token works. |
+| `410 Gone` on `/drafts` | You're using pre-v0.5 root routes. Draft routes are namespaced by kind now: `/x-article/drafts` (or your own kind). |
+| `400 {"error":"invalid draft bundle","issues":[...]}` | The wire body failed validation; each issue carries a JSONPath-style location (e.g. `$.bundle.assets[0].mime`). Fix the listed fields. |
+| `400 invalid kind path segment` | The kind in the URL must match `/^[a-z0-9][a-z0-9-]*$/` and not be `health`/`setting`/`drafts`. |
 | Draft stuck in `pending` forever | Nothing is consuming it. For `x-article`: the Chrome extension must be installed, a tab must be open on `https://x.com/compose/articles` (it polls every 5s), you must be logged in to X, and publishing starts when you click the draft in the extension UI — it's intentionally not fully automatic. For custom kinds: your own consumer isn't running. |
 | Draft `done` but an image is missing from the article | `assets[].src` didn't exactly match `collectImageSources(markdown)` output for that image. Re-check step 2 — no normalization allowed. |
 | `400 {"error":"非法文件名"}` on asset fetch, or assets not written | `fileName` contained a path separator or resolved to `.`/`..`. Use bare, unique file names. |
-| Draft vanished from `GET /drafts` after success | Expected: `done` drafts move from `~/.kaitox/outbox/` to `~/.kaitox/sent/`. `GET /drafts/:id` still returns them. |
 | Browser page can't reach the relay (CORS error) | Only x.com/twitter.com, `chrome-extension://` and Obsidian origins are allowlisted. Push from your server/CLI process instead (no-`Origin` requests are allowed). |
 
 ## See also

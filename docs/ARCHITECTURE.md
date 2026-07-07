@@ -16,17 +16,17 @@ The data flow for the X feature:
 ```
 CLI / Obsidian / your service          local relay              Chrome extension (MV3)
         │                          http://127.0.0.1:8765        on x.com/compose/articles
-        │  POST /drafts                    │                            │
+        │  POST /x-article/drafts          │                            │
         │  raw Markdown + image bytes      │                            │
         │  (base64, single JSON)           │                            │
         ├─────────────────────────────────▶│  ~/.kaitox/outbox/<id>/    │
         │                                  │    bundle.json             │
         │                                  │    assets/<fileName>       │
         │                                  │◀──── polls every 5s ──────┤
-        │                                  │      GET /drafts           │
-        │                                  │      GET assets (bytes)    │
+        │                                  │  GET /x-article/drafts     │
+        │                                  │  GET assets (bytes)        │
         │                                  │                            │ on click: uploads images +
-        │                                  │◀──── PATCH /drafts/:id ───┤ creates the Article draft
+        │                                  │◀─ PATCH /x-article/… ─────┤ creates the Article draft
         │                                  │      done/failed           │ with the page's own session
 ```
 
@@ -70,8 +70,9 @@ kaitox/
 └── .github/workflows/       # ci.yml (build + all tests, Node 20/22), release.yml (changesets publish)
 ```
 
-All four `packages/*` are publishable to npm (v0.3.0, ESM-only, Node >= 18,
-MIT; first publish pending). `apps/*` are private and never published.
+All four `packages/*` are publishable to npm (ESM-only, Node >= 18, MIT;
+versions are managed by changesets — see each package.json; first publish
+pending). `apps/*` are private and never published.
 
 ## 2. Layering rule
 
@@ -146,9 +147,12 @@ sentinel `src: '__cover__'`, is **not** in `bundle.assets`, and is **not**
 referenced from the Markdown. Its bytes still travel in the wire `assets`
 array and land on disk as `assets/<cover.fileName>` like any other asset.
 
-- Produced: [`packages/cli/src/bundleBuilder.ts`](../packages/cli/src/bundleBuilder.ts)
-  and [`apps/obsidian/src/main.ts`](../apps/obsidian/src/main.ts)
-  (`{ key: 'cover', src: '__cover__', fileName, mime, bytes }`).
+- Produced: both producers ([`packages/cli/src/bundleBuilder.ts`](../packages/cli/src/bundleBuilder.ts)
+  and [`apps/obsidian/src/main.ts`](../apps/obsidian/src/main.ts)) call
+  `makeCoverAsset()` from
+  [`packages/x-article/src/pushHelpers.ts`](../packages/x-article/src/pushHelpers.ts)
+  — the single place that emits
+  `{ key: 'cover', src: '__cover__', fileName: 'cover-…', mime, bytes }`.
 - Wire packing: `HttpRelayClient.postDraft` in
   [`packages/relay-protocol/src/relayClient.ts`](../packages/relay-protocol/src/relayClient.ts)
   appends the cover bytes to `wireAssets`.
@@ -157,9 +161,32 @@ array and land on disk as `assets/<cover.fileName>` like any other asset.
   uploads the cover **after** the draft exists and sets it with the separate
   `ArticleEntityUpdateCoverMedia` mutation.
 
-### 3.3 `PostDraftWireBody` shape
+### 3.3 Kind-namespaced routes + `PostDraftWireBody` shape
 
-`POST /drafts` is a **single JSON document** with base64 assets:
+All draft routes live under `/:kind/drafts...`, where the path segment is the
+**verbatim `kind` string** — the relay treats it as an opaque parameter
+(stores, filters, and matches it; never interprets it), so third-party kinds
+get their own namespace with zero relay changes:
+
+```
+GET    /health                               infrastructure (token-exempt)
+GET    /setting                              relay settings view — never returns the token value
+PATCH  /setting                              body: { token?: string | null }
+POST   /:kind/drafts                         body: PostDraftWireBody; kind stamped from the path
+GET    /:kind/drafts                         server-side filtered by kind
+GET    /:kind/drafts/:id
+GET    /:kind/drafts/:id/assets/:fileName    raw binary
+PUT    /:kind/drafts/:id/cover               body: SetCoverWireBody
+PATCH  /:kind/drafts/:id                     body: { status, restId?, error? }
+DELETE /:kind/drafts/:id
+/drafts*                                     410 Gone (pre-v0.5 root routes; migration hint)
+```
+
+Kind path segments must match `/^[a-z0-9][a-z0-9-]*$/` and must not be a
+reserved word (`health`, `setting`, `drafts`) — see `isValidKindSegment` in
+[`packages/relay-protocol/src/validate.ts`](../packages/relay-protocol/src/validate.ts).
+
+`POST /:kind/drafts` is a **single JSON document** with base64 assets:
 
 ```ts
 // packages/relay-protocol/src/relayClient.ts
@@ -171,8 +198,17 @@ interface PostDraftWireBody {
 
 This is deliberate: the relay decodes base64 to binary at write time and needs
 no multipart parser — it stays on pure Node builtins. The asset **download**
-direction (`GET /drafts/:id/assets/:fileName`) returns raw binary because that
-is the hot, bandwidth-sensitive path for the extension. Parsing lives in
+direction (`GET /:kind/drafts/:id/assets/:fileName`) returns raw binary because
+that is the hot, bandwidth-sensitive path for the extension.
+
+Request bodies are validated at the boundary by the zero-dep wire validators
+exported from `relay-protocol` (`validatePostDraftWireBody` and friends in
+[`validate.ts`](../packages/relay-protocol/src/validate.ts) — the executable
+form of this contract); the relay rejects malformed bodies with
+`400 { error, issues }` where each issue carries a JSONPath-style location.
+The validators are deliberately lenient: unknown fields and unknown (higher)
+`schemaVersion`s pass through, and the open strings `kind`/`source` are not
+constrained. Routing lives in
 [`packages/relay/src/server.ts`](../packages/relay/src/server.ts), storage in
 [`packages/relay/src/storage.ts`](../packages/relay/src/storage.ts).
 
@@ -181,31 +217,40 @@ is the hot, bandwidth-sensitive path for the extension. Parsing lives in
 - Type: `DraftKind` in [`packages/relay-protocol/src/bundle.ts`](../packages/relay-protocol/src/bundle.ts).
   v0.2 bundles on disk predate the field, so absence must keep meaning
   `'x-article'` forever.
-- `HttpRelayClient.postDraft` writes the default explicitly
-  (`kind: input.kind ?? 'x-article'`,
-  [`packages/relay-protocol/src/relayClient.ts`](../packages/relay-protocol/src/relayClient.ts)).
-- The relay **stores and forwards `kind` without interpreting it**
-  ([`packages/relay/src/storage.ts`](../packages/relay/src/storage.ts)).
-- Consumers apply the default when reading, e.g. the extension panel filter
-  `(d.kind ?? 'x-article') === 'x-article'` in
-  [`apps/extension/src/panel.tsx`](../apps/extension/src/panel.tsx).
+- **Read side: always use the canonical accessor `draftKind(bundle)`**
+  (exported from `relay-protocol`) instead of open-coding
+  `b.kind ?? 'x-article'`.
+- Since the kind-namespaced routes (3.3), **new bundles always have `kind`**:
+  the relay stamps it from the path segment on `POST /:kind/drafts`
+  ([`packages/relay/src/storage.ts`](../packages/relay/src/storage.ts)), and a
+  body whose `bundle.kind` disagrees with the route is rejected with 400.
+  Absence only remains possible on legacy disk bundles, which `draftKind()`
+  classifies as `'x-article'` (so they appear under `/x-article/drafts`).
+- The relay still **never interprets** the kind value — it stores, filters,
+  and matches it as an opaque string.
+- Consumers no longer filter client-side: `HttpRelayClient` is kind-scoped
+  (constructor option, default `'x-article'`) and the server filters
+  `GET /:kind/drafts`.
 
-### 3.5 Default port 8765 exists in four code sites plus the extension manifest
+### 3.5 Default port 8765: one constant + the static extension manifest
 
-| Site | Constant |
-| --- | --- |
-| [`packages/relay-protocol/src/relayClient.ts`](../packages/relay-protocol/src/relayClient.ts) | `DEFAULT_BASE_URL = 'http://127.0.0.1:8765'` |
-| [`packages/relay/src/config.ts`](../packages/relay/src/config.ts) | `DEFAULT_PORT = 8765` (overridable via `KAITOX_RELAY_PORT`) |
-| [`apps/extension/src/xsession.ts`](../apps/extension/src/xsession.ts) | `DEFAULT_RELAY_BASE = 'http://127.0.0.1:8765'` |
-| [`apps/obsidian/src/main.ts`](../apps/obsidian/src/main.ts) | `DEFAULT_SETTINGS.relayBase = 'http://127.0.0.1:8765'` |
-| [`apps/extension/manifest.json`](../apps/extension/manifest.json) | `host_permissions`: `http://127.0.0.1:8765/*`, `http://localhost:8765/*` |
+The single source of truth is `DEFAULT_RELAY_PORT` / `DEFAULT_RELAY_BASE` in
+[`packages/relay-protocol/src/relayClient.ts`](../packages/relay-protocol/src/relayClient.ts).
+Every runtime consumer imports it: the relay's `DEFAULT_PORT`
+([`packages/relay/src/config.ts`](../packages/relay/src/config.ts), overridable
+via `KAITOX_RELAY_PORT`), the extension
+([`apps/extension/src/xsession.ts`](../apps/extension/src/xsession.ts)
+re-exports it), and the Obsidian plugin
+([`apps/obsidian/src/main.ts`](../apps/obsidian/src/main.ts)).
 
-This duplication is **deliberate, not an oversight**: the constant crosses
-browser/Node boundaries. The manifest is static JSON read by Chrome, the
-extension and Obsidian bundles cannot import the relay's Node-side config, and
-`relay-protocol` must stay zero-dep in both runtimes. If you ever change the
-default port, change **all five** sites. The host is always `127.0.0.1` —
-the relay never binds a public interface.
+The one remaining duplicate is
+[`apps/extension/manifest.json`](../apps/extension/manifest.json)
+(`host_permissions`: `http://127.0.0.1:8765/*`, `http://localhost:8765/*`) —
+it must stay static JSON that Chrome and store tooling can read verbatim.
+The extension build ([`apps/extension/esbuild.mjs`](../apps/extension/esbuild.mjs))
+**fails if the manifest and the constant disagree**, so changing the default
+port means changing the constant and the manifest; the build catches a miss.
+The host is always `127.0.0.1` — the relay never binds a public interface.
 
 ### 3.6 UTF-16 offsets in `content_state`
 
@@ -217,6 +262,24 @@ the BMP (emoji) count as 2. Defined in
 truth-tested (including a CJK bold-offset case) in
 [`packages/x-article/test/validate.mjs`](../packages/x-article/test/validate.mjs).
 Do not count Unicode code points or grapheme clusters.
+
+### 3.7 `schemaVersion` policy
+
+`DraftBundle.schemaVersion` is a plain `number`; the current value is the
+`SCHEMA_VERSION` constant in
+[`packages/relay-protocol/src/bundle.ts`](../packages/relay-protocol/src/bundle.ts)
+(read via `bundleSchemaVersion(b)` — absent on v0.2 disk bundles means 1).
+The rules:
+
+- **Additive changes never bump** the version (the wire validators tolerate
+  unknown fields for exactly this reason).
+- **Incompatible changes bump `SCHEMA_VERSION`** — and only then do
+  migration/upgrader functions get written (none exist today; don't add dead
+  machinery early).
+- **Consumers must refuse versions greater than they know** with a clear
+  error rather than misparse.
+- **The relay stores any version blindly** — refusing is the consumer's job;
+  the relay stays content-agnostic.
 
 ## 4. Adding a feature (worked example: `linkedin`)
 
@@ -231,38 +294,43 @@ exists. Suppose you want `kaitox linkedin push`:
    dependency order, and to the `npm pack --dry-run` loop in
    [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) if it will be
    published.
-2. **Push side reuses `relay-protocol` unchanged** — build a bundle and call
-   `client.postDraft({ kind: 'linkedin', title, markdown, mode, source, assets, ... })`.
-   Raw Markdown plus image bytes, same shape as today.
-3. **Relay: no changes.** It stores and forwards `kind` blindly (invariant
-   3.4). Every existing endpoint already works for the new kind.
+2. **Push side reuses `relay-protocol` unchanged** — build a kind-scoped
+   client and post:
+   `new HttpRelayClient(base, { kind: 'linkedin' }).postDraft({ title, markdown, mode, source, assets, ... })`.
+   Raw Markdown plus image bytes, same shape as today; the draft lands under
+   `/linkedin/drafts`.
+3. **Relay: no changes.** The kind namespace comes from the URL path segment
+   and the relay treats it as an opaque string (invariants 3.3/3.4). Every
+   route already works for the new kind — the only constraint is the path
+   segment rule (`/^[a-z0-9][a-z0-9-]*$/`, not a reserved word).
 4. **CLI:** add `packages/cli/src/commands/linkedin.ts` exporting
    `runLinkedin(args: string[])`, then add **one entry** to the `FEATURES`
    dispatch table in [`packages/cli/src/kaitox.ts`](../packages/cli/src/kaitox.ts):
 
    ```ts
-   const FEATURES: Record<string, (args: string[]) => Promise<void>> = {
-     x: runX,
-     linkedin: runLinkedin,
+   const FEATURES: Record<string, Command> = {
+     x: { run: runX, summary: 'X (Twitter) Article publishing — push / list / status' },
+     linkedin: { run: runLinkedin, summary: 'LinkedIn drafts — push / list / status' },
    };
    ```
 
-   That yields `kaitox linkedin push|list|status ...`. Update `printHelp()` in
-   the same file.
+   That yields `kaitox linkedin push|list|status ...`, and the help output is
+   generated from the table — nothing else to update.
 5. **Consumer:** whatever delivers the draft (a browser extension, a script)
-   polls `GET /drafts` and filters on its own kind:
-   `(d.kind ?? 'x-article') === 'linkedin'`. The existing X panel already
-   ignores foreign kinds ([`apps/extension/src/panel.tsx`](../apps/extension/src/panel.tsx)),
-   so multiple features coexist on one relay.
+   polls `GET /linkedin/drafts` — server-side filtered, no client-side kind
+   filter needed. Multiple features coexist on one relay, each in its own
+   route namespace.
 
 Exact extension points, in summary:
 
-- `FEATURES` table in `packages/cli/src/kaitox.ts` (one line).
+- `FEATURES` table in `packages/cli/src/kaitox.ts` (one line; help is
+  generated from it).
 - New `packages/cli/src/commands/<feature>.ts`.
 - New engine package `packages/<feature>`.
-- `kind` string on `PostDraftInput` (no type change needed — `DraftKind` is
-  open: `'x-article' | (string & {})`).
-- Per-kind filter in the consumer.
+- `kind` on the `HttpRelayClient` constructor (no type change needed —
+  `DraftKind` is open: `'x-article' | (string & {})`; the route namespace
+  follows automatically).
+- A consumer polling `GET /<kind>/drafts`.
 - A skill under `skills/<feature>/SKILL.md` if agents should drive the
   feature (plus a catalog row in [`skills/README.md`](../skills/README.md)).
 - A changeset for the release (section 6).
@@ -273,9 +341,10 @@ Three suites, all runnable offline (the X API is always mocked):
 
 | Suite | Location | Covers | Run |
 | --- | --- | --- | --- |
+| Wire validator test | [`packages/relay-protocol/test/validate.mjs`](../packages/relay-protocol/test/validate.mjs) | The zero-dep wire validators (issue paths for malformed bodies, forward-compat leniency, kind path-segment rules); imports only the package's own dist — never `@kaitox/relay` | `npm test` (root; runs `-w @kaitox/relay-protocol` first) |
 | Conversion truth test | [`packages/x-article/test/validate.mjs`](../packages/x-article/test/validate.mjs) | `markdownToContentState` against expected ground truth (headings, inline styles, CJK UTF-16 offsets, `collectImageSources`, `sanitizeContentState`, `deriveTitle`) | `npm test` (root; delegates to `-w @kaitox/x-article`) |
-| Integration | [`test/integration.mjs`](../test/integration.mjs) | End-to-end with an in-process relay: relay CRUD incl. cover bytes, path-traversal guard, custom-`kind` round-trip, `done` → `sent` move; the extension upload pipeline with the X API mocked (correct `content_state`, cover uploaded after draft creation via `ArticleEntityUpdateCoverMedia`); `checkMarkdownStyle` + plaintext-fallback invariants | `npm run test:integration` |
-| Protocol smoke | [`test/relay-protocol.smoke.mjs`](../test/relay-protocol.smoke.mjs) | Only `@kaitox/relay-protocol`'s public exports (`HttpRelayClient`, base64 helpers) against an in-process relay, exactly as a third-party integration would use them; third-party `kind`/`source` pass-through | `npm run test:protocol` |
+| Integration | [`test/integration.mjs`](../test/integration.mjs) | End-to-end with an in-process relay: relay CRUD incl. cover bytes, path-traversal guard, custom-`kind` round-trip + cross-kind isolation, boundary validation (400 + issue paths, 410 on legacy routes), `GET`/`PATCH /setting` + live token rotation, `done` → `sent` move; the extension upload pipeline with the X API mocked (correct `content_state`, cover uploaded after draft creation via `ArticleEntityUpdateCoverMedia`); `checkMarkdownStyle` + plaintext-fallback invariants | `npm run test:integration` |
+| Protocol smoke | [`test/relay-protocol.smoke.mjs`](../test/relay-protocol.smoke.mjs) | Only `@kaitox/relay-protocol`'s public exports (kind-scoped `HttpRelayClient`, `RelayHttpError`, base64 helpers) against an in-process relay, exactly as a third-party integration would use them; third-party `kind`/`source` pass-through and namespace isolation | `npm run test:protocol` |
 
 Everything at once (build first, then all three):
 

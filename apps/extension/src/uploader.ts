@@ -20,7 +20,11 @@ export interface UploadResult {
   skippedImages: string[];
 }
 
-export async function uploadDraft(draft: DraftBundle, client: HttpRelayClient): Promise<UploadResult> {
+export async function uploadDraft(
+  draft: DraftBundle,
+  client: HttpRelayClient,
+  onProgress?: (message: string) => void,
+): Promise<UploadResult> {
   const ct0 = readCt0();
   if (!ct0) throw new Error('读取不到 ct0——请确认当前已登录 x.com 再试。');
   const { queryId, coverQueryId } = await getSettings();
@@ -29,6 +33,7 @@ export async function uploadDraft(draft: DraftBundle, client: HttpRelayClient): 
   const { markdown, blocks: mermaidBlocks } = extractMermaidBlocks(draft.markdown);
   const mermaidPngBySrc = new Map<string, { bytes: Uint8Array; mimeType: string }>();
   for (let i = 0; i < mermaidBlocks.length; i++) {
+    onProgress?.(`正在渲染 mermaid 图 ${i + 1}/${mermaidBlocks.length}…`);
     try {
       mermaidPngBySrc.set(mermaidBlocks[i].src, await renderMermaidPng(mermaidBlocks[i].code));
     } catch (err: any) {
@@ -63,6 +68,16 @@ export async function uploadDraft(draft: DraftBundle, client: HttpRelayClient): 
     },
     fetchImage,
     fetchCover,
+    // 各阶段映射成人话，实时刷新详情面板的提示行。
+    onProgress: (p) => {
+      if (p.stage === 'images') {
+        if (p.total > 0) onProgress?.(`正在上传图片 ${p.done}/${p.total}…`);
+      } else if (p.stage === 'draft') {
+        onProgress?.('正在创建草稿…');
+      } else {
+        onProgress?.('正在设置封面…');
+      }
+    },
   });
 
   return { restId: result.restId, skippedImages: result.skippedImages };

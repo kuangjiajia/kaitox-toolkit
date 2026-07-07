@@ -33,16 +33,16 @@ in the page's own origin. That is a deliberate design decision:
 The division of labor:
 
 ```
-CLI / Obsidian / your service          local relay                 your extension (content script on x.com)
-        │  POST /drafts                     │                              │
-        ├──────────────────────────────────►│  stores ~/.kaitox/outbox/<id>│
-        │  (raw Markdown + base64 images)   │                              │
-        │                                   │◄── GET /drafts (poll ~5s) ───┤
-        │                                   │◄── GET /drafts/:id ──────────┤
-        │                                   │◄── GET /drafts/:id/assets/.. ┤
-        │                                   │                              ├─► upload images (same-origin)
-        │                                   │                              ├─► ArticleEntityDraftCreate
-        │                                   │◄── PATCH /drafts/:id (ack) ──┤
+CLI / Obsidian / your service            local relay               your extension (content script on x.com)
+        │  POST /x-article/drafts             │                              │
+        ├────────────────────────────────────►│  stores ~/.kaitox/outbox/<id>│
+        │  (raw Markdown + base64 images)     │                              │
+        │                                     │◄─ GET /x-article/drafts ────┤ (poll ~5s; server-side
+        │                                     │◄─ GET …/drafts/:id ─────────┤  filtered by kind)
+        │                                     │◄─ GET …/drafts/:id/assets/..┤
+        │                                     │                              ├─► upload images (same-origin)
+        │                                     │                              ├─► ArticleEntityDraftCreate
+        │                                     │◄─ PATCH …/drafts/:id (ack) ─┤
 ```
 
 Key invariant: `bundle.assets[].src` is byte-for-byte equal to the output of
@@ -130,12 +130,12 @@ an unbound `fetch` reference throws `Illegal invocation` when called through a f
 
 ```ts
 // relay.ts
-import { HttpRelayClient } from '@kaitox/relay-protocol';
-
-export const RELAY_BASE = 'http://127.0.0.1:8765';
+import { HttpRelayClient, DEFAULT_RELAY_BASE } from '@kaitox/relay-protocol';
 
 export function makeRelayClient(token?: string): HttpRelayClient {
-  return new HttpRelayClient(RELAY_BASE, {
+  // kind-scoped to 'x-article' by default: all requests go to /x-article/drafts...,
+  // so the relay only ever shows this client X Article drafts.
+  return new HttpRelayClient(DEFAULT_RELAY_BASE, {
     fetchImpl: window.fetch.bind(window),
     token, // optional per-install token from ~/.kaitox/config.json, sent as x-kaitox-token
   });
@@ -148,9 +148,10 @@ If the user configured a token in `~/.kaitox/config.json`, every relay request e
 ### 3. Poll for pending drafts
 
 Poll `listDrafts()` (the reference extension uses a 5-second interval) and filter to
-drafts that are not finished **and** are meant for the X Article feature. The `kind`
-discriminator routes bundles to consumers; absent `kind` means `'x-article'` (bundles
-written before the field existed). Always apply the fallback:
+drafts that are not finished. Kind routing happens server-side: the client is
+kind-scoped, `GET /x-article/drafts` only returns X Article drafts (including legacy
+bundles written before the `kind` field existed), so no client-side kind filter is
+needed:
 
 ```ts
 // poll.ts
@@ -163,9 +164,7 @@ const client = makeRelayClient();
 async function fetchPending(): Promise<DraftListItem[]> {
   await client.health(); // throws if the relay is not running
   const items = await client.listDrafts();
-  return items.filter(
-    (d) => d.status !== 'done' && (d.kind ?? 'x-article') === 'x-article',
-  );
+  return items.filter((d) => d.status !== 'done');
 }
 
 setInterval(async () => {
@@ -371,7 +370,7 @@ everything above (private, not published to npm):
 - [`manifest.json`](../apps/extension/manifest.json) — the MV3 manifest this guide's snippet is distilled from.
 - [`src/uploader.ts`](../apps/extension/src/uploader.ts) — the exact `fetchImage`/`fetchCover`/`publishXArticle` wiring.
 - [`src/xsession.ts`](../apps/extension/src/xsession.ts) — `ct0` reading, relay client construction, settings with queryId overrides.
-- [`src/panel.ts`](../apps/extension/src/panel.ts) — 5s polling, `kind`/`status` filtering, the ack lifecycle around uploads, busy-guarding, delete with confirmation.
+- [`src/panel.ts`](../apps/extension/src/panel.ts) — 5s polling, `status` filtering (kind routing is server-side via the kind-scoped client), the ack lifecycle around uploads, busy-guarding, delete with confirmation.
 - [`src/background.ts`](../apps/extension/src/background.ts) — optional service-worker badge counter using `alarms` (1-minute period; service workers can't poll every 5s — Chrome suspends them).
 - [`esbuild.mjs`](../apps/extension/esbuild.mjs) — the IIFE bundling setup.
 

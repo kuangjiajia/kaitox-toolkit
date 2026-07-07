@@ -24,10 +24,11 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 async function updateBadge(): Promise<void> {
   try {
-    const res = await fetch(`${DEFAULT_RELAY_BASE}/drafts`);
+    // kind 命名空间路由：服务端只回 x-article 草稿，无需客户端过滤 kind。
+    const res = await fetch(`${DEFAULT_RELAY_BASE}/x-article/drafts`);
     if (!res.ok) throw new Error(String(res.status));
-    const items: Array<{ status?: string; kind?: string }> = await res.json();
-    const n = items.filter((d) => d.status !== 'done' && (d.kind ?? 'x-article') === 'x-article').length;
+    const items: Array<{ status?: string }> = await res.json();
+    const n = items.filter((d) => d.status !== 'done').length;
     await chrome.action.setBadgeText({ text: n ? String(n) : '' });
     await chrome.action.setBadgeBackgroundColor({ color: '#1d9bf0' });
   } catch {

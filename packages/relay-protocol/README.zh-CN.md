@@ -38,9 +38,9 @@ kaitox-relay start
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `schemaVersion` | `1` | 字面量。只在破坏性线上变更时递增。 |
+| `schemaVersion` | `number` | 当前值即 `SCHEMA_VERSION` 常量（`1`）；用 `bundleSchemaVersion(b)` 读取（v0.2 磁盘草稿包上缺省即 `1`）。只在破坏性线上变更时递增。 |
 | `id` | `string` | 由推送方分配（`HttpRelayClient` 默认使用 `crypto.randomUUID()`）。 |
-| `kind?` | `DraftKind` | 功能判别字段。**缺省即 `'x-article'`**（磁盘上的 v0.2 草稿包早于该字段出现）。relay 只存储和转发它，不做解释。 |
+| `kind?` | `DraftKind` | 功能判别字段。**缺省即 `'x-article'`**（磁盘上的 v0.2 草稿包早于该字段出现）——请通过规范访问器 `draftKind(b)` 读取（默认值即 `DEFAULT_DRAFT_KIND`）。relay 在 POST 时会用 `/:kind/drafts` 路径段盖章写入它，之后只存储和转发，不做解释。 |
 | `title` | `string` | 草稿标题。 |
 | `markdown` | `string` | 原始 Markdown 源。 |
 | `mode` | `'rich' \| 'plaintext'` | 富文本渲染或纯文本兜底。 |
@@ -69,7 +69,7 @@ kaitox-relay start
 
 ### `DraftListItem`
 
-`GET /drafts` 返回的轻量形态——没有 `markdown`，没有字节：
+`GET /:kind/drafts` 返回的轻量形态——没有 `markdown`，没有字节：
 
 | 字段 | 类型 |
 |---|---|
@@ -96,21 +96,28 @@ export type DraftSource = 'cli' | 'obsidian' | 'unknown' | (string & {});
 
 ## REST 契约
 
-Base URL 默认为 `http://127.0.0.1:8765`。relay 只绑定 `127.0.0.1`；端口可通过 `KAITOX_RELAY_PORT` 配置，存储位于 `KAITOX_HOME`（默认 `~/.kaitox`）之下。
+Base URL 默认为 `http://127.0.0.1:8765`（以 `DEFAULT_RELAY_BASE` / `DEFAULT_RELAY_PORT` 导出）。relay 只绑定 `127.0.0.1`；端口可通过 `KAITOX_RELAY_PORT` 配置，存储位于 `KAITOX_HOME`（默认 `~/.kaitox`）之下。
+
+草稿路由按 `kind` 命名空间化（`/:kind/drafts...`）：路径段就是**原样的 kind 字符串**，relay 把它当作不透明参数——只存储、过滤和匹配，从不解释。kind 路径段必须匹配 `/^[a-z0-9][a-z0-9-]*$/`，且不能是保留字（`health`、`setting`、`drafts`）；这条规则以 `isValidKindSegment` 导出（连同 `RESERVED_KIND_SEGMENTS`）。v0.5 之前的根路由（`/drafts*`）应答 `410 Gone` 并附迁移提示。
 
 | 方法 | 路径 | 请求体 | 成功 | 错误 |
 |---|---|---|---|---|
 | `GET` | `/health` | — | `200` `{ ok, version, port }` | —（免 token） |
-| `POST` | `/drafts` | `PostDraftWireBody`（JSON） | `201` `{ id }` | `401` |
-| `GET` | `/drafts` | — | `200` `DraftListItem[]` | `401` |
-| `GET` | `/drafts/:id` | — | `200` `DraftBundle` | `401`、`404` |
-| `GET` | `/drafts/:id/assets/:fileName` | — | `200` 二进制（`application/octet-stream`） | `400`（非法文件名）、`401`、`404` |
-| `PATCH` | `/drafts/:id` | `{ status, restId?, error? }` | `200` 更新后的 `DraftBundle` | `401`、`404` |
-| `DELETE` | `/drafts/:id` | — | `200` `{ deleted: true }` | `401`、`404` `{ deleted: false }` |
+| `GET` | `/setting` | — | `200` `{ port, version, tokenConfigured }`——永不返回 token 值 | `401` |
+| `PATCH` | `/setting` | `{ token?: string \| null }`（`null` 表示清除；即时生效，无需重启） | `200` `{ port, version, tokenConfigured }` | `400`、`401` |
+| `POST` | `/:kind/drafts` | `PostDraftWireBody`（JSON） | `201` `{ id }`——`kind` 由路径段盖章写入 | `400`（请求体非法，或 `bundle.kind` 与路径不一致）、`401` |
+| `GET` | `/:kind/drafts` | — | `200` `DraftListItem[]`，服务端按 kind 过滤（含 `sent/` 里已完成的草稿） | `401` |
+| `GET` | `/:kind/drafts/:id` | — | `200` `DraftBundle`（先查 outbox，再查 sent） | `401`、`404`（跨 kind 访问同样 404） |
+| `GET` | `/:kind/drafts/:id/assets/:fileName` | — | `200` 二进制（`application/octet-stream`） | `400`（非法文件名）、`401`、`404` |
+| `PUT` | `/:kind/drafts/:id/cover` | `SetCoverWireBody`（JSON） | `200` 更新后的 `DraftBundle` | `400`、`401`、`404` |
+| `PATCH` | `/:kind/drafts/:id` | `{ status, restId?, error? }` | `200` 更新后的 `DraftBundle`；`done` 会把它移到 `sent/` | `400`、`401`、`404` |
+| `DELETE` | `/:kind/drafts/:id` | — | `200` `{ deleted: true }` | `401`、`404` `{ deleted: false }` |
 
 `OPTIONS` 预检恒应答 `204`。未处理的错误应答 `500` `{ error }`。
 
-`POST /drafts` 的请求体是单个 JSON 文档——没有 multipart，所以 relay 除 Node 内置模块外不需要任何解析器：
+畸形的请求体会被拒绝为 `400` `{ error, issues }`，每条 issue 携带 JSONPath 风格的 `path` 和一条 `message`。relay 所用的校验器就从本包导出——`validatePostDraftWireBody`、`validateSetCoverWireBody`、`validateAckPatch`、`validateSettingPatch`（类型为 `WireResult` / `WireIssue`）。它们零依赖且刻意宽松：未知字段直接放行，开放的 `kind`/`source` 字符串值不受约束。
+
+`POST /:kind/drafts` 的请求体是单个 JSON 文档——没有 multipart，所以 relay 除 Node 内置模块外不需要任何解析器：
 
 ```ts
 export interface PostDraftWireBody {
@@ -119,7 +126,7 @@ export interface PostDraftWireBody {
 }
 ```
 
-`wire.assets` **同时**携带正文图片和封面的字节（封面的字节以 `bundle.cover.fileName` 为键）。资产下载则走相反方向，以原始二进制传输，因为那是更热、对带宽更敏感的路径。
+`wire.assets` **同时**携带正文图片和封面的字节（封面的字节以 `bundle.cover.fileName` 为键）。`PUT /:kind/drafts/:id/cover` 通过 `SetCoverWireBody`（`{ fileName, mime, base64 }`）沿用同样的 base64 编码。资产下载则走相反方向，以原始二进制传输，因为那是更热、对带宽更敏感的路径。
 
 ### 鉴权：`x-kaitox-token`
 
@@ -130,6 +137,8 @@ export interface PostDraftWireBody {
 ```
 
 那么除 `GET /health` 和 `OPTIONS` 之外的每个请求都必须以 `x-kaitox-token` 请求头发送它，否则得到 `401` `{ "error": "unauthorized" }`。
+
+token 也可以在运行中的 relay 上管理：`GET /setting` 报告 `{ port, version, tokenConfigured }`（永不返回 token 值本身）；`PATCH /setting` 携带 `{ "token": "..." }` 设置它——`{ "token": null }` 清除——即时生效，无需重启。若已配置 token，这个 `PATCH` 和其他请求一样必须先出示它。
 
 ### CORS
 
@@ -143,27 +152,31 @@ export interface PostDraftWireBody {
 new HttpRelayClient(baseUrl?, opts?)
 ```
 
-- `baseUrl`——默认 `http://127.0.0.1:8765`（末尾斜杠会被去掉）。
+- `baseUrl`——默认 `http://127.0.0.1:8765`（即 `DEFAULT_RELAY_BASE`；末尾斜杠会被去掉）。
+- `opts.kind`——客户端的 **kind 作用域**（默认 `'x-article'`）：它决定每次草稿调用的 `/:kind/drafts` 路径段，以及推送草稿时盖章写入的 `kind`，如 `new HttpRelayClient(base, { kind: 'my-feature' })`。
 - `opts.fetchImpl`——注入一个 `fetch`（默认用全局的；不存在时在构造阶段抛错）。
 - `opts.token`——每机 token，随每个请求以 `x-kaitox-token` 发送。
 - `opts.makeId`——id 工厂，默认 `crypto.randomUUID`。
 - `opts.now`——时间戳工厂，默认 `() => new Date().toISOString()`。
 
+所有草稿方法都按客户端的 kind 作用域访问 `/:kind/drafts...`：
+
 | 方法 | 返回 | 作用 |
 |---|---|---|
 | `health()` | `{ ok, version, port? }` | `GET /health` 存活探测。 |
-| `postDraft(input)` | `{ id }` | 填好 `id`/`createdAt`，把所有字节（含封面）编码为 base64，`POST /drafts`。 |
-| `listDrafts()` | `DraftListItem[]` | `GET /drafts`。 |
-| `getDraft(id)` | `DraftBundle` | `GET /drafts/:id`。 |
-| `getAsset(id, fileName)` | `Uint8Array` | 以二进制获取 `GET /drafts/:id/assets/:fileName`。 |
-| `ack(id, patch)` | `void` | 以 `{ status, restId?, error? }` 调 `PATCH /drafts/:id`。 |
-| `deleteDraft(id)` | `void` | `DELETE /drafts/:id`。 |
+| `postDraft(input)` | `{ id }` | 填好 `id`/`createdAt`/`kind`，把所有字节（含封面）编码为 base64，`POST /:kind/drafts`。 |
+| `listDrafts()` | `DraftListItem[]` | `GET /:kind/drafts`——服务端已按客户端的 kind 过滤。 |
+| `getDraft(id)` | `DraftBundle` | `GET /:kind/drafts/:id`。 |
+| `getAsset(id, fileName)` | `Uint8Array` | 以二进制获取 `GET /:kind/drafts/:id/assets/:fileName`。 |
+| `setCover(id, cover)` | `void` | 以 `SetCoverWireBody` 调 `PUT /:kind/drafts/:id/cover`（设置或替换封面）。 |
+| `ack(id, patch)` | `void` | 以 `{ status, restId?, error? }` 调 `PATCH /:kind/drafts/:id`。 |
+| `deleteDraft(id)` | `void` | `DELETE /:kind/drafts/:id`。 |
 
-任何非 2xx 响应都会使方法抛出携带 HTTP 状态码的 `Error`。
+任何非 2xx 响应都会使方法抛出 `RelayHttpError`，它携带 `method`、`url`、`status` 以及（若可得）响应 `body`——消费方可按状态码程序化分支，如 `401` → 提示配置 token。
 
 ### 推送草稿
 
-`postDraft` 接受一个 `PostDraftInput`：结构和 bundle 一样，只是每个资产是携带内存中 `bytes: Uint8Array`（而非 `bytesLen`）的 `DraftAssetInput`，且 `id`/`createdAt`/`schemaVersion` 会替你填好。
+`postDraft` 接受一个 `PostDraftInput`：结构和 bundle 一样，只是每个资产是携带内存中 `bytes: Uint8Array`（而非 `bytesLen`）的 `DraftAssetInput`，且 `id`/`createdAt`/`schemaVersion`/`kind` 会替你填好——`kind` 来自客户端的作用域。`input.kind` 仍可作单次调用的覆盖；它同时决定路由的路径段和 `bundle.kind`，两者因此永远一致。
 
 ```ts
 import { readFile } from 'node:fs/promises';
@@ -171,7 +184,7 @@ import { resolve, dirname } from 'node:path';
 import { HttpRelayClient } from '@kaitox/relay-protocol';
 import { collectImageSources } from '@kaitox/x-article';
 
-const relay = new HttpRelayClient(); // http://127.0.0.1:8765
+const relay = new HttpRelayClient(); // http://127.0.0.1:8765, kind-scoped to 'x-article'
 
 const mdPath = '/path/to/post.md';
 const markdown = await readFile(mdPath, 'utf8');
@@ -191,7 +204,7 @@ const assets = await Promise.all(
 );
 
 const { id } = await relay.postDraft({
-  // kind omitted => 'x-article'
+  // kind comes from the client's scope ('x-article'); POST /x-article/drafts
   title: 'My first article',
   markdown,
   mode: 'rich',
@@ -209,7 +222,7 @@ const { id } = await relay.postDraft({
 console.log(`queued draft ${id}`);
 ```
 
-relay 会把它存到 `~/.kaitox/outbox/<id>/` 下（`bundle.json` + `assets/<fileName>`）。对于 `kind: 'x-article'` 的草稿，Kaitox Chrome 插件轮询 relay，并在点击时用用户自己已登录的 x.com 会话创建 Article 草稿。
+relay 会把它存到 `~/.kaitox/outbox/<id>/` 下（`bundle.json` + `assets/<fileName>`）。对于 `kind: 'x-article'` 的草稿，Kaitox Chrome 插件轮询 `/x-article/drafts`，并在点击时用用户自己已登录的 x.com 会话创建 Article 草稿。
 
 > **合规提示。** 以这种方式发布 X Article，是驱动用户自己已登录的浏览器会话去调 X 的私有网页接口。这属非官方用法，X 轮换 queryId 时随时可能失效，且不应用于批量自动化。风险自担。
 
@@ -220,11 +233,10 @@ relay 会把它存到 `~/.kaitox/outbox/<id>/` 下（`bundle.json` + `assets/<fi
 ```ts
 import { HttpRelayClient } from '@kaitox/relay-protocol';
 
-const relay = new HttpRelayClient();
+const relay = new HttpRelayClient(); // kind-scoped to 'x-article'
 
-const pending = (await relay.listDrafts()).filter(
-  (d) => d.status === 'pending' && (d.kind ?? 'x-article') === 'x-article',
-);
+// GET /x-article/drafts — the server already filtered by kind.
+const pending = (await relay.listDrafts()).filter((d) => d.status === 'pending');
 
 for (const item of pending) {
   const bundle = await relay.getDraft(item.id);
@@ -242,11 +254,11 @@ for (const item of pending) {
 }
 ```
 
-过滤时永远把缺失的 `kind` 当作 `'x-article'`。
+kind 过滤如今发生在服务端。当你确实要从 bundle 或列表项上读 `kind` 时，请用规范访问器 `draftKind(b)`——缺省（只可能出现在遗留磁盘草稿包上）仍意味着 `'x-article'`。
 
 ## base64 工具
 
-字节在 `POST /drafts` 的 JSON 里以 base64 传输。两个工具函数在两种运行时都可用——有 `Buffer` 时用 `Buffer`，否则用分块的 `btoa`/`atob`：
+字节在 `POST /:kind/drafts` 的 JSON 里以 base64 传输。两个工具函数在两种运行时都可用——有 `Buffer` 时用 `Buffer`，否则用分块的 `btoa`/`atob`：
 
 ```ts
 import { bytesToBase64, base64ToBytes } from '@kaitox/relay-protocol';
@@ -261,9 +273,9 @@ const bytes = base64ToBytes(b64);
 
 `kind` 判别字段让 relay 成为一个通用的本地草稿队列：
 
-1. **推送**时带上你自己的 kind：`postDraft({ kind: 'my-feature', ... })`。任意字符串都合法——不需要修改协议。
-2. **relay 原样存储和转发 `kind`。** 它从不解释这个字段；你的草稿包和 `x-article` 草稿躺在同一个 outbox 里。
-3. **消费**时做过滤：`listDrafts()` 之后保留 `(d.kind ?? 'x-article') === 'my-feature'` 的条目，并用 `ack` 驱动 `pending → uploading → done | failed` 生命周期。
+1. **推送**时用一个以 kind 为作用域的客户端：`new HttpRelayClient(base, { kind: 'my-feature' })`。任何满足路径段规则（`/^[a-z0-9][a-z0-9-]*$/`，且不是 `health`/`setting`/`drafts`——可用 `isValidKindSegment` 检查）的字符串都合法——不需要修改协议。
+2. **relay 原样存储和转发 `kind`。** 它从不解释这个字段；你的草稿包和 `x-article` 草稿在磁盘上躺在同一个 outbox 里，但拥有自己的路由命名空间（`/my-feature/drafts`）——跨 kind 访问一律 404。
+3. **消费**时用同一个 kind 作用域客户端：`listDrafts()` 只返回你的 kind（服务端已过滤），再用 `ack` 驱动 `pending → uploading → done | failed` 生命周期。
 
 你的功能免费获得持久化、REST 接口、CORS、可选 token 鉴权和一个共享客户端。完整演练见[接入你自己的本地服务](../../docs/integrate-local-service.md)；运行 relay 本身见 [`@kaitox/relay`](../relay/README.md)。
 

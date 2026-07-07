@@ -11,6 +11,7 @@
  */
 
 import type {
+  BlockType,
   ContentState,
   XCredentials,
   ArticleFeatures,
@@ -20,6 +21,7 @@ import type {
   MediaUploadInitResponse,
   UploadMediaCategory,
 } from './types';
+import { INLINE_STYLES } from './types.js';
 
 /** 所有 x.com 网页端共用的公开 bearer token（长期不变）。 */
 export const DEFAULT_BEARER_TOKEN =
@@ -284,14 +286,16 @@ function sleep(ms: number): Promise<void> {
 /**
  * X 实测接受的 inline style 枚举全集（2026-07 探针验证）。
  * `Code` / `CODE` / `InlineCode` / `Underline` 都会 GRAPHQL_VALIDATION_FAILED。
+ * 从 types.ts 的 INLINE_STYLES 覆盖表派生，保证与联合类型永不漂移。
  */
-const VALID_INLINE_STYLES = new Set(['Bold', 'Italic', 'Strikethrough']);
+const VALID_INLINE_STYLES: ReadonlySet<string> = new Set(Object.keys(INLINE_STYLES));
 
 /**
  * 后端不支持、但能过 GraphQL 校验的 block 类型 → 安全降级映射（2026-07 探针验证）。
  * 这两个类型会让整单 OperationalError: Internal: Unspecified。
+ * 键是 X 编辑器侧的值（kaitox 转换器不生产），故意不在 BlockType 里；值必须是合法 BlockType。
  */
-const BLOCK_TYPE_FALLBACK: Record<string, string> = {
+const BLOCK_TYPE_FALLBACK: Record<string, BlockType> = {
   'header-three': 'header-two',
   'code-block': 'unstyled',
 };
@@ -311,7 +315,7 @@ export function sanitizeContentState(cs: ContentState): ContentState {
     blocks: cs.blocks.map((b) => ({
       key: b.key,
       text: b.text,
-      type: (BLOCK_TYPE_FALLBACK[b.type] ?? b.type) as typeof b.type,
+      type: BLOCK_TYPE_FALLBACK[b.type] ?? b.type,
       data: b.data ?? {},
       entity_ranges: (b.entity_ranges ?? []).map((r) => ({
         key: r.key,

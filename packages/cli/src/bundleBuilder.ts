@@ -1,12 +1,17 @@
 /** 从一份本地 Markdown 构建可投递的草稿（解析 frontmatter、把图片解析成字节）。 */
 import { readFile } from 'node:fs/promises';
-import { resolve, dirname, basename, isAbsolute, extname } from 'node:path';
+import { resolve, dirname, basename, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   collectImageSources,
   deriveTitle,
   toPlaintextMarkdown,
   checkMarkdownStyle,
+  parseFrontmatter,
+  baseName,
+  guessMimeFromName,
+  safeFileName,
+  makeCoverAsset,
 } from '@kaitox/x-article';
 import type { AssetMeta } from '@kaitox/x-article';
 import type { DraftAssetInput, PostDraftInput, StyleReport, DraftMode } from '@kaitox/relay-protocol';
@@ -23,54 +28,6 @@ export interface ResolveResult {
   unresolved: string[];
 }
 
-/** 剥离 YAML frontmatter，并尽力取出 title。 */
-export function parseFrontmatter(md: string): { title?: string; body: string } {
-  const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  if (!m) return { body: md };
-  const yaml = m[1];
-  const body = md.slice(m[0].length);
-  const titleLine = yaml.split(/\r?\n/).find((l) => /^title\s*:/.test(l));
-  let title: string | undefined;
-  if (titleLine) {
-    title = titleLine.replace(/^title\s*:/, '').trim().replace(/^["']|["']$/g, '') || undefined;
-  }
-  return { title, body };
-}
-
-function guessMime(pathOrSrc: string): string {
-  const ext = extname(pathOrSrc.split('?')[0]).toLowerCase();
-  switch (ext) {
-    case '.png':
-      return 'image/png';
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg';
-    case '.gif':
-      return 'image/gif';
-    case '.webp':
-      return 'image/webp';
-    case '.svg':
-      return 'image/svg+xml';
-    default:
-      return 'application/octet-stream';
-  }
-}
-
-function safeFileName(src: string, taken: Set<string>): string {
-  let name = basename(src.split('?')[0].split('#')[0]) || 'image';
-  name = name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  if (!extname(name)) name += '.bin';
-  let candidate = name;
-  let i = 1;
-  while (taken.has(candidate)) {
-    const dot = name.lastIndexOf('.');
-    candidate = `${name.slice(0, dot)}-${i}${name.slice(dot)}`;
-    i++;
-  }
-  taken.add(candidate);
-  return candidate;
-}
-
 /**
  * 把 markdown 里的所有图片 src 解析成字节。
  *   - 远程 http(s)：用 fetch 下载（对应「上传端预下载远程图片」）。
@@ -84,15 +41,15 @@ async function loadImageBytes(src: string, baseDir: string): Promise<{ bytes: Ui
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return {
       bytes: new Uint8Array(await res.arrayBuffer()),
-      mime: res.headers.get('content-type')?.split(';')[0]?.trim() || guessMime(src),
+      mime: res.headers.get('content-type')?.split(';')[0]?.trim() || guessMimeFromName(src),
     };
   }
   if (src.startsWith('file://')) {
     const p = fileURLToPath(src);
-    return { bytes: new Uint8Array(await readFile(p)), mime: guessMime(p) };
+    return { bytes: new Uint8Array(await readFile(p)), mime: guessMimeFromName(p) };
   }
   const p = isAbsolute(src) ? src : resolve(baseDir, decodeURIComponent(src));
-  return { bytes: new Uint8Array(await readFile(p)), mime: guessMime(p) };
+  return { bytes: new Uint8Array(await readFile(p)), mime: guessMimeFromName(p) };
 }
 
 export async function resolveAssets(markdown: string, mdDir: string): Promise<ResolveResult> {
@@ -105,7 +62,7 @@ export async function resolveAssets(markdown: string, mdDir: string): Promise<Re
   for (const src of srcs) {
     try {
       const { bytes, mime } = await loadImageBytes(src, mdDir);
-      const fileName = safeFileName(src, taken);
+      const fileName = safeFileName(baseName(src), taken);
       assets.push({ key: `img-${assets.length}`, src, fileName, mime, bytes, resolved: true });
       assetMap[src] = { bytesLen: bytes.byteLength, mime, resolved: true };
     } catch {
@@ -135,16 +92,15 @@ export async function resolveCover(
     loaded = await loadImageBytes(coverPath, mdDir);
   }
   const { bytes, mime } = loaded;
-  const rawBase = basename(coverPath.split('?')[0].split('#')[0]) || 'image';
-  const fileName = safeFileName(`cover-${rawBase}`, takenFileNames);
-  return { key: 'cover', src: '__cover__', fileName, mime, bytes };
+  return makeCoverAsset(bytes, mime, coverPath, takenFileNames);
 }
 
 export interface BuildOptions {
   markdownPath: string;
   titleOverride?: string;
   mode: DraftMode;
-  /** 封面图路径/URL（相对当前工作目录，找不到时回退 md 文件目录）。 */
+  /** 封面图路径/URL（相对当前工作目录，找不到时回退 md 文件目录）。
+   *  缺省时回退 frontmatter 的 `cover:` 字段（与 Obsidian 端行为对齐）。 */
   coverPath?: string;
 }
 
@@ -165,7 +121,8 @@ export interface BuildResult {
  */
 export async function buildDraft(opts: BuildOptions): Promise<BuildResult> {
   const raw = await readFile(opts.markdownPath, 'utf8');
-  const { title: fmTitle, body } = parseFrontmatter(raw);
+  const { fields, body } = parseFrontmatter(raw);
+  const fmTitle = fields.title;
   const mdDir = dirname(resolve(opts.markdownPath));
 
   // 先在「原文」上解析图片 + 检查，供用户决策。
@@ -191,14 +148,15 @@ export async function buildDraft(opts: BuildOptions): Promise<BuildResult> {
     assets,
   };
 
-  // 封面（可选）。命名避开正文图片文件名，防止写盘时互相覆盖。
+  // 封面（可选）：--cover 优先，缺省回退 frontmatter cover:。命名避开正文图片文件名。
   let coverUnresolved: string | undefined;
-  if (opts.coverPath) {
+  const coverPath = opts.coverPath ?? fields.cover;
+  if (coverPath) {
     const taken = new Set(assets.map((a) => a.fileName));
     try {
-      input.cover = await resolveCover(opts.coverPath, taken, mdDir);
+      input.cover = await resolveCover(coverPath, taken, mdDir);
     } catch {
-      coverUnresolved = opts.coverPath;
+      coverUnresolved = coverPath;
     }
   }
 

@@ -19,6 +19,17 @@ export type DraftMode = 'rich' | 'plaintext';
  */
 export type DraftKind = 'x-article' | (string & {});
 
+/** The kind assumed when a bundle predates the `kind` field (v0.2 disk bundles). */
+export const DEFAULT_DRAFT_KIND: DraftKind = 'x-article';
+
+/**
+ * Canonical read-side accessor for the "absent kind = 'x-article'" invariant.
+ * Use this instead of open-coding `b.kind ?? 'x-article'`.
+ */
+export function draftKind(b: { kind?: DraftKind }): DraftKind {
+  return b.kind ?? DEFAULT_DRAFT_KIND;
+}
+
 /** 草稿来自哪个上传端。Third-party pushers may use their own string. */
 export type DraftSource = 'cli' | 'obsidian' | 'unknown' | (string & {});
 
@@ -62,9 +73,23 @@ export interface DraftAsset {
   sha256?: string;
 }
 
+/**
+ * Current wire schema version, written by clients on every new bundle.
+ * Policy: additive changes never bump; incompatible changes bump. Consumers
+ * must refuse (with a clear error) versions greater than they know rather
+ * than misparse; the relay stores any version blindly.
+ */
+export const SCHEMA_VERSION = 1;
+
+/** Read-side accessor: absent on v0.2 disk bundles = 1. */
+export function bundleSchemaVersion(b: { schemaVersion?: number }): number {
+  return b.schemaVersion ?? 1;
+}
+
 /** 完整草稿包（存盘 / relay 返回的形态）。 */
 export interface DraftBundle {
-  schemaVersion: 1;
+  /** See {@link SCHEMA_VERSION}; read via {@link bundleSchemaVersion}. */
+  schemaVersion: number;
   id: string;
   /** Feature discriminator; absent = 'x-article'. */
   kind?: DraftKind;
@@ -77,6 +102,11 @@ export interface DraftBundle {
    * 调 ArticleEntityUpdateCoverMedia。字节和正文图一样落在 assets/<cover.fileName>。
    */
   cover?: DraftAsset;
+  /**
+   * 可选封面原图（裁切前的源图）。不进正文与 assets[]，永不上传 X；
+   * 仅供再次裁切时取回，让用户能基于原图重新调整取景。
+   */
+  coverOriginal?: DraftAsset;
   styleReport?: StyleReport;
   /** ISO8601。 */
   createdAt: string;

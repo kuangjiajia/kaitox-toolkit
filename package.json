@@ -13,10 +13,10 @@
     "build:extension": "npm run build -w @kaitox/extension",
     "build:obsidian": "npm run build -w @kaitox/obsidian",
     "typecheck": "npm run typecheck -w @kaitox/relay-protocol && npm run typecheck -w @kaitox/x-article && npm run typecheck -w @kaitox/relay && npm run typecheck -w @kaitox/cli",
-    "test": "npm test -w @kaitox/x-article",
+    "test": "npm test -w @kaitox/relay-protocol && npm test -w @kaitox/x-article",
     "test:integration": "npm run build && node test/integration.mjs",
     "test:protocol": "npm run build && node test/relay-protocol.smoke.mjs",
-    "test:all": "npm run build && npm test -w @kaitox/x-article && node test/integration.mjs && node test/relay-protocol.smoke.mjs",
+    "test:all": "npm run build && npm test -w @kaitox/relay-protocol && npm test -w @kaitox/x-article && node test/integration.mjs && node test/relay-protocol.smoke.mjs",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "npm run build && npm run test:all && changeset publish"

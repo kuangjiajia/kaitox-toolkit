@@ -1,5 +1,30 @@
 # @kaitox/relay-protocol
 
+## 0.5.0
+
+### Minor Changes
+
+- Re-cropping a cover now starts from the original image instead of the previous crop.
+
+  Previously the crop result destructively overwrote the only stored cover bytes, so every subsequent "crop" could only zoom further into the last crop. The draft bundle now keeps the pre-crop source alongside the cropped cover:
+
+  - `DraftBundle` gains optional `coverOriginal?: DraftAsset` (additive; no `schemaVersion` bump).
+  - `SetCoverInput` / `SetCoverWireBody` gain optional `original` (same `{fileName, mime, bytes/base64}` shape as the cover). When present, the relay persists it as `assets/cover-original-<name>` and updates `bundle.coverOriginal`; when absent (a re-crop), the existing original is kept untouched. Old relays ignore the field; old clients are unaffected.
+  - Relay cleanup of replaced cover files now uses a referenced-set check covering both the cover and the original, so swapping covers also removes the stale original.
+  - The browser extension sends the original alongside the cropped result when a new image is picked, and the detail page's "裁切" button feeds `coverOriginal` (falling back to the current cover for drafts created before this change or pushed via CLI/Obsidian) into the crop modal.
+
+  The original never enters `assets[]` and is never uploaded to X — it exists only as the re-crop source.
+
+- Kind-namespaced relay routes, wire validators, and a hardened protocol surface.
+
+  **Breaking (pre-first-publish):** draft routes moved from `/drafts...` to `/:kind/drafts...` — the path segment is the verbatim `kind` string, treated as opaque by the relay (stored, filtered, matched; never interpreted), so third-party kinds get their own namespace with zero relay changes. Old root routes return `410 Gone` with a migration hint. Kind segments must match `/^[a-z0-9][a-z0-9-]*$/` and not be a reserved word (`health`, `setting`, `drafts`).
+
+  - `HttpRelayClient` is now kind-scoped (`new HttpRelayClient(base, { kind })`, default `'x-article'`); all methods hit `/:kind/drafts...`. Non-2xx responses throw the new `RelayHttpError` (with `method`/`url`/`status`/`body`) so consumers can branch programmatically.
+  - New zero-dep wire validators exported from `@kaitox/relay-protocol` (`validatePostDraftWireBody`, `validateSetCoverWireBody`, `validateAckPatch`, `validateSettingPatch`, `isValidKindSegment`): the relay now rejects malformed bodies with `400 { error, issues }` (JSONPath-style issue locations) instead of persisting garbage, and JSON syntax errors return 400 instead of 500. Deliberately lenient: unknown fields, higher `schemaVersion`s, and custom `kind`/`source` values pass through.
+  - New relay settings endpoints: `GET /setting` (`{ port, version, tokenConfigured }` — never the token value) and `PATCH /setting` (`{ token?: string | null }`, takes effect immediately without restart).
+  - `POST /:kind/drafts` stamps `kind` from the path — new bundles always carry `kind`; a body whose `bundle.kind` disagrees with the route is rejected. `GET /:kind/drafts` filters server-side (legacy no-kind bundles classify as `x-article` via the new canonical accessor `draftKind()`); cross-kind access to a draft 404s.
+  - New exports: `draftKind()`, `DEFAULT_DRAFT_KIND`, `SCHEMA_VERSION`, `bundleSchemaVersion()`, `DEFAULT_RELAY_PORT`, `DEFAULT_RELAY_BASE`. `DraftBundle.schemaVersion` widened from the literal `1` to `number` (policy: additive changes never bump; consumers must refuse unknown higher versions; the relay stores any version blindly).
+
 ## 0.4.0
 
 ### Minor Changes

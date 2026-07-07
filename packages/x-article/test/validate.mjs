@@ -162,5 +162,38 @@ check(
     dirtyTypes.blocks[2].type === 'header-two',
 );
 
+// --- pushHelpers：CLI / Obsidian 共享的推送侧工具 ------------------------------
+
+const { parseFrontmatter, safeFileName, guessMimeFromName, baseName, makeCoverAsset } = await import(
+  '../dist/pushHelpers.js'
+);
+
+const fm = parseFrontmatter('---\ntitle: "引号标题"\ncover: images/hero.png\ntags: a\n---\n正文');
+check('frontmatter 解析 title（剥引号）', fm.fields.title === '引号标题');
+check('frontmatter 解析 cover', fm.fields.cover === 'images/hero.png');
+check('frontmatter 剥离后正文正确', fm.body === '正文');
+const fmCrlf = parseFrontmatter('---\r\ntitle: crlf\r\n---\r\nbody');
+check('frontmatter CRLF 兼容', fmCrlf.fields.title === 'crlf' && fmCrlf.body === 'body');
+check('无 frontmatter 时原样返回', parseFrontmatter('# 没有\n').fields.title === undefined);
+
+const takenSet = new Set();
+check('safeFileName 清洗非法字符', safeFileName('我的 图.png', takenSet) === '____.png');
+const n1 = safeFileName('a.png', takenSet);
+const n2 = safeFileName('a.png', takenSet);
+const n3 = safeFileName('a.png', takenSet);
+check('safeFileName 冲突加 -1/-2 后缀', n1 === 'a.png' && n2 === 'a-1.png' && n3 === 'a-2.png');
+check('safeFileName 无后缀补 .bin', safeFileName('noext', new Set()) === 'noext.bin');
+
+check('guessMimeFromName 常见类型', guessMimeFromName('x.PNG') === 'image/png' && guessMimeFromName('https://a/b.jpg?v=1') === 'image/jpeg');
+check('guessMimeFromName 未知回退 octet-stream', guessMimeFromName('x.xyz') === 'application/octet-stream');
+check('baseName 剥 query/hash/目录', baseName('https://a/b/c.png?x=1#y') === 'c.png');
+
+const coverTaken = new Set(['cover-hero.png']);
+const cover = makeCoverAsset(new Uint8Array([1, 2]), 'image/png', 'dir/hero.png', coverTaken);
+check(
+  'makeCoverAsset：__cover__ 哨兵 + cover- 前缀 + 冲突避让',
+  cover.src === '__cover__' && cover.key === 'cover' && cover.fileName === 'cover-hero-1.png' && cover.bytes.length === 2,
+);
+
 console.log(`\n== ${pass} passed, ${fail} failed ==`);
 process.exit(fail ? 1 : 0);

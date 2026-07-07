@@ -1,8 +1,9 @@
 /** relay 的路径、端口、CORS 与 token 配置。 */
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { DEFAULT_RELAY_PORT } from '@kaitox/relay-protocol';
 
 // Read the version from package.json at runtime so it can never drift.
 export const RELAY_VERSION: string = (() => {
@@ -12,7 +13,7 @@ export const RELAY_VERSION: string = (() => {
     return '0.0.0';
   }
 })();
-export const DEFAULT_PORT = 8765;
+export const DEFAULT_PORT = DEFAULT_RELAY_PORT;
 export const HOST = '127.0.0.1';
 
 export function relayPort(): number {
@@ -51,6 +52,26 @@ export async function loadConfig(): Promise<RelayConfig> {
   } catch {
     return {};
   }
+}
+
+/**
+ * 写回 relay 配置（PATCH /setting 用）。只改给定字段：
+ * token === null 表示清除；保留 config.json 里本包不认识的字段。
+ */
+export async function saveConfig(patch: { token?: string | null }): Promise<void> {
+  let existing: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(await readFile(configPath(), 'utf8'));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
+  } catch {
+    /* 没有或坏了就从空对象起 */
+  }
+  if (patch.token !== undefined) {
+    if (patch.token === null) delete existing.token;
+    else existing.token = patch.token;
+  }
+  await mkdir(kaitoxHome(), { recursive: true });
+  await writeFile(configPath(), JSON.stringify(existing, null, 2) + '\n', 'utf8');
 }
 
 /**

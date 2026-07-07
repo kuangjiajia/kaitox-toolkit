@@ -19,16 +19,21 @@ import {
   checkMarkdownStyle,
   toPlaintextMarkdown,
   deriveTitle,
+  parseFrontmatter,
+  baseName,
+  guessMimeFromName,
+  safeFileName,
+  makeCoverAsset,
 } from '@kaitox/x-article';
 import type { AssetMeta } from '@kaitox/x-article';
-import { HttpRelayClient } from '@kaitox/relay-protocol';
+import { HttpRelayClient, DEFAULT_RELAY_BASE } from '@kaitox/relay-protocol';
 import type { DraftMode, StyleReport, DraftAssetInput } from '@kaitox/relay-protocol';
 
 interface KaitoxSettings {
   relayBase: string;
   relayToken: string;
 }
-const DEFAULT_SETTINGS: KaitoxSettings = { relayBase: 'http://127.0.0.1:8765', relayToken: '' };
+const DEFAULT_SETTINGS: KaitoxSettings = { relayBase: DEFAULT_RELAY_BASE, relayToken: '' };
 
 interface Resolved {
   title: string;
@@ -126,6 +131,7 @@ export default class KaitoxPlugin extends Plugin {
       const client = this.makeClient();
       await client.health();
       await client.postDraft({
+        kind: 'x-article',
         title: resolved.title,
         markdown,
         mode,
@@ -147,7 +153,9 @@ export default class KaitoxPlugin extends Plugin {
   /** 读笔记、把嵌入/图片解析成字节、改写成标准 ![alt](fileName)。 */
   private async resolveAndRewrite(file: TFile): Promise<Resolved> {
     const raw = await this.app.vault.cachedRead(file);
-    const { title: fmTitle, cover: fmCover, body } = parseFrontmatter(raw);
+    const { fields, body } = parseFrontmatter(raw);
+    const fmTitle = fields.title;
+    const fmCover = fields.cover;
 
     const assets: DraftAssetInput[] = [];
     const assetMap: Record<string, AssetMeta> = {};
@@ -175,7 +183,7 @@ export default class KaitoxPlugin extends Plugin {
         return whole;
       }
       const bytes = new Uint8Array(await this.app.vault.readBinary(tfile));
-      const src = addAsset(bytes, tfile.name, mimeOf(tfile.extension), tfile.path);
+      const src = addAsset(bytes, tfile.name, guessMimeFromName(tfile.name), tfile.path);
       return `![${alias ?? ''}](${src})`;
     });
 
@@ -186,8 +194,8 @@ export default class KaitoxPlugin extends Plugin {
         if (/^https?:\/\//i.test(src)) {
           const r = await requestUrl({ url: src });
           const bytes = new Uint8Array(r.arrayBuffer);
-          const mime = (r.headers['content-type'] || r.headers['Content-Type'] || '').split(';')[0] || mimeOf(extOf(src));
-          const newSrc = addAsset(bytes, baseOf(src) || 'image', mime, src);
+          const mime = (r.headers['content-type'] || r.headers['Content-Type'] || '').split(';')[0] || guessMimeFromName(src);
+          const newSrc = addAsset(bytes, baseName(src) || 'image', mime, src);
           return `![${alt}](${newSrc})`;
         }
         const dec = decodeURIComponent(src);
@@ -197,7 +205,7 @@ export default class KaitoxPlugin extends Plugin {
           return whole;
         }
         const bytes = new Uint8Array(await this.app.vault.readBinary(tfile));
-        const newSrc = addAsset(bytes, tfile.name, mimeOf(tfile.extension), tfile.path);
+        const newSrc = addAsset(bytes, tfile.name, guessMimeFromName(tfile.name), tfile.path);
         return `![${alt}](${newSrc})`;
       } catch {
         unresolved.push(src);
@@ -225,19 +233,18 @@ export default class KaitoxPlugin extends Plugin {
       if (/^https?:\/\//i.test(ref)) {
         const r = await requestUrl({ url: ref });
         bytes = new Uint8Array(r.arrayBuffer);
-        mime = (r.headers['content-type'] || r.headers['Content-Type'] || '').split(';')[0] || mimeOf(extOf(ref));
-        rawName = baseOf(ref) || 'cover';
+        mime = (r.headers['content-type'] || r.headers['Content-Type'] || '').split(';')[0] || guessMimeFromName(ref);
+        rawName = baseName(ref) || 'cover';
       } else {
         const wiki = ref.match(/^!?\[\[([^\]]+?)\]\]$/);
         const link = wiki ? splitWiki(wiki[1]).link : ref;
         const tfile = this.app.metadataCache.getFirstLinkpathDest(link, file.path);
         if (!tfile || !isImageExt(tfile.extension)) return null;
         bytes = new Uint8Array(await this.app.vault.readBinary(tfile));
-        mime = mimeOf(tfile.extension);
+        mime = guessMimeFromName(tfile.name);
         rawName = tfile.name;
       }
-      const fileName = safeFileName(`cover-${rawName}`, taken);
-      return { key: 'cover', src: '__cover__', fileName, mime, bytes };
+      return makeCoverAsset(bytes, mime, rawName, taken);
     } catch {
       return null;
     }
@@ -300,7 +307,7 @@ class KaitoxSettingTab extends PluginSettingTab {
     containerEl.empty();
     new Setting(containerEl)
       .setName('relay 地址')
-      .setDesc('本地 kaitox relay 的地址，一般是 http://127.0.0.1:8765')
+      .setDesc(`本地 kaitox relay 的地址，一般是 ${DEFAULT_RELAY_BASE}`)
       .addText((t) =>
         t
           .setValue(this.plugin.settings.relayBase)
@@ -322,22 +329,9 @@ class KaitoxSettingTab extends PluginSettingTab {
 }
 
 // ---------------------------------------------------------------------------
-// 纯工具（不依赖 node:path，浏览器环境安全）
+// 纯工具（不依赖 node:path，浏览器环境安全）。frontmatter / 文件名 / MIME 等
+// 与 CLI 共用的部分已收敛到 @kaitox/x-article 的 pushHelpers。
 // ---------------------------------------------------------------------------
-
-function parseFrontmatter(md: string): { title?: string; cover?: string; body: string } {
-  const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  if (!m) return { body: md };
-  const yaml = m[1];
-  const body = md.slice(m[0].length);
-  const lines = yaml.split(/\r?\n/);
-  const field = (name: string): string | undefined => {
-    const line = lines.find((l) => new RegExp(`^${name}\\s*:`).test(l));
-    if (!line) return undefined;
-    return line.replace(new RegExp(`^${name}\\s*:`), '').trim().replace(/^["']|["']$/g, '') || undefined;
-  };
-  return { title: field('title'), cover: field('cover'), body };
-}
 
 async function replaceAsync(
   str: string,
@@ -369,39 +363,6 @@ function splitWiki(inner: string): { link: string; alias?: string } {
   return { link: link.trim(), alias };
 }
 
-function baseOf(p: string): string {
-  return p.split('?')[0].split('#')[0].split('/').pop() || '';
-}
-function extOf(p: string): string {
-  const b = baseOf(p);
-  const dot = b.lastIndexOf('.');
-  return dot >= 0 ? b.slice(dot + 1) : '';
-}
 function isImageExt(ext: string): boolean {
   return /^(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(ext.replace(/^\./, ''));
-}
-function mimeOf(ext: string): string {
-  const e = ext.replace(/^\./, '').toLowerCase();
-  const map: Record<string, string> = {
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    svg: 'image/svg+xml',
-  };
-  return map[e] ?? 'application/octet-stream';
-}
-function safeFileName(rawName: string, taken: Set<string>): string {
-  let n = (rawName || 'image').replace(/[^a-zA-Z0-9._-]/g, '_');
-  if (!/\.[a-z0-9]+$/i.test(n)) n += '.bin';
-  let cand = n;
-  let i = 1;
-  while (taken.has(cand)) {
-    const dot = n.lastIndexOf('.');
-    cand = `${n.slice(0, dot)}-${i}${n.slice(dot)}`;
-    i++;
-  }
-  taken.add(cand);
-  return cand;
 }

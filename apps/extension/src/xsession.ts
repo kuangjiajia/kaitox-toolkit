@@ -5,7 +5,8 @@ import {
   ARTICLE_UPDATE_COVER_MEDIA_QUERY_ID,
 } from '@kaitox/x-article';
 
-export const DEFAULT_RELAY_BASE = 'http://127.0.0.1:8765';
+export { DEFAULT_RELAY_BASE } from '@kaitox/relay-protocol';
+import { DEFAULT_RELAY_BASE } from '@kaitox/relay-protocol';
 
 export interface Settings {
   relayBase: string;

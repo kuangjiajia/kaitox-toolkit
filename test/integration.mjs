@@ -58,19 +58,73 @@ try {
   check('封面字节回读一致', gotCover.length === pngBytes.length);
   const draftMeta = await client.getDraft(id);
   check('bundle.cover 元信息保留', draftMeta.cover?.fileName === 'cover-c.png');
+  // 封面原图：PUT cover 带 original → 原图随成品落盘；不带（重裁语义）→ 原图保留
+  await client.setCover(id, {
+    fileName: 'c2.png', mime: 'image/png', bytes: pngBytes,
+    original: { fileName: 'orig.png', mime: 'image/png', bytes: pngBytes },
+  });
+  const withOrig = await client.getDraft(id);
+  check('setCover 带 original → coverOriginal 落盘', withOrig.coverOriginal?.fileName === 'cover-original-orig.png');
+  check('原图字节回读一致', (await client.getAsset(id, 'cover-original-orig.png')).length === pngBytes.length);
+  await client.setCover(id, { fileName: 'c3.png', mime: 'image/png', bytes: pngBytes });
+  const recropped = await client.getDraft(id);
+  check(
+    '重裁（不带 original）→ 封面替换、原图保留',
+    recropped.cover?.fileName === 'cover-c3.png' && recropped.coverOriginal?.fileName === 'cover-original-orig.png',
+  );
   check('kind 缺省时按 x-article 落盘', draftMeta.kind === 'x-article');
   const listedItem = (await client.listDrafts()).find((d) => d.id === id);
   check('list 条目带 kind', listedItem?.kind === 'x-article');
-  // 自定义 kind 原样经 relay 往返（relay 只存转不解释）。
-  const { id: kindId } = await client.postDraft({
-    kind: 'demo-feature', title: 'kind 往返', mode: 'rich', source: 'my-service',
+  // 自定义 kind 原样经 relay 往返（relay 只存转不解释；命名空间由路径段决定，relay 零改动）。
+  const demoClient = new HttpRelayClient(BASE, { kind: 'demo-feature' });
+  const { id: kindId } = await demoClient.postDraft({
+    title: 'kind 往返', mode: 'rich', source: 'my-service',
     markdown: 'hello', assets: [],
   });
-  check('自定义 kind 往返保留', (await client.getDraft(kindId)).kind === 'demo-feature');
-  await client.deleteDraft(kindId);
+  check('自定义 kind 往返保留', (await demoClient.getDraft(kindId)).kind === 'demo-feature');
+  check('跨 kind 隔离：x-article 列表不含 demo-feature', !(await client.listDrafts()).some((d) => d.id === kindId));
+  await demoClient.deleteDraft(kindId);
   let traversalBlocked = false;
   try { await client.getAsset(id, '../../etc/passwd'); } catch { traversalBlocked = true; }
   check('目录穿越被拦', traversalBlocked);
+
+  // ---- 1b. 边界校验 + 基础设施路由 ----
+  console.log('\n[1b] wire 校验、旧路由 410、/setting');
+  const postRaw = (path, body, headers = {}) =>
+    fetch(`${BASE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body });
+  const badRes = await postRaw('/x-article/drafts', JSON.stringify({ bundle: { id: '' }, assets: 'nope' }));
+  check('畸形 POST → 400', badRes.status === 400);
+  const badJson = await badRes.json();
+  check(
+    '400 带 issue 路径',
+    Array.isArray(badJson.issues) && badJson.issues.some((i) => i.path === '$.assets') && badJson.issues.some((i) => i.path === '$.bundle.id'),
+  );
+  check('JSON 语法错 → 400 而非 500', (await postRaw('/x-article/drafts', '{oops')).status === 400);
+  const mismatch = await postRaw('/x-article/drafts', JSON.stringify({
+    bundle: { schemaVersion: 1, id: 'mm-1', kind: 'other-kind', title: 't', markdown: 'm', mode: 'rich', assets: [], createdAt: '2026-01-01T00:00:00Z', source: 'test' },
+    assets: [],
+  }));
+  check('bundle.kind 与路径 kind 不一致 → 400', mismatch.status === 400);
+  check('非法 kind 段 → 400', (await fetch(`${BASE}/Bad_Kind/drafts`)).status === 400);
+  check('保留段作 kind → 400', (await fetch(`${BASE}/setting/drafts`)).status === 400);
+  check('旧根路由 /drafts → 410 Gone', (await fetch(`${BASE}/drafts`)).status === 410);
+  const badPatch = await fetch(`${BASE}/x-article/drafts/${id}`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: 'bogus' }),
+  });
+  check('畸形 PATCH → 400（不再把垃圾 status 写盘）', badPatch.status === 400);
+
+  const setting = await (await fetch(`${BASE}/setting`)).json();
+  check('GET /setting 形态（不含 token 值）', setting.port === 8788 && typeof setting.version === 'string' && setting.tokenConfigured === false && !('token' in setting));
+  const patchSetting = (body, headers = {}) =>
+    fetch(`${BASE}/setting`, { method: 'PATCH', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  const tokenSet = await (await patchSetting({ token: 'itest-token' })).json();
+  check('PATCH /setting 设 token 即时生效', tokenSet.tokenConfigured === true);
+  check('无 token 请求被 401', (await fetch(`${BASE}/x-article/drafts`)).status === 401);
+  check('带 token 请求放行', (await fetch(`${BASE}/x-article/drafts`, { headers: { 'x-kaitox-token': 'itest-token' } })).status === 200);
+  check('/health 保持 token 豁免', (await fetch(`${BASE}/health`)).status === 200);
+  check('改 token 需先出示旧 token', (await patchSetting({ token: null })).status === 401);
+  const tokenCleared = await (await patchSetting({ token: null }, { 'x-kaitox-token': 'itest-token' })).json();
+  check('PATCH /setting 清 token', tokenCleared.tokenConfigured === false);
 
   // ---- 2. 上传流水线（含封面）----
   console.log('\n[2] 插件上传流水线 + 封面');
@@ -90,6 +144,7 @@ try {
     if (url.includes('/ArticleEntityUpdateCoverMedia')) return ok({ data: { articleentity_update_cover_media: { rest_id: 'ART_777' } } });
     throw new Error('unexpected ' + url);
   };
+  const progress = [];
   const result = await publishXArticle({
     markdown: draft.markdown, title: draft.title,
     credentials: { bearerToken: '', csrfToken: 'CT0' },
@@ -99,7 +154,19 @@ try {
       return { bytes: await client.getAsset(draft.id, a.fileName), mimeType: a.mime };
     },
     fetchCover: async () => ({ bytes: await client.getAsset(draft.id, draft.cover.fileName), mimeType: draft.cover.mime }),
+    onProgress: (p) => progress.push(p),
   });
+  // 进度回调：images 按完成数推进，draft/cover 在进入阶段时各推一次，顺序与流水线一致
+  check(
+    '进度回调：images 0/1 → 1/1',
+    progress.some((p) => p.stage === 'images' && p.done === 0 && p.total === 1) &&
+      progress.some((p) => p.stage === 'images' && p.done === 1 && p.total === 1),
+  );
+  const stageIdx = (s) => progress.findIndex((p) => p.stage === s);
+  check(
+    '进度回调：images → draft → cover 顺序',
+    stageIdx('draft') > progress.map((p) => p.stage).lastIndexOf('images') && stageIdx('cover') > stageIdx('draft'),
+  );
   const init = calls.find((c) => c.url.includes('command=INIT'));
   check('INIT media_category=tweet_image', init.url.includes('media_category=tweet_image'));
   const create = calls.find((c) => c.url.includes('/ArticleEntityDraftCreate'));
@@ -132,6 +199,7 @@ try {
   await client.ack(id, { status: 'done', restId: 'ART_777' });
   const doneItem = (await client.listDrafts()).find((d) => d.id === id);
   check('done 后仍在列表且 status=done', doneItem?.status === 'done');
+  check('done 迁移后原图资产仍可读', (await client.getAsset(id, 'cover-original-orig.png')).length === pngBytes.length);
   await client.deleteDraft(id);
 
   // ---- 3. styleCheck + plaintext ----

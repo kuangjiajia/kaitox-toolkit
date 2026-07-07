@@ -1,6 +1,7 @@
 /** 把 content/background 打成自包含单文件（含 @kaitox/x-article、@kaitox/relay-protocol 与 marked），并拷贝静态资源。 */
 import * as esbuild from 'esbuild';
-import { cp, mkdir } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { DEFAULT_RELAY_PORT } from '@kaitox/relay-protocol';
 
 const buildStamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
@@ -28,11 +29,21 @@ await esbuild.build({ ...common, format: 'esm', entryPoints: ['src/mermaid-lib.t
 await esbuild.build({ ...common, entryPoints: ['src/settings.tsx'], outfile: 'dist/settings.js' });
 await esbuild.build({ ...common, entryPoints: ['src/settings-content.ts'], outfile: 'dist/settings-content.js' });
 
-await cp('manifest.json', 'dist/manifest.json');
+// manifest 保持静态源文件（Chrome/商店工具直接读），构建时只做两件事：
+//   1) 断言 host_permissions 里有默认 relay 端口的条目（端口常量与 manifest 的唯一同步点）；
+//   2) version 从 package.json 盖章，避免每次发布手工同步。
+const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+const pkg = JSON.parse(await readFile('package.json', 'utf8'));
+if (!(manifest.host_permissions ?? []).some((p) => p.includes(`:${DEFAULT_RELAY_PORT}/`))) {
+  throw new Error(`manifest.json host_permissions 缺少默认 relay 端口 ${DEFAULT_RELAY_PORT} 的条目（与 @kaitox/relay-protocol 的 DEFAULT_RELAY_PORT 不一致）`);
+}
+manifest.version = pkg.version;
+await writeFile('dist/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
 await cp('src/panel.css', 'dist/panel.css');
 // 预览正文样式来自 @kaitox/x-article（与渲染器同源发布），随插件静态注入。
 await cp('../../packages/x-article/preview.css', 'dist/preview.css');
 await cp('settings.html', 'dist/settings.html');
 await cp('src/settings.css', 'dist/settings.css');
+await cp('assets/icons', 'dist/icons', { recursive: true });
 
 console.log('✓ extension 已构建 → apps/extension/dist/（在 chrome://extensions 里「加载已解压」这个目录）');

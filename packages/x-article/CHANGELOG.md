@@ -1,5 +1,26 @@
 # @kaitox/x-article
 
+## 0.5.0
+
+### Minor Changes
+
+- 4043dc2: `checkMarkdownStyle` no longer reports `image-too-large` for oversized PNG/JPEG/WebP — the relay compresses those transparently at ingest, so the warning was a false alarm that blocked `kaitox x push` with a prompt. The rule now fires only for formats the relay passes through untouched (GIF, SVG, …), with the message and suggestion updated accordingly.
+- `publishXArticle` gains an optional `onProgress` callback (new exported type `PublishProgress`).
+
+  The orchestrator now reports pipeline progress for UI display: `{stage:'images', done, total}` once up front and after each body image completes (success or skip), then `{stage:'draft'}` before the draft-create mutation and `{stage:'cover'}` before cover upload. Purely additive; callback errors are swallowed and never affect the upload. The browser extension uses it to show live progress ("正在上传图片 2/5…", "正在创建草稿…", "正在设置封面…") in the draft detail panel while uploading.
+
+- Shared push-side helpers and compile-time exhaustiveness for the content model.
+
+  - New `pushHelpers` module (exported from the package root): `parseFrontmatter`, `safeFileName`, `guessMimeFromName`, `baseName`, and `makeCoverAsset` — the single producer of the `'__cover__'` sentinel + `cover-` file-name convention. The CLI's `bundleBuilder` and the Obsidian plugin now share these instead of maintaining diverged copies; as a side effect, `kaitox x push` now honors a frontmatter `cover:` field when `--cover` is not given (previously Obsidian-only).
+  - Content-model exhaustiveness: new `BLOCK_TYPES` / `INLINE_STYLES` / `ENTITY_TYPES` coverage maps and an `assertNever` helper; the preview renderer's silent `default: return ''` branches are gone — adding a union member now fails compilation (and a new truth test) until every consumer site is updated, instead of silently dropping content. `sanitizeContentState`'s inline-style whitelist is derived from the coverage map so it can no longer drift.
+
+### Patch Changes
+
+- 4043dc2: Update `marked` from ^12.0.2 to ^18.0.5. No behavior change observed — the full conversion/preview/style-check test suite passes unchanged.
+- Updated dependencies
+- Updated dependencies
+  - @kaitox/relay-protocol@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

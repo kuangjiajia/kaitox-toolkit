@@ -20,6 +20,14 @@
  * 注意：`header-three` 和 `code-block` 能过 GraphQL 校验，但后端创建草稿时会报
  * `OperationalError: Internal: Unspecified`——X Article 正文只支持两级标题，
  * 代码块必须走 atomic + MARKDOWN 实体。
+ *
+ * 新增成员时的更新清单（编译期由 BLOCK_TYPES 覆盖表 + 各 switch 的 assertNever 兜底强制）：
+ *   1. 本联合类型 + BLOCK_TYPES 覆盖表；
+ *   2. contentState.ts handleBlockToken（生产侧）；
+ *   3. previewHtml.ts renderSingleBlock / previewModel.ts groupBlocks（若是列表类）；
+ *   4. xArticleClient.ts sanitizeContentState（若 X 拒收需进 BLOCK_TYPE_FALLBACK）；
+ *   5. styleCheck.ts（若该结构在 X 端有降级行为，加规则）；
+ *   6. test/preview.mjs 真值测试的 fixture。
  */
 export type BlockType =
   | 'unstyled' // 普通段落
@@ -62,7 +70,12 @@ export interface ContentBlock {
   inline_style_ranges: InlineStyleRange[];
 }
 
-/** 实体（entity）类型 —— block 级或 inline 级都从这里取 key。 */
+/**
+ * 实体（entity）类型 —— block 级或 inline 级都从这里取 key。
+ *
+ * 新增成员时的更新清单：EntityValue 变体、contentState.ts 生产侧、
+ * previewHtml.ts renderAtomic（块级）/ renderSegment（行内）、test/preview.mjs fixture。
+ */
 export type EntityType = 'MEDIA' | 'DIVIDER' | 'MARKDOWN' | 'LINK';
 
 export interface MediaItem {
@@ -85,6 +98,42 @@ export type EntityValue =
 export interface EntityMapEntry {
   key: number;
   value: EntityValue;
+}
+
+// ---------------------------------------------------------------------------
+// 覆盖表与穷尽性断言：联合类型加成员时这里先编译报错，逼着按清单过一遍消费点，
+// 避免某个 switch 的 default 静默丢内容。
+// ---------------------------------------------------------------------------
+
+/** BlockType 的编译期覆盖表（新增成员先在这里报错）。 */
+export const BLOCK_TYPES: Record<BlockType, true> = {
+  unstyled: true,
+  'header-one': true,
+  'header-two': true,
+  blockquote: true,
+  'unordered-list-item': true,
+  'ordered-list-item': true,
+  atomic: true,
+};
+
+/** InlineStyle 的编译期覆盖表。X GraphQL 强类型枚举，2026-07 实测只有这三个。 */
+export const INLINE_STYLES: Record<InlineStyle, true> = {
+  Bold: true,
+  Italic: true,
+  Strikethrough: true,
+};
+
+/** EntityType 的编译期覆盖表。 */
+export const ENTITY_TYPES: Record<EntityType, true> = {
+  MEDIA: true,
+  DIVIDER: true,
+  MARKDOWN: true,
+  LINK: true,
+};
+
+/** switch 的穷尽性兜底：漏 case 时编译报错（参数非 never），运行时也吼出来而不是静默丢。 */
+export function assertNever(x: never, site: string): never {
+  throw new Error(`unhandled ${site}: ${String(x)}`);
 }
 
 /** X Article 正文的核心结构。 */

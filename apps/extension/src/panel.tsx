@@ -146,7 +146,7 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
   const [items, setItems] = useState<DraftListItem[]>([]); // 全部 x-article 草稿（含已上传）
   const [conn, setConn] = useState<ConnState>('down');
   const [connErr, setConnErr] = useState('');
-  const [tab, setTab] = useState<Tab>('all');
+  const [tab, setTab] = useState<Tab>('pending');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -176,9 +176,8 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
       return;
     }
     try {
-      // 本面板只处理 X 文章草稿；其他 kind 留给别的消费方。
+      // 本面板只处理 X 文章草稿：client 以 kind 为作用域（/x-article/drafts），服务端已过滤。
       const list = (await clientRef.current.listDrafts())
-        .filter((d) => (d.kind ?? 'x-article') === 'x-article')
         .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
       setItems(list);
       setConn('ok');
@@ -289,12 +288,17 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
     async (id: string) => {
       const client = clientRef.current;
       if (!client) return;
-      setUploads((u) => ({ ...u, [id]: { phase: 'uploading', message: '正在上传图片并创建草稿…' } }));
+      setUploads((u) => ({ ...u, [id]: { phase: 'uploading', message: '正在准备上传…' } }));
+      // 跟随草稿切到「上传中」Tab：否则它会因状态变化被当前 Tab 过滤掉、从列表里凭空消失。
+      setTab('uploading');
+      setPage(1);
       try {
         await client.ack(id, { status: 'uploading' });
         const bundle = await client.getDraft(id);
         bundles.seed(bundle);
-        const result = await uploadDraft(bundle, client);
+        const result = await uploadDraft(bundle, client, (message) => {
+          setUploads((u) => ({ ...u, [id]: { phase: 'uploading', message } }));
+        });
         await client.ack(id, { status: 'done', restId: result.restId });
 
         const skipped = result.skippedImages.length ? `（跳过 ${result.skippedImages.length} 张图）` : '';
@@ -331,15 +335,29 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
     [bundles, assetUrls, refresh],
   );
 
-  /** 上传/更换封面：写回 relay（PUT /drafts/:id/cover），再失效缓存让封面预览与行缩略图刷新。 */
+  /** 上传/更换封面：写回 relay（PUT /drafts/:id/cover），再失效缓存让封面预览与行缩略图刷新。
+   *  original = 用户新选图时的裁切前原图，随成品一起存，供之后基于原图重新裁切。 */
   const doSetCover = useCallback(
-    async (id: string, file: File) => {
+    async (id: string, file: File, original?: File) => {
       const client = clientRef.current;
       if (!client) throw new Error('relay 未连接');
       if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) throw new Error('仅支持 PNG / JPEG / WebP / GIF 图片');
       if (file.size > 10 * 1024 * 1024) throw new Error('图片超过 10MB');
+      // 原图只是重裁来源，尽力而为：类型不支持或过大就不随传（重裁退回基于成品），
+      // 绝不因原图问题挡掉封面本身。上限放宽到 25MB——relay 落盘时会把超 5MB 的重编码。
+      const orig =
+        original && /^image\/(png|jpeg|webp|gif)$/.test(original.type) && original.size <= 25 * 1024 * 1024
+          ? original
+          : undefined;
       const bytes = new Uint8Array(await file.arrayBuffer());
-      await client.setCover(id, { fileName: file.name, mime: file.type, bytes });
+      await client.setCover(id, {
+        fileName: file.name,
+        mime: file.type,
+        bytes,
+        original: orig
+          ? { fileName: orig.name, mime: orig.type, bytes: new Uint8Array(await orig.arrayBuffer()) }
+          : undefined,
+      });
       bundles.invalidate(id);
       assetUrls.revoke(id);
     },
@@ -367,6 +385,8 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
           close();
         } else {
           setClosing(false); // 退场中途再点：取消卸载，直接留在打开态
+          setTab('pending'); // 每次打开默认落在「待上传」
+          setPage(1);
           setOpen(true);
         }
       }}
@@ -527,7 +547,7 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
                   onClose={() => setSelectedId(null)}
                   onUpload={() => void doUpload(selected.id)}
                   onDelete={() => doDelete(selected.id)}
-                  onSetCover={(file) => doSetCover(selected.id, file)}
+                  onSetCover={(file, original) => doSetCover(selected.id, file, original)}
                 />
               ) : (
                 <div className="kx-detail-empty">
@@ -579,7 +599,7 @@ interface DetailViewProps {
   onClose: () => void;
   onUpload: () => void;
   onDelete: () => Promise<void>;
-  onSetCover: (file: File) => Promise<void>;
+  onSetCover: (file: File, original?: File) => Promise<void>;
 }
 
 type DeletePhase = 'idle' | 'confirm' | 'deleting';
@@ -604,13 +624,18 @@ function DetailView({
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverErr, setCoverErr] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [cropFile, setCropFile] = useState<File | null>(null);
+  /** 裁切弹窗输入。file = 喂给弹窗的图；original 仅「用户新选图」路径有值，
+   *  确认后随成品一起持久化；重裁路径不带 → relay 保留现有原图。 */
+  const [crop, setCrop] = useState<{ file: File; original?: File } | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const bundle = bundles.get(d.id);
   const bundleFailed = !bundle && bundles.failed(d.id);
   const sum = bundle ? summarize(bundle.markdown) : null;
   const coverUrl = bundle?.cover ? assetUrls.get(d.id, bundle.cover.fileName, bundle.cover.mime) : undefined;
+  const coverOriginalUrl = bundle?.coverOriginal
+    ? assetUrls.get(d.id, bundle.coverOriginal.fileName, bundle.coverOriginal.mime)
+    : undefined;
   const badge = badgeFor(status);
   const counts: StyleReport['counts'] | undefined = d.counts ?? bundle?.styleReport?.counts;
   const checkOk = !counts || (!counts.error && !counts.warning);
@@ -653,29 +678,31 @@ function DetailView({
     const file = e.target.files?.[0];
     e.target.value = ''; // 允许重复选择同一文件
     if (!file || coverBusy) return;
-    setCropFile(file);
+    setCrop({ file, original: file });
   };
 
-  const applyCover = async (file: File) => {
+  const applyCover = async (file: File, original?: File) => {
     setCoverBusy(true);
     setCoverErr('');
     try {
-      await onSetCover(file);
+      await onSetCover(file, original);
     } catch (err: any) {
       setCoverErr(`封面上传失败：${err?.message ?? err}`);
     }
     setCoverBusy(false);
   };
 
-  /** 裁切当前封面：字节从 assetUrls 的 blob URL 取回，送进裁切弹窗。
-   *  剥掉 relay 存储加的 cover- 前缀，避免反复裁切后文件名叠前缀。 */
+  /** 重新裁切封面：优先取裁切前的原图（coverOriginal），没有（旧草稿 / CLI、Obsidian
+   *  来源）才退回当前封面。字节从 assetUrls 的 blob URL 取回，送进裁切弹窗。
+   *  剥掉 relay 存储加的 cover- / cover-original- 前缀，避免反复裁切后文件名叠前缀。 */
   const cropExistingCover = async () => {
-    const cover = bundle?.cover;
-    if (!cover || !coverUrl) return;
+    const src = bundle?.coverOriginal ?? bundle?.cover;
+    const srcUrl = bundle?.coverOriginal ? coverOriginalUrl : coverUrl;
+    if (!src || !srcUrl) return;
     try {
-      const blob = await (await fetch(coverUrl)).blob();
-      const name = cover.fileName.replace(/^cover-/, '');
-      setCropFile(new File([blob], name, { type: cover.mime }));
+      const blob = await (await fetch(srcUrl)).blob();
+      const name = src.fileName.replace(/^cover-(original-)?/, '');
+      setCrop({ file: new File([blob], name, { type: src.mime }) });
     } catch (err: any) {
       setCoverErr(`封面读取失败：${err?.message ?? err}`);
     }
@@ -760,7 +787,7 @@ function DetailView({
             <button
               className="kx-cover-swap"
               type="button"
-              disabled={disabled || coverBusy || !coverUrl}
+              disabled={disabled || coverBusy || !(bundle?.coverOriginal ? coverOriginalUrl : coverUrl)}
               onClick={() => void cropExistingCover()}
             >
               裁切
@@ -878,13 +905,13 @@ function DetailView({
         <PreviewModal draft={d} bundle={bundle} assetUrls={assetUrls} onClose={() => setPreviewOpen(false)} />
       )}
 
-      {cropFile && (
+      {crop && (
         <CoverCropModal
-          file={cropFile}
-          onCancel={() => setCropFile(null)}
+          file={crop.file}
+          onCancel={() => setCrop(null)}
           onConfirm={(f) => {
-            setCropFile(null);
-            void applyCover(f);
+            setCrop(null);
+            void applyCover(f, crop.original);
           }}
         />
       )}

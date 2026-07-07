@@ -1,7 +1,7 @@
 /** 草稿包在磁盘上的读写。布局：~/.kaitox/outbox/<id>/bundle.json + assets/<fileName>。 */
 import { mkdir, readFile, writeFile, readdir, rm, rename, stat } from 'node:fs/promises';
 import { join, basename } from 'node:path';
-import { base64ToBytes } from '@kaitox/relay-protocol';
+import { base64ToBytes, draftKind } from '@kaitox/relay-protocol';
 import type { DraftBundle, DraftListItem, DraftStatus, PostDraftWireBody } from '@kaitox/relay-protocol';
 import { outboxDir, sentDir } from './config.js';
 import { fitImageBytes } from './imageFit.js';
@@ -30,8 +30,8 @@ function draftDir(id: string, sent = false): string {
   return join(sent ? sentDir() : outboxDir(), id);
 }
 
-/** 落盘一份草稿包（POST /drafts）。返回 id。 */
-export async function saveDraft(wire: PostDraftWireBody): Promise<string> {
+/** 落盘一份草稿包（POST /:kind/drafts）。kind 由路由层从路径段传入盖章。返回 id。 */
+export async function saveDraft(wire: PostDraftWireBody, kind?: string): Promise<string> {
   await ensureDirs();
   const id = sanitizeId(wire.bundle.id);
   const dir = draftDir(id);
@@ -49,6 +49,8 @@ export async function saveDraft(wire: PostDraftWireBody): Promise<string> {
   const bundle: DraftBundle = {
     ...wire.bundle,
     id,
+    // kind 以路径段为准盖章：新 bundle 从此必有 kind（absent 只剩历史磁盘 bundle）。
+    kind: kind ?? wire.bundle.kind,
     // 重编码可能改变格式与体积，元数据跟着落盘后的实际字节走。
     assets: (wire.bundle.assets ?? []).map((meta) => {
       const w = written.get(sanitizeFileName(meta.fileName));
@@ -70,8 +72,9 @@ async function readBundleFrom(dir: string): Promise<DraftBundle | null> {
 }
 
 /** 草稿列表：outbox（pending/uploading/failed）+ sent（done），按创建时间倒序。
- *  已上传的草稿要留在列表里（消费方按 status 分栏展示），角标等按 status!=='done' 自行过滤。 */
-export async function listDrafts(): Promise<DraftListItem[]> {
+ *  已上传的草稿要留在列表里（消费方按 status 分栏展示），角标等按 status!=='done' 自行过滤。
+ *  传 kind 时服务端过滤（legacy 无 kind 的 bundle 经 draftKind() 归入 'x-article'）。 */
+export async function listDrafts(kind?: string): Promise<DraftListItem[]> {
   await ensureDirs();
   const items: DraftListItem[] = [];
   const seen = new Set<string>();
@@ -88,6 +91,7 @@ export async function listDrafts(): Promise<DraftListItem[]> {
       const b = await readBundleFrom(draftDir(id, sent));
       if (!b) continue;
       seen.add(id);
+      if (kind && draftKind(b) !== kind) continue;
       items.push({
         id: b.id,
         kind: b.kind,
@@ -127,10 +131,17 @@ export async function getAssetPath(id: string, fileName: string): Promise<string
   return null;
 }
 
-/** 设置/替换封面（PUT /drafts/:id/cover）。写字节并更新 bundle.cover；仅 outbox 里的草稿可改。 */
+/** 设置/替换封面（PUT /drafts/:id/cover）。写字节并更新 bundle.cover；仅 outbox 里的草稿可改。
+ *  body 带 original（用户新选图）时同时落盘原图并替换 bundle.coverOriginal；
+ *  不带（基于原图重裁）时保留现有原图。 */
 export async function setCover(
   id: string,
-  cover: { fileName: string; mime: string; base64: string },
+  cover: {
+    fileName: string;
+    mime: string;
+    base64: string;
+    original?: { fileName: string; mime: string; base64: string };
+  },
 ): Promise<DraftBundle | null> {
   const safe = sanitizeId(id);
   const dir = draftDir(safe);
@@ -141,14 +152,34 @@ export async function setCover(
   const { bytes, mime } = await fitImageBytes(base64ToBytes(cover.base64), cover.mime);
   await mkdir(join(dir, ASSETS_DIR), { recursive: true });
   await writeFile(join(dir, ASSETS_DIR, fileName), bytes);
-  // 旧封面文件不再被引用时清掉，避免越攒越多。
-  const old = b.cover?.fileName;
-  if (old && old !== fileName && !(b.assets ?? []).some((a) => a.fileName === old)) {
-    await rm(join(dir, ASSETS_DIR, sanitizeFileName(old)), { force: true }).catch(() => {});
+  let coverOriginal = b.coverOriginal;
+  if (cover.original) {
+    const origFileName = `cover-original-${sanitizeFileName(cover.original.fileName)}`;
+    const fit = await fitImageBytes(base64ToBytes(cover.original.base64), cover.original.mime);
+    await writeFile(join(dir, ASSETS_DIR, origFileName), fit.bytes);
+    coverOriginal = {
+      key: 'cover-original',
+      src: origFileName,
+      fileName: origFileName,
+      mime: fit.mime,
+      bytesLen: fit.bytes.byteLength,
+    };
+  }
+  // 不再被引用的旧封面/旧原图清掉，避免越攒越多。按「仍被引用集合」判断，防同名误删。
+  const referenced = new Set([
+    ...(b.assets ?? []).map((a) => a.fileName),
+    fileName,
+    ...(coverOriginal ? [coverOriginal.fileName] : []),
+  ]);
+  for (const old of [b.cover?.fileName, b.coverOriginal?.fileName]) {
+    if (old && !referenced.has(old)) {
+      await rm(join(dir, ASSETS_DIR, sanitizeFileName(old)), { force: true }).catch(() => {});
+    }
   }
   const updated: DraftBundle = {
     ...b,
     cover: { key: 'cover', src: fileName, fileName, mime, bytesLen: bytes.byteLength },
+    coverOriginal,
   };
   await writeFile(join(dir, BUNDLE_FILE), JSON.stringify(updated, null, 2), 'utf8');
   return updated;

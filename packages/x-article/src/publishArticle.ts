@@ -21,6 +21,15 @@ export type ImageFetcher = (src: string) => Promise<{ bytes: Uint8Array | Blob; 
 /** 取封面图字节（在建草稿拿到 rest_id 后才会被调用）。 */
 export type CoverFetcher = () => Promise<{ bytes: Uint8Array | Blob; mimeType: string }>;
 
+/**
+ * 上传进度事件（编排层各阶段推进时回调）。只供 UI 展示：
+ * images 阶段每完成一张（成功或跳过都算）推一次；draft/cover 在进入该阶段时推。
+ */
+export type PublishProgress =
+  | { stage: 'images'; done: number; total: number }
+  | { stage: 'draft' }
+  | { stage: 'cover' };
+
 export interface PublishArticleParams {
   markdown: string;
   /** 文章标题。不传则取 markdown 里的第一个标题，再退化为空串。 */
@@ -36,6 +45,8 @@ export interface PublishArticleParams {
   fetchCover?: CoverFetcher;
   /** 图片上传并发数，默认 3。 */
   imageConcurrency?: number;
+  /** 进度回调（可选，只供 UI 展示；回调抛错不影响上传流程）。 */
+  onProgress?: (progress: PublishProgress) => void;
 }
 
 export interface PublishArticleResult {
@@ -62,12 +73,21 @@ export async function publishXArticle(params: PublishArticleParams): Promise<Pub
   } = params;
 
   const client = new XArticleClient(credentials, clientOptions);
+  const notify = (progress: PublishProgress) => {
+    try {
+      params.onProgress?.(progress);
+    } catch {
+      // 进度回调只是展示，出错不影响上传
+    }
+  };
 
   // 1 + 2：收集并上传图片
   const srcs = collectImageSources(markdown);
   const mediaMap: Record<string, string> = {};
   const skippedImages: string[] = [];
 
+  let imagesDone = 0;
+  notify({ stage: 'images', done: 0, total: srcs.length });
   await mapLimit(srcs, imageConcurrency, async (src) => {
     try {
       const { bytes, mimeType } = await fetchImage(src);
@@ -76,6 +96,9 @@ export async function publishXArticle(params: PublishArticleParams): Promise<Pub
       skippedImages.push(src);
       // 单张失败不阻断整篇；正文里该图会被跳过。
       console.warn(`[publishXArticle] 图片处理失败，跳过：${src}`, err);
+    } finally {
+      imagesDone += 1;
+      notify({ stage: 'images', done: imagesDone, total: srcs.length });
     }
   });
 
@@ -91,6 +114,7 @@ export async function publishXArticle(params: PublishArticleParams): Promise<Pub
   const title = params.title ?? h1Title ?? deriveTitle(markdown);
 
   // 4：创建草稿
+  notify({ stage: 'draft' });
   const { restId, raw } = await client.createArticleDraft(title, contentState);
 
   // 5：设封面（可选）。必须在拿到 rest_id 之后：上传封面图 → UpdateCoverMedia。
@@ -99,6 +123,7 @@ export async function publishXArticle(params: PublishArticleParams): Promise<Pub
     if (!restId) {
       console.warn('[publishXArticle] 建草稿未取到 rest_id，跳过设置封面。');
     } else {
+      notify({ stage: 'cover' });
       try {
         const { bytes, mimeType } = await params.fetchCover();
         coverMediaId = await client.uploadMedia(bytes, mimeType, 'tweet_image');

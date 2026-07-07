@@ -7,6 +7,7 @@
  *   - xArticleClient.ts HTTP + auth + media upload + draft creation
  *   - publishArticle.ts end-to-end orchestration
  *   - styleCheck.ts     X-friendliness linter + plaintext fallback
+ *   - pushHelpers.ts    shared push-side helpers (frontmatter, file names, cover asset)
  *   - previewModel.ts   content_state → render-ready model (framework-free)
  *   - previewHtml.ts    render-ready model → HTML string (pair with ./preview.css)
  *
@@ -36,6 +37,7 @@ export {
 export type {
   PublishArticleParams,
   PublishArticleResult,
+  PublishProgress,
   ImageFetcher,
   CoverFetcher,
 } from './publishArticle.js';
@@ -46,6 +48,15 @@ export {
   toPlaintextMarkdown,
 } from './styleCheck.js';
 export type { AssetMeta, StyleCheckOptions } from './styleCheck.js';
+
+// --- push-side shared helpers（CLI 与 Obsidian 构建草稿的公共纯函数）---
+export {
+  parseFrontmatter,
+  baseName,
+  guessMimeFromName,
+  safeFileName,
+  makeCoverAsset,
+} from './pushHelpers.js';
 
 // --- mermaid 围栏 → 图片引用变换（渲染由消费方在浏览器里完成）---
 export {

@@ -12,9 +12,20 @@ import { createRequire } from 'node:module';
 import { runX, ARTICLES_URL } from './commands/x.js';
 import { runRelay } from './commands/relay.js';
 
+interface Command {
+  run: (args: string[]) => Promise<void>;
+  /** One-line summary shown in `kaitox help` (generated — cannot drift). */
+  summary: string;
+}
+
 /** Feature-namespace dispatch table. Adding a feature = one entry here. */
-const FEATURES: Record<string, (args: string[]) => Promise<void>> = {
-  x: runX,
+const FEATURES: Record<string, Command> = {
+  x: { run: runX, summary: 'X (Twitter) Article publishing — push / list / status' },
+};
+
+/** Infrastructure commands — not features, but dispatched the same way. */
+const INFRA: Record<string, Command> = {
+  relay: { run: runRelay, summary: 'local relay lifecycle — [--daemon] / stop / restart / status' },
 };
 
 function cliVersion(): string {
@@ -37,13 +48,9 @@ async function main(): Promise<void> {
     console.log(cliVersion());
     return;
   }
-  if (cmd === 'relay') {
-    await runRelay(argv.slice(1));
-    return;
-  }
-  const feature = FEATURES[cmd];
-  if (feature) {
-    await feature(argv.slice(1));
+  const command = FEATURES[cmd] ?? INFRA[cmd];
+  if (command) {
+    await command.run(argv.slice(1));
     return;
   }
   console.error(`Unknown command: ${cmd}\n`);
@@ -52,6 +59,10 @@ async function main(): Promise<void> {
 }
 
 function printHelp(): void {
+  const rows = (table: Record<string, Command>) =>
+    Object.entries(table)
+      .map(([name, c]) => `  ${name.padEnd(10)}${c.summary}`)
+      .join('\n');
   console.log(`kaitox — personal toolkit CLI (v${cliVersion()})
 
 Usage:
@@ -59,14 +70,10 @@ Usage:
   kaitox relay ...
 
 Features:
-  x         X (Twitter) Article publishing — see \`kaitox x --help\`
-            push / list / status
+${rows(FEATURES)}
 
 Infrastructure:
-  kaitox relay [--daemon]     run the local relay (foreground / background)
-  kaitox relay stop           stop the background relay
-  kaitox relay restart        restart the relay (kill whatever holds the port, then start)
-  kaitox relay status         show relay status
+${rows(INFRA)}
 
 After pushing: open ${ARTICLES_URL} and use the kaitox browser extension
 to upload pending drafts.`);

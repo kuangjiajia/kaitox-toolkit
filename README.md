@@ -56,7 +56,7 @@ Chrome extension (MV3 content script on x.com/compose/articles, polls every 5s)
 
 ## Repo layout (npm workspaces)
 
-All published packages are ESM-only, require Node >= 18, and version together (currently 0.3.0; npm publish pending).
+All published packages are ESM-only and require Node >= 18 (versions managed by changesets; npm publish pending).
 
 **Products:**
 

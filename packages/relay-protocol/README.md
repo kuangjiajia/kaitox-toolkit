@@ -38,9 +38,9 @@ A **draft bundle** is one unit of work: raw Markdown + image bytes + metadata, p
 
 | Field | Type | Notes |
 |---|---|---|
-| `schemaVersion` | `1` | Literal. Bump only on breaking wire changes. |
+| `schemaVersion` | `number` | Current value is the `SCHEMA_VERSION` constant (`1`); read it via `bundleSchemaVersion(b)` (absent on v0.2 disk bundles means `1`). Bumped only on breaking wire changes. |
 | `id` | `string` | Assigned by the pusher (`HttpRelayClient` uses `crypto.randomUUID()` by default). |
-| `kind?` | `DraftKind` | Feature discriminator. **Absent means `'x-article'`** (v0.2 bundles on disk predate the field). The relay stores and forwards it without interpreting it. |
+| `kind?` | `DraftKind` | Feature discriminator. **Absent means `'x-article'`** (v0.2 bundles on disk predate the field) — read it via the canonical accessor `draftKind(b)` (the default lives in `DEFAULT_DRAFT_KIND`). The relay stamps it from the `/:kind/drafts` path segment on POST, then stores and forwards it without interpreting it. |
 | `title` | `string` | Draft title. |
 | `markdown` | `string` | Raw Markdown source. |
 | `mode` | `'rich' \| 'plaintext'` | Rich rendering vs. plaintext fallback. |
@@ -69,7 +69,7 @@ The three relay-maintained fields are excluded from what you POST — the wire b
 
 ### `DraftListItem`
 
-The lightweight shape returned by `GET /drafts` — no `markdown`, no bytes:
+The lightweight shape returned by `GET /:kind/drafts` — no `markdown`, no bytes:
 
 | Field | Type |
 |---|---|
@@ -96,21 +96,28 @@ The `(string & {})` trick keeps editor autocomplete for the known literals while
 
 ## REST contract
 
-Base URL: `http://127.0.0.1:8765` by default. The relay binds to `127.0.0.1` only; the port is configurable via `KAITOX_RELAY_PORT`, and storage lives under `KAITOX_HOME` (default `~/.kaitox`).
+Base URL: `http://127.0.0.1:8765` by default (exported as `DEFAULT_RELAY_BASE` / `DEFAULT_RELAY_PORT`). The relay binds to `127.0.0.1` only; the port is configurable via `KAITOX_RELAY_PORT`, and storage lives under `KAITOX_HOME` (default `~/.kaitox`).
+
+Draft routes are namespaced by `kind` (`/:kind/drafts...`): the path segment is the **verbatim kind string**, and the relay treats it as opaque — it stores, filters, and matches it, never interprets it. Kind path segments must match `/^[a-z0-9][a-z0-9-]*$/` and must not be a reserved word (`health`, `setting`, `drafts`); the rule is exported as `isValidKindSegment` (alongside `RESERVED_KIND_SEGMENTS`). The pre-v0.5 root routes (`/drafts*`) answer `410 Gone` with a migration hint.
 
 | Method | Path | Request body | Success | Errors |
 |---|---|---|---|---|
 | `GET` | `/health` | — | `200` `{ ok, version, port }` | — (token-exempt) |
-| `POST` | `/drafts` | `PostDraftWireBody` (JSON) | `201` `{ id }` | `401` |
-| `GET` | `/drafts` | — | `200` `DraftListItem[]` | `401` |
-| `GET` | `/drafts/:id` | — | `200` `DraftBundle` | `401`, `404` |
-| `GET` | `/drafts/:id/assets/:fileName` | — | `200` binary (`application/octet-stream`) | `400` (illegal file name), `401`, `404` |
-| `PATCH` | `/drafts/:id` | `{ status, restId?, error? }` | `200` updated `DraftBundle` | `401`, `404` |
-| `DELETE` | `/drafts/:id` | — | `200` `{ deleted: true }` | `401`, `404` `{ deleted: false }` |
+| `GET` | `/setting` | — | `200` `{ port, version, tokenConfigured }` — never returns the token value | `401` |
+| `PATCH` | `/setting` | `{ token?: string \| null }` (`null` clears; takes effect immediately, no restart) | `200` `{ port, version, tokenConfigured }` | `400`, `401` |
+| `POST` | `/:kind/drafts` | `PostDraftWireBody` (JSON) | `201` `{ id }` — `kind` is stamped from the path | `400` (invalid body, or `bundle.kind` disagreeing with the path), `401` |
+| `GET` | `/:kind/drafts` | — | `200` `DraftListItem[]`, server-side filtered by kind (includes done drafts from `sent/`) | `401` |
+| `GET` | `/:kind/drafts/:id` | — | `200` `DraftBundle` (outbox, then sent) | `401`, `404` (also for cross-kind access) |
+| `GET` | `/:kind/drafts/:id/assets/:fileName` | — | `200` binary (`application/octet-stream`) | `400` (illegal file name), `401`, `404` |
+| `PUT` | `/:kind/drafts/:id/cover` | `SetCoverWireBody` (JSON) | `200` updated `DraftBundle` | `400`, `401`, `404` |
+| `PATCH` | `/:kind/drafts/:id` | `{ status, restId?, error? }` | `200` updated `DraftBundle`; `done` moves it to `sent/` | `400`, `401`, `404` |
+| `DELETE` | `/:kind/drafts/:id` | — | `200` `{ deleted: true }` | `401`, `404` `{ deleted: false }` |
 
 `OPTIONS` preflight always answers `204`. Unhandled errors answer `500` `{ error }`.
 
-The `POST /drafts` body is a single JSON document — no multipart, so the relay needs no parser beyond Node builtins:
+Malformed request bodies are rejected with `400` `{ error, issues }`, where each issue carries a JSONPath-style `path` plus a `message`. The validators the relay uses are exported from this package — `validatePostDraftWireBody`, `validateSetCoverWireBody`, `validateAckPatch`, `validateSettingPatch` (typed via `WireResult` / `WireIssue`). They are zero-dep and deliberately lenient: unknown fields pass through, and the open `kind`/`source` string values are not constrained.
+
+The `POST /:kind/drafts` body is a single JSON document — no multipart, so the relay needs no parser beyond Node builtins:
 
 ```ts
 export interface PostDraftWireBody {
@@ -119,7 +126,7 @@ export interface PostDraftWireBody {
 }
 ```
 
-`wire.assets` carries the bytes for **both** body images and the cover (the cover's bytes are keyed by `bundle.cover.fileName`). Asset downloads go the other direction as raw binary, since that is the hotter, bandwidth-sensitive path.
+`wire.assets` carries the bytes for **both** body images and the cover (the cover's bytes are keyed by `bundle.cover.fileName`). `PUT /:kind/drafts/:id/cover` uses the same base64 encoding via `SetCoverWireBody` (`{ fileName, mime, base64 }`). Asset downloads go the other direction as raw binary, since that is the hotter, bandwidth-sensitive path.
 
 ### Auth: `x-kaitox-token`
 
@@ -130,6 +137,8 @@ Auth is off by default. If `~/.kaitox/config.json` contains a token:
 ```
 
 then every request except `GET /health` and `OPTIONS` must send it as the `x-kaitox-token` header, or it gets `401` `{ "error": "unauthorized" }`.
+
+The token can also be managed on a running relay: `GET /setting` reports `{ port, version, tokenConfigured }` (never the token value itself), and `PATCH /setting` with `{ "token": "..." }` sets it — `{ "token": null }` clears it — taking effect immediately, no restart. If a token is already configured, the `PATCH` must present it like any other request.
 
 ### CORS
 
@@ -143,27 +152,31 @@ A `fetch`-based implementation of the `RelayClient` interface, usable from Node 
 new HttpRelayClient(baseUrl?, opts?)
 ```
 
-- `baseUrl` — defaults to `http://127.0.0.1:8765` (trailing slashes are stripped).
+- `baseUrl` — defaults to `http://127.0.0.1:8765` (`DEFAULT_RELAY_BASE`; trailing slashes are stripped).
+- `opts.kind` — the client's **kind scope** (default `'x-article'`): it decides the `/:kind/drafts` path segment for every draft call and the `kind` stamped on drafts you push, e.g. `new HttpRelayClient(base, { kind: 'my-feature' })`.
 - `opts.fetchImpl` — inject a `fetch` (defaults to the global; throws at construction if none exists).
 - `opts.token` — per-install token, sent as `x-kaitox-token` on every request.
 - `opts.makeId` — id factory, defaults to `crypto.randomUUID`.
 - `opts.now` — timestamp factory, defaults to `() => new Date().toISOString()`.
 
+All draft methods hit `/:kind/drafts...` for the client's kind scope:
+
 | Method | Returns | Does |
 |---|---|---|
 | `health()` | `{ ok, version, port? }` | `GET /health` liveness probe. |
-| `postDraft(input)` | `{ id }` | Stamps `id`/`createdAt`, base64-encodes all bytes (cover included), `POST /drafts`. |
-| `listDrafts()` | `DraftListItem[]` | `GET /drafts`. |
-| `getDraft(id)` | `DraftBundle` | `GET /drafts/:id`. |
-| `getAsset(id, fileName)` | `Uint8Array` | `GET /drafts/:id/assets/:fileName` as binary. |
-| `ack(id, patch)` | `void` | `PATCH /drafts/:id` with `{ status, restId?, error? }`. |
-| `deleteDraft(id)` | `void` | `DELETE /drafts/:id`. |
+| `postDraft(input)` | `{ id }` | Stamps `id`/`createdAt`/`kind`, base64-encodes all bytes (cover included), `POST /:kind/drafts`. |
+| `listDrafts()` | `DraftListItem[]` | `GET /:kind/drafts` — already server-side filtered by the client's kind. |
+| `getDraft(id)` | `DraftBundle` | `GET /:kind/drafts/:id`. |
+| `getAsset(id, fileName)` | `Uint8Array` | `GET /:kind/drafts/:id/assets/:fileName` as binary. |
+| `setCover(id, cover)` | `void` | `PUT /:kind/drafts/:id/cover` with `SetCoverWireBody` (set or replace the cover). |
+| `ack(id, patch)` | `void` | `PATCH /:kind/drafts/:id` with `{ status, restId?, error? }`. |
+| `deleteDraft(id)` | `void` | `DELETE /:kind/drafts/:id`. |
 
-Every method throws an `Error` with the HTTP status on any non-2xx response.
+On any non-2xx response every method throws `RelayHttpError`, which carries `method`, `url`, `status`, and (when available) the response `body` — so consumers can branch programmatically, e.g. `401` → prompt for a token.
 
 ### Pushing a draft
 
-`postDraft` takes a `PostDraftInput`: like the bundle, but each asset is a `DraftAssetInput` carrying in-memory `bytes: Uint8Array` instead of `bytesLen`, and `id`/`createdAt`/`schemaVersion` are filled in for you.
+`postDraft` takes a `PostDraftInput`: like the bundle, but each asset is a `DraftAssetInput` carrying in-memory `bytes: Uint8Array` instead of `bytesLen`, and `id`/`createdAt`/`schemaVersion`/`kind` are filled in for you — `kind` from the client's scope. `input.kind` still works as a per-call override; it sets both the route's path segment and `bundle.kind`, so the two always agree.
 
 ```ts
 import { readFile } from 'node:fs/promises';
@@ -171,7 +184,7 @@ import { resolve, dirname } from 'node:path';
 import { HttpRelayClient } from '@kaitox/relay-protocol';
 import { collectImageSources } from '@kaitox/x-article';
 
-const relay = new HttpRelayClient(); // http://127.0.0.1:8765
+const relay = new HttpRelayClient(); // http://127.0.0.1:8765, kind-scoped to 'x-article'
 
 const mdPath = '/path/to/post.md';
 const markdown = await readFile(mdPath, 'utf8');
@@ -191,7 +204,7 @@ const assets = await Promise.all(
 );
 
 const { id } = await relay.postDraft({
-  // kind omitted => 'x-article'
+  // kind comes from the client's scope ('x-article'); POST /x-article/drafts
   title: 'My first article',
   markdown,
   mode: 'rich',
@@ -209,7 +222,7 @@ const { id } = await relay.postDraft({
 console.log(`queued draft ${id}`);
 ```
 
-The relay stores it under `~/.kaitox/outbox/<id>/` (`bundle.json` + `assets/<fileName>`). For `kind: 'x-article'` drafts, the kaitox Chrome extension polls the relay and, on click, creates the Article draft using the user's own logged-in x.com session.
+The relay stores it under `~/.kaitox/outbox/<id>/` (`bundle.json` + `assets/<fileName>`). For `kind: 'x-article'` drafts, the kaitox Chrome extension polls `/x-article/drafts` and, on click, creates the Article draft using the user's own logged-in x.com session.
 
 > **Compliance note.** Publishing X Articles this way drives the user's own logged-in browser session against X's private web endpoints. It is unofficial, may break whenever X rotates queryIds, and should not be used for mass automation. Use at your own risk.
 
@@ -220,11 +233,10 @@ The consumer side of the same contract — this is essentially what the Chrome e
 ```ts
 import { HttpRelayClient } from '@kaitox/relay-protocol';
 
-const relay = new HttpRelayClient();
+const relay = new HttpRelayClient(); // kind-scoped to 'x-article'
 
-const pending = (await relay.listDrafts()).filter(
-  (d) => d.status === 'pending' && (d.kind ?? 'x-article') === 'x-article',
-);
+// GET /x-article/drafts — the server already filtered by kind.
+const pending = (await relay.listDrafts()).filter((d) => d.status === 'pending');
 
 for (const item of pending) {
   const bundle = await relay.getDraft(item.id);
@@ -242,11 +254,11 @@ for (const item of pending) {
 }
 ```
 
-Always treat a missing `kind` as `'x-article'` when filtering.
+Kind filtering happens server-side now. When you do read `kind` off a bundle or list item, use the canonical accessor `draftKind(b)` — absence (possible only on legacy disk bundles) still means `'x-article'`.
 
 ## base64 helpers
 
-Bytes travel as base64 inside the `POST /drafts` JSON. Two helpers work in both runtimes — `Buffer` when available, chunked `btoa`/`atob` otherwise:
+Bytes travel as base64 inside the `POST /:kind/drafts` JSON. Two helpers work in both runtimes — `Buffer` when available, chunked `btoa`/`atob` otherwise:
 
 ```ts
 import { bytesToBase64, base64ToBytes } from '@kaitox/relay-protocol';
@@ -261,9 +273,9 @@ const bytes = base64ToBytes(b64);
 
 The `kind` discriminator makes the relay a generic local draft queue:
 
-1. **Push** with your own kind: `postDraft({ kind: 'my-feature', ... })`. Any string is valid — no protocol change needed.
-2. **The relay stores and forwards `kind` untouched.** It never interprets it; your bundles sit in the same outbox alongside `x-article` drafts.
-3. **Consume** by filtering: `listDrafts()` then keep items where `(d.kind ?? 'x-article') === 'my-feature'`, and drive the `pending → uploading → done | failed` lifecycle with `ack`.
+1. **Push** with a kind-scoped client: `new HttpRelayClient(base, { kind: 'my-feature' })`. Any string that satisfies the path-segment rule (`/^[a-z0-9][a-z0-9-]*$/`, not `health`/`setting`/`drafts` — check with `isValidKindSegment`) is valid — no protocol change needed.
+2. **The relay stores and forwards `kind` untouched.** It never interprets it; your bundles sit in the same outbox on disk alongside `x-article` drafts, but get their own route namespace (`/my-feature/drafts`) — cross-kind access 404s.
+3. **Consume** with the same kind-scoped client: `listDrafts()` returns only your kind (filtered server-side), and `ack` drives the `pending → uploading → done | failed` lifecycle.
 
 Your feature gets persistence, a REST surface, CORS, optional token auth, and a shared client for free. See [Integrating your own local service](../../docs/integrate-local-service.md) for the full walkthrough, and [`@kaitox/relay`](../relay/README.md) for running the relay itself.
 

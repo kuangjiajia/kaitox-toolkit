@@ -7,6 +7,7 @@ import { buildPreviewModel, segmentText, groupBlocks } from '../dist/previewMode
 import { renderPreviewHtml, renderModelHtml } from '../dist/previewHtml.js';
 import { markdownToContentState } from '../dist/contentState.js';
 import { extractMermaidBlocks } from '../dist/mermaid.js';
+import { BLOCK_TYPES, ENTITY_TYPES } from '../dist/types.js';
 
 let pass = 0,
   fail = 0;
@@ -201,6 +202,62 @@ check('合成 src 走 MEDIA 实体', exMedia?.value.data.media_items[0].media_id
 
 const noMmd = extractMermaidBlocks('# 无 mermaid\n\n正文。\n');
 check('无 mermaid 时原文原样返回', noMmd.blocks.length === 0 && noMmd.markdown === '# 无 mermaid\n\n正文。\n');
+
+// --- 真值测试：每个 BlockType / EntityType 都必须被 fixture 覆盖且渲染有产出 ----
+// 覆盖表新增成员时这里会失败，逼着扩 fixture——抓的是 tsc 抓不到的 JS 侧静默丢内容。
+
+const truthMd = `# 标题
+
+普通段落。
+
+## 一级标题
+
+### 二级标题
+
+> 引用一句
+
+- 无序项
+- 无序项二
+
+1. 有序项
+
+![图](https://i/t.png)
+
+---
+
+\`\`\`js
+const t = 1;
+\`\`\`
+
+[链接](https://example.com/t)
+`;
+
+const truthModel = buildPreviewModel(truthMd);
+const seenBlockTypes = new Set(truthModel.blocks.map((b) => b.type));
+for (const bt of Object.keys(BLOCK_TYPES)) {
+  check(`真值 fixture 覆盖 BlockType「${bt}」`, seenBlockTypes.has(bt));
+}
+const seenEntityTypes = new Set([...truthModel.entities.values()].map((e) => e.type));
+for (const et of Object.keys(ENTITY_TYPES)) {
+  check(`真值 fixture 覆盖 EntityType「${et}」`, seenEntityTypes.has(et));
+}
+const truthHtml = renderModelHtml(truthModel, { resolveImage: () => 'blob:t' });
+const truthMarkers = {
+  unstyled: '<p class="xp-p">普通段落。</p>',
+  'header-one': '<h2 class="xp-h1">一级标题</h2>',
+  'header-two': '<h3 class="xp-h2">二级标题</h3>',
+  blockquote: '<blockquote class="xp-quote">引用一句</blockquote>',
+  'unordered-list-item': '<li>无序项</li>',
+  'ordered-list-item': '<li>有序项</li>',
+  MEDIA: 'src="blob:t"',
+  DIVIDER: '<hr class="xp-divider">',
+  MARKDOWN: '<pre class="xp-md">const t = 1;</pre>',
+  LINK: 'href="https://example.com/t"',
+};
+for (const [name, marker] of Object.entries(truthMarkers)) {
+  check(`真值渲染有产出「${name}」`, truthHtml.includes(marker));
+}
+// atomic 的产出由 MEDIA/DIVIDER/MARKDOWN 三个 marker 共同证明，无独立 marker。
 
 console.log(`\n== ${pass} passed, ${fail} failed ==`);
 process.exit(fail ? 1 : 0);

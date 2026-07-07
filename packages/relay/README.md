@@ -59,6 +59,8 @@ Notes:
 
 When `token` is set, every request except `GET /health` (and CORS preflight) must carry it in the `x-kaitox-token` header, or the relay answers `401`.
 
+`config.json` is read at startup, but the token can also be changed on a running relay: `PATCH /setting` with `{ "token": "..." }` sets it (`{ "token": null }` clears it), takes effect immediately — no restart — and is persisted back to `config.json`. `GET /setting` reports `{ port, version, tokenConfigured }` and never returns the token value itself.
+
 ## On-disk layout
 
 ```text
@@ -74,14 +76,14 @@ When `token` is set, every request except `GET /health` (and CORS preflight) mus
     └── <id>/                # same layout as outbox/<id>/
 ```
 
-`GET /drafts` lists only the outbox (statuses `pending` / `uploading` / `failed`), newest first. When a draft is patched to `status: "done"`, its whole directory moves from `outbox/` to `sent/`; `GET /drafts/:id` and asset reads still find it there.
+`GET /:kind/drafts` lists both directories — the outbox (statuses `pending` / `uploading` / `failed`) **and** done drafts from `sent/` (consumers show them in a "done" tab) — filtered server-side by kind, newest first. When a draft is patched to `status: "done"`, its whole directory moves from `outbox/` to `sent/`; `GET /:kind/drafts/:id` and asset reads still find it there.
 
 ## Security model
 
 - **Loopback only.** The server binds `127.0.0.1` — it is never reachable from other machines.
 - **CORS allowlist.** Browser origins are restricted to `x.com` / `twitter.com` / `mobile.twitter.com`, any `chrome-extension://` origin, and `app://obsidian.md` (the Obsidian desktop renderer).
 - **No-Origin requests are allowed.** Requests without an `Origin` header (CLI, curl, same-process code) are local tools, not cross-origin browser contexts, so they pass.
-- **Optional shared token.** Set `token` in `~/.kaitox/config.json` and every client must send it as `x-kaitox-token`. `GET /health` stays token-free so liveness probes and `kaitox-relay status` keep working.
+- **Optional shared token.** Set `token` in `~/.kaitox/config.json` (or live via `PATCH /setting`) and every client must send it as `x-kaitox-token`. `GET /health` stays token-free so liveness probes and `kaitox-relay status` keep working; `GET /setting` reports whether a token is configured but never its value.
 - **Path hygiene.** Draft ids and asset file names are sanitized on every read/write to prevent directory traversal.
 
 The relay itself only stores and serves drafts. Actually publishing them — done by the Chrome extension in your logged-in x.com tab — drives X's private web endpoints, which are unofficial and may break without notice. Use at your own risk and don't mass-automate.
@@ -120,15 +122,21 @@ Exports:
 
 One-liners only — see [`@kaitox/relay-protocol`](../relay-protocol/README.md) for the full wire contract (`DraftBundle`, `PostDraftWireBody`, `HttpRelayClient`, …).
 
+Draft routes are namespaced by `kind` (`/:kind/drafts...`): the path segment is the verbatim kind string, which the relay treats as opaque — it stores, filters, and matches it, never interprets it. Kind segments must match `/^[a-z0-9][a-z0-9-]*$/` and must not be a reserved word (`health`, `setting`, `drafts`); the rule is exported as `isValidKindSegment` from `@kaitox/relay-protocol`. Malformed request bodies are rejected with `400 { error, issues }` (JSONPath-style locations).
+
 | Route | Purpose |
 | --- | --- |
 | `GET /health` | Liveness probe → `{ ok, version, port }` (token-exempt) |
-| `POST /drafts` | Store a draft bundle (`PostDraftWireBody`) → `201 { id }` |
-| `GET /drafts` | List outbox drafts → `DraftListItem[]` |
-| `GET /drafts/:id` | Fetch one bundle → `DraftBundle` (outbox, then sent) |
-| `GET /drafts/:id/assets/:fileName` | Raw asset bytes → `application/octet-stream` |
-| `PATCH /drafts/:id` | Update `{ status, restId?, error? }`; `done` moves it to `sent/` |
-| `DELETE /drafts/:id` | Remove a draft from outbox and sent → `{ deleted }` |
+| `GET /setting` | Settings view → `{ port, version, tokenConfigured }` — never returns the token value |
+| `PATCH /setting` | Update settings: `{ token?: string \| null }` (`null` clears; takes effect immediately, no restart) |
+| `POST /:kind/drafts` | Store a draft bundle (`PostDraftWireBody`) → `201 { id }`; `kind` is stamped from the path (a body whose `bundle.kind` disagrees → `400`) |
+| `GET /:kind/drafts` | List drafts → `DraftListItem[]`, server-side filtered by kind (includes done drafts from `sent/`) |
+| `GET /:kind/drafts/:id` | Fetch one bundle → `DraftBundle` (outbox, then sent; cross-kind access → `404`) |
+| `GET /:kind/drafts/:id/assets/:fileName` | Raw asset bytes → `application/octet-stream` |
+| `PUT /:kind/drafts/:id/cover` | Set/replace the cover (`SetCoverWireBody`) → updated `DraftBundle` |
+| `PATCH /:kind/drafts/:id` | Update `{ status, restId?, error? }` → updated `DraftBundle`; `done` moves it to `sent/` |
+| `DELETE /:kind/drafts/:id` | Remove a draft from outbox and sent → `{ deleted }` |
+| `/drafts*` | `410 Gone` — pre-v0.5 root routes, answered with a migration hint |
 
 ## License
 

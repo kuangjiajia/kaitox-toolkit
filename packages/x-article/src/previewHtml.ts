@@ -14,6 +14,7 @@ import type { PreviewModel } from './previewModel.js';
 import { groupBlocks, segmentText } from './previewModel.js';
 import type { Segment } from './previewModel.js';
 import type { ContentBlock, EntityValue } from './types.js';
+import { assertNever } from './types.js';
 
 export interface RenderPreviewOptions {
   /** 显示标题；缺省用 model.derivedTitle（发布时上层通常传 bundle.title——发布真值）。 */
@@ -87,10 +88,15 @@ function renderSingleBlock(
       return `<h3 class="xp-h2">${renderInline(block, entities)}</h3>`;
     case 'blockquote':
       return `<blockquote class="xp-quote">${renderInline(block, entities)}</blockquote>`;
+    // 列表项正常路径已被 groupBlocks 归入 list 组，这里是防御渲染（单项也不丢内容）。
+    case 'unordered-list-item':
+      return `<ul class="xp-ul"><li>${renderInline(block, entities)}</li></ul>`;
+    case 'ordered-list-item':
+      return `<ol class="xp-ol"><li>${renderInline(block, entities)}</li></ol>`;
     case 'atomic':
       return renderAtomic(block, entities, opts);
     default:
-      return '';
+      return assertNever(block.type, 'preview block type');
   }
 }
 
@@ -124,8 +130,11 @@ function renderAtomic(
       }
       return `<figure class="xp-fig"><img class="xp-img" src="${escapeHtml(resolved)}" alt=""></figure>`;
     }
-    default:
+    // LINK 是行内实体，不会出现在 atomic 块里（行内渲染见 renderSegment）。
+    case 'LINK':
       return '';
+    default:
+      return assertNever(entity, 'preview atomic entity');
   }
 }
 

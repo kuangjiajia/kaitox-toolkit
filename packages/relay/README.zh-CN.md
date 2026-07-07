@@ -59,6 +59,8 @@ kaitox-relay --version  # print the version
 
 设置了 `token` 后，除 `GET /health`（及 CORS 预检）之外的每个请求都必须在 `x-kaitox-token` 请求头里携带它，否则 relay 应答 `401`。
 
+`config.json` 在启动时读取，但 token 也可以在运行中的 relay 上直接修改：`PATCH /setting` 携带 `{ "token": "..." }` 设置它（`{ "token": null }` 清除），即时生效——无需重启——并会回写持久化到 `config.json`。`GET /setting` 报告 `{ port, version, tokenConfigured }`，永不返回 token 值本身。
+
 ## 磁盘目录结构
 
 ```text
@@ -74,14 +76,14 @@ kaitox-relay --version  # print the version
     └── <id>/                # same layout as outbox/<id>/
 ```
 
-`GET /drafts` 只列出 outbox（状态为 `pending` / `uploading` / `failed`），最新在前。当草稿被 patch 成 `status: "done"` 时，它的整个目录会从 `outbox/` 移到 `sent/`；`GET /drafts/:id` 和资产读取仍能在那里找到它。
+`GET /:kind/drafts` 会列出两个目录——outbox（状态为 `pending` / `uploading` / `failed`）**以及** `sent/` 里已完成的草稿（消费端将它们展示在「已完成」标签页里）——由服务端按 kind 过滤，最新在前。当草稿被 patch 成 `status: "done"` 时，它的整个目录会从 `outbox/` 移到 `sent/`；`GET /:kind/drafts/:id` 和资产读取仍能在那里找到它。
 
 ## 安全模型
 
 - **仅回环。** 服务器只绑定 `127.0.0.1`——其他机器永远无法访问。
 - **CORS 白名单。** 浏览器 origin 仅限 `x.com` / `twitter.com` / `mobile.twitter.com`、任意 `chrome-extension://` origin，以及 `app://obsidian.md`（Obsidian 桌面端渲染器）。
 - **允许无 Origin 请求。** 不带 `Origin` 请求头的请求（CLI、curl、同进程代码）是本地工具，不是跨域浏览器上下文，因此放行。
-- **可选共享 token。** 在 `~/.kaitox/config.json` 里设置 `token` 后，每个客户端都必须以 `x-kaitox-token` 发送它。`GET /health` 保持免 token，让存活探测和 `kaitox-relay status` 继续可用。
+- **可选共享 token。** 在 `~/.kaitox/config.json` 里设置 `token`（或通过 `PATCH /setting` 在线设置）后，每个客户端都必须以 `x-kaitox-token` 发送它。`GET /health` 保持免 token，让存活探测和 `kaitox-relay status` 继续可用；`GET /setting` 报告是否已配置 token，但永不返回它的值。
 - **路径卫生。** 草稿 id 和资产文件名在每次读写时都会被清洗，防止路径穿越。
 
 relay 本身只负责存储和提供草稿。真正的发布——由 Chrome 插件在你已登录的 x.com 标签页里完成——驱动的是 X 的私有网页接口，属非官方用法，随时可能失效。风险自担，不要批量自动化。
@@ -120,15 +122,21 @@ if (!(await isRelayUp())) {
 
 这里只列一句话概要——完整线上契约（`DraftBundle`、`PostDraftWireBody`、`HttpRelayClient` 等）见 [`@kaitox/relay-protocol`](../relay-protocol/README.md)。
 
+草稿路由按 `kind` 命名空间化（`/:kind/drafts...`）：路径段就是原样的 kind 字符串，relay 把它当作不透明参数——只存储、过滤和匹配，从不解释。kind 路径段必须匹配 `/^[a-z0-9][a-z0-9-]*$/`，且不能是保留字（`health`、`setting`、`drafts`）；这条规则以 `isValidKindSegment` 从 `@kaitox/relay-protocol` 导出。畸形的请求体会被拒绝为 `400 { error, issues }`（JSONPath 风格的位置）。
+
 | 路由 | 用途 |
 | --- | --- |
 | `GET /health` | 存活探测 → `{ ok, version, port }`（免 token） |
-| `POST /drafts` | 存储一个草稿包（`PostDraftWireBody`）→ `201 { id }` |
-| `GET /drafts` | 列出 outbox 草稿 → `DraftListItem[]` |
-| `GET /drafts/:id` | 获取单个草稿包 → `DraftBundle`（先查 outbox，再查 sent） |
-| `GET /drafts/:id/assets/:fileName` | 原始资产字节 → `application/octet-stream` |
-| `PATCH /drafts/:id` | 更新 `{ status, restId?, error? }`；`done` 会把它移到 `sent/` |
-| `DELETE /drafts/:id` | 从 outbox 和 sent 中删除草稿 → `{ deleted }` |
+| `GET /setting` | 设置视图 → `{ port, version, tokenConfigured }`——永不返回 token 值 |
+| `PATCH /setting` | 更新设置：`{ token?: string \| null }`（`null` 表示清除；即时生效，无需重启） |
+| `POST /:kind/drafts` | 存储一个草稿包（`PostDraftWireBody`）→ `201 { id }`；`kind` 由路径段盖章写入（请求体的 `bundle.kind` 与之不符 → `400`） |
+| `GET /:kind/drafts` | 列出草稿 → `DraftListItem[]`，服务端按 kind 过滤（含 `sent/` 里已完成的草稿） |
+| `GET /:kind/drafts/:id` | 获取单个草稿包 → `DraftBundle`（先查 outbox，再查 sent；跨 kind 访问 → `404`） |
+| `GET /:kind/drafts/:id/assets/:fileName` | 原始资产字节 → `application/octet-stream` |
+| `PUT /:kind/drafts/:id/cover` | 设置/替换封面（`SetCoverWireBody`）→ 更新后的 `DraftBundle` |
+| `PATCH /:kind/drafts/:id` | 更新 `{ status, restId?, error? }` → 更新后的 `DraftBundle`；`done` 会把它移到 `sent/` |
+| `DELETE /:kind/drafts/:id` | 从 outbox 和 sent 中删除草稿 → `{ deleted }` |
+| `/drafts*` | `410 Gone`——v0.5 之前的根路由，应答中附迁移提示 |
 
 ## 许可证
 
