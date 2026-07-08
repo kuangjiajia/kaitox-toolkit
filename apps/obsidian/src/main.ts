@@ -1,9 +1,9 @@
 /**
  * Kaitox Obsidian 插件入口。
  *
- * 提供一块常驻「发布预览」面板：实时把当前笔记渲染成 X 文章的样子、跑样式检查、
- * 一键「推送到草稿箱」（POST 到本地 relay）。真正的发布由 Chrome 扩展在已登录的
- * x.com 会话里接力完成。
+ * 提供一块常驻「发布预览」面板：实时把当前笔记渲染成 X 文章的样子，一键「推送到
+ * 草稿箱」（POST 到本地 relay，推送前的确认清单里会跑样式检查）。真正的发布由
+ * Chrome 扩展在已登录的 x.com 会话里接力完成。
  */
 import { Plugin, Notice, WorkspaceLeaf, requestUrl } from 'obsidian';
 import { HttpRelayClient } from '@kaitox/relay-protocol';

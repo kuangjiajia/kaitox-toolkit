@@ -1,9 +1,9 @@
 /**
  * Kaitox 发布预览面板（Obsidian ItemView）。
  *
- * 一块常驻侧栏/主区面板：顶部工具栏（发布渠道分段 · 样式检查 · 设置 · relay 绿点 ·
- * 推送到草稿箱），下面实时把当前笔记渲染成 X 文章该有的样子。预览、样式检查、推送
- * 三者共用同一份 resolveActiveNote 结果——所见即所得。
+ * 一块常驻侧栏/主区面板：顶部工具栏（发布渠道分段 · 设置 · relay 绿点 ·
+ * 推送到草稿箱），下面实时把当前笔记渲染成 X 文章该有的样子。预览与推送共用同一份
+ * resolveActiveNote 结果——所见即所得。样式检查在「推送到草稿箱」前的确认清单里跑。
  *
  * 真正的发布仍由 Chrome 扩展在已登录的 x.com 会话里完成；本面板只负责「推送到草稿箱」
  * （POST 到本地 relay 队列）。
@@ -35,12 +35,9 @@ const CHANNELS: Channel[] = [
   { id: 'wechat', label: '微信公众号', kind: 'wechat', enabled: false },
 ];
 
-type ViewMode = 'preview' | 'lint';
-
 export class KaitoxView extends ItemView {
   private plugin: KaitoxPlugin;
   private channelId = 'x';
-  private mode: ViewMode = 'preview';
 
   private currentFile: TFile | null = null;
   private resolved: Resolved | null = null;
@@ -75,8 +72,6 @@ export class KaitoxView extends ItemView {
   // DOM refs
   private ctxEl!: HTMLElement;
   private dotEl!: HTMLElement;
-  private lintBtnEl!: HTMLElement;
-  private lintBadgeEl!: HTMLElement;
   private bodyEl!: HTMLElement;
   private coverInput!: HTMLInputElement;
 
@@ -164,14 +159,6 @@ export class KaitoxView extends ItemView {
 
     const right = bar.createDiv({ cls: 'kx-toolbar-right' });
 
-    this.lintBtnEl = right.createEl('button', { cls: 'kx-lint' });
-    const lintIcon = this.lintBtnEl.createSpan({ cls: 'kx-ic' });
-    setIcon(lintIcon, 'list-checks');
-    this.lintBtnEl.createSpan({ text: '样式检查' });
-    this.lintBadgeEl = this.lintBtnEl.createSpan({ cls: 'kx-badge' });
-    this.lintBadgeEl.hide();
-    this.lintBtnEl.onclick = () => this.toggleLint();
-
     const push = right.createEl('button', { cls: 'kx-primary kx-push' });
     const pushIcon = push.createSpan({ cls: 'kx-ic' });
     setIcon(pushIcon, 'send');
@@ -228,7 +215,6 @@ export class KaitoxView extends ItemView {
       this.rebuildUrls();
       this.resetMermaid(resolved.body);
       this.setContext(file);
-      this.updateLintBadge();
       this.renderBody();
       this.maybeRenderMermaids();
     } catch (e) {
@@ -302,17 +288,6 @@ export class KaitoxView extends ItemView {
     this.ctxEl.createSpan({ text: `约 ${words.toLocaleString()} 字` });
   }
 
-  private updateLintBadge(): void {
-    const c = this.report?.counts;
-    const n = c ? c.error + c.warning : 0;
-    if (n > 0) {
-      this.lintBadgeEl.setText(String(n));
-      this.lintBadgeEl.show();
-    } else {
-      this.lintBadgeEl.hide();
-    }
-  }
-
   // -------------------------------------------------------------------------
   // Rendering
   // -------------------------------------------------------------------------
@@ -323,8 +298,7 @@ export class KaitoxView extends ItemView {
       return;
     }
     this.bodyEl.empty();
-    if (this.mode === 'lint') this.renderLint();
-    else this.renderPreview();
+    this.renderPreview();
   }
 
   private renderPreview(): void {
@@ -366,15 +340,14 @@ export class KaitoxView extends ItemView {
     });
   }
 
-  /** mermaid 就绪后就地重渲染正文（预览模式且容器仍在文档里才动）。 */
+  /** mermaid 就绪后就地重渲染正文（容器仍在文档里才动）。 */
   private refreshArticleHtml(): void {
-    if (this.mode !== 'preview' || !this.articleHostEl?.isConnected) return;
+    if (!this.articleHostEl?.isConnected) return;
     this.articleHostEl.innerHTML = this.buildArticleHtml();
   }
 
-  /** 有未渲染的 mermaid 块且当前在预览时，异步渲染成图。 */
+  /** 有未渲染的 mermaid 块时，异步渲染成图。 */
   private maybeRenderMermaids(): void {
-    if (this.mode !== 'preview') return;
     if (this.mermaidRenderingGen === this.renderGen) return; // 同代已有循环在跑
     if (this.mermaidBlocks.length === 0) return;
     if (this.mermaidBlocks.every((b) => b.src in this.mermaidUrls)) return;
@@ -418,49 +391,6 @@ export class KaitoxView extends ItemView {
     return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : '';
   }
 
-  private renderLint(): void {
-    const report = this.report;
-    const wrap = this.bodyEl.createDiv({ cls: 'kx-lint-wrap' });
-
-    const head = wrap.createDiv({ cls: 'kx-lint-head' });
-    head.createSpan({ cls: 'kx-lint-title', text: '样式检查' });
-    head.createSpan({ cls: 'kx-lint-sub', text: '推送前，按 X 文章规则检查这篇笔记' });
-
-    const c = report?.counts ?? { error: 0, warning: 0, info: 0 };
-    const chips = wrap.createDiv({ cls: 'kx-chips' });
-    if (c.error) chips.createSpan({ cls: 'kx-chip is-error', text: `${c.error} 处错误` });
-    if (c.warning) chips.createSpan({ cls: 'kx-chip is-warn', text: `${c.warning} 处提示` });
-    if (c.info) chips.createSpan({ cls: 'kx-chip is-info', text: `${c.info} 条信息` });
-    if (!c.error && !c.warning && !c.info)
-      chips.createSpan({ cls: 'kx-chip is-ok', text: '全部通过 · 可放心推送' });
-
-    const list = wrap.createDiv({ cls: 'kx-issues' });
-    for (const issue of report?.issues ?? []) {
-      const sev = issue.severity; // error | warning | info
-      const row = list.createDiv({ cls: `kx-issue is-${sev}` });
-      const ic = row.createSpan({ cls: 'kx-ic kx-issue-ic' });
-      setIcon(ic, sev === 'error' ? 'x-circle' : sev === 'warning' ? 'alert-triangle' : 'info');
-      const txt = row.createDiv({ cls: 'kx-issue-txt' });
-      txt.createDiv({ cls: 'kx-issue-msg', text: issue.message });
-      const meta: string[] = [];
-      if (issue.suggestion) meta.push(issue.suggestion);
-      if (issue.line) meta.push(`第 ${issue.line} 行`);
-      if (meta.length) txt.createDiv({ cls: 'kx-issue-meta', text: meta.join(' · ') });
-    }
-
-    if (this.resolved && this.resolved.unresolved.length) {
-      const note = wrap.createDiv({ cls: 'kx-issue is-error' });
-      const ic = note.createSpan({ cls: 'kx-ic kx-issue-ic' });
-      setIcon(ic, 'image-off');
-      const txt = note.createDiv({ cls: 'kx-issue-txt' });
-      txt.createDiv({
-        cls: 'kx-issue-msg',
-        text: `${this.resolved.unresolved.length} 个引用解析不到，将被跳过`,
-      });
-      txt.createDiv({ cls: 'kx-issue-meta', text: this.resolved.unresolved.join(' · ') });
-    }
-  }
-
   private renderEmpty(): void {
     this.bodyEl.empty();
     const box = this.bodyEl.createDiv({ cls: 'kx-empty' });
@@ -492,13 +422,6 @@ export class KaitoxView extends ItemView {
       b.toggleClass('is-on', (b.textContent ?? '').startsWith(ch.label));
     }
     void this.refresh();
-  }
-
-  private toggleLint(): void {
-    this.mode = this.mode === 'lint' ? 'preview' : 'lint';
-    this.lintBtnEl.toggleClass('is-on', this.mode === 'lint');
-    this.renderBody();
-    this.maybeRenderMermaids(); // 切回预览时补渲染尚未出图的 mermaid
   }
 
   private openSettings(): void {

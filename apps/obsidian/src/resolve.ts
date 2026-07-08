@@ -2,7 +2,7 @@
  * 笔记解析：把当前 Markdown 笔记（含 Obsidian ![[wikilink]] 嵌入、相对路径、
  * 远程图片、frontmatter cover）解析成「标准化正文 + 图片字节」。
  *
- * 预览、样式检查、推送三处共用同一份解析结果——预览里看到的就是推送出去的，
+ * 预览、样式检查、推送共用同一份解析结果——预览里看到的就是推送出去的，
  * 保证所见即所得。原逻辑来自 main.ts 的 resolveAndRewrite/resolveCover，抽出复用。
  */
 import { requestUrl, TFile, type App } from 'obsidian';
