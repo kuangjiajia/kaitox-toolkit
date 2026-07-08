@@ -62,7 +62,7 @@ kaitox relay restart    # kill whatever holds the port, then start again
 kaitox relay status     # is it running, and on which URL
 ```
 
-relay 监听 `http://127.0.0.1:8765`，把草稿存在 `~/.kaitox/outbox/` 下。可用 `KAITOX_RELAY_PORT` 和 `KAITOX_HOME` 覆盖。它只绑定 `127.0.0.1`。详见 [@kaitox/relay](../relay)，包括可选的每机 token。
+relay 监听 `http://127.0.0.1:8765`，把草稿存在 `~/.kaitox/x-article/outbox/` 下（每个功能有自己的 `~/.kaitox/<kind>/` 命名空间）。可用 `KAITOX_RELAY_PORT` 和 `KAITOX_HOME` 覆盖。它只绑定 `127.0.0.1`。详见 [@kaitox/relay](../relay)，包括可选的每机 token。
 
 ### `kaitox --version`、`kaitox help`
 
@@ -103,11 +103,11 @@ frontmatter 里的其他内容一律忽略。
 
 ## Agent skill
 
-Agent skills 是 Kaitox 工具集里独立的一款产品，位于仓库根目录的 [`skills/`](../../skills/README.md) 下。[`x-article` skill](../../skills/x-article/SKILL.md) 教会 Claude Code / Codex 这类 coding agent 围绕这个 CLI 走完整个流程：跑 `kaitox x push`，把每条风格错误/警告翻译成大白话，向用户给出修改 / `--plaintext` / `--force` 的选择（agent 运行时没有 TTY，所以显式参数很关键），最后交棒给浏览器步骤。安装方法见 [`skills/README.md`](../../skills/README.md)。
+Agent skills 是 Kaitox 工具集里独立的一款产品，位于仓库根目录的 [`skills/`](../../skills/README.md) 下。[`kaitox-x-article` skill](../../skills/kaitox-x-article/SKILL.md) 教会 Claude Code / Codex 这类 coding agent 围绕这个 CLI 走完整个流程：跑 `kaitox x push`，把每条风格错误/警告翻译成大白话，向用户给出修改 / `--plaintext` / `--force` 的选择（agent 运行时没有 TTY，所以显式参数很关键），最后交棒给浏览器步骤。安装方法见 [`skills/README.md`](../../skills/README.md)。
 
 ## push 之后会发生什么
 
-`push` 只负责把草稿投递到本地 relay，relay 把它存在 `~/.kaitox/outbox/<id>/` 下。要真正在 X 上创建草稿：
+`push` 只负责把草稿投递到本地 relay，relay 把它存在 `~/.kaitox/x-article/outbox/<id>/` 下。要真正在 X 上创建草稿：
 
 1. 在装了 Kaitox Chrome 插件且已登录 X 的浏览器里打开 <https://x.com/compose/articles>。
 2. 插件每 5 秒轮询本地 relay，在面板里展示待办草稿。

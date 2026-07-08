@@ -2,7 +2,7 @@ English | [简体中文](README.zh-CN.md)
 
 # @kaitox/relay
 
-Local, loopback-only draft relay for the [Kaitox](https://kaitox.ai) toolkit. Upload clients (the [`@kaitox/cli`](../cli/README.md), the Obsidian plugin, or your own service) POST draft bundles — raw Markdown plus image bytes — to `http://127.0.0.1:8765`; the relay stores them on disk under `~/.kaitox/outbox/`, and the Kaitox Chrome extension polls it from `https://x.com/compose/articles` to publish drafts using your own logged-in session.
+Local, loopback-only draft relay for the [Kaitox](https://kaitox.ai) toolkit. Upload clients (the [`@kaitox/cli`](../cli/README.md), the Obsidian plugin, or your own service) POST draft bundles — raw Markdown plus image bytes — to `http://127.0.0.1:8765`; the relay stores them on disk under `~/.kaitox/<kind>/outbox/` (e.g. `~/.kaitox/x-article/outbox/`), and the Kaitox Chrome extension polls it from `https://x.com/compose/articles` to publish drafts using your own logged-in session.
 
 Pure `node:http` server on top of the zero-dep [`@kaitox/relay-protocol`](../relay-protocol/README.md) wire contract; [sharp](https://sharp.pixelplumbing.com) transparently re-encodes images over X's 5MB upload limit at ingest. Ships the `kaitox-relay` CLI.
 
@@ -45,7 +45,7 @@ Notes:
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `KAITOX_HOME` | `~/.kaitox` | Data directory (outbox, sent, config, pidfile) |
+| `KAITOX_HOME` | `~/.kaitox` | Data directory (per-kind `<kind>/{outbox,sent}`, config, pidfile) |
 | `KAITOX_RELAY_PORT` | `8765` | Listen port (host is always `127.0.0.1`) |
 | `~/.kaitox/config.json` → `token` | unset | Optional per-install shared token |
 
@@ -65,18 +65,19 @@ When `token` is set, every request except `GET /health` (and CORS preflight) mus
 
 ```text
 ~/.kaitox/
-├── config.json              # optional { "token": "..." }
-├── relay.pid                # pid of the running relay
-├── outbox/                  # drafts waiting to be published
-│   └── <id>/
-│       ├── bundle.json      # DraftBundle: raw Markdown, metadata, asset manifest
-│       └── assets/
-│           └── <fileName>   # decoded image bytes
-└── sent/                    # drafts whose status was patched to 'done'
-    └── <id>/                # same layout as outbox/<id>/
+├── config.json                 # optional { "token": "..." }
+├── relay.pid                   # pid of the running relay
+└── <kind>/                     # one namespace per feature, e.g. x-article
+    ├── outbox/                 # drafts waiting to be published
+    │   └── <id>/
+    │       ├── bundle.json     # DraftBundle: raw Markdown, metadata, asset manifest
+    │       └── assets/
+    │           └── <fileName>  # decoded image bytes
+    └── sent/                   # drafts whose status was patched to 'done'
+        └── <id>/               # same layout as outbox/<id>/
 ```
 
-`GET /:kind/drafts` lists both directories — the outbox (statuses `pending` / `uploading` / `failed`) **and** done drafts from `sent/` (consumers show them in a "done" tab) — filtered server-side by kind, newest first. When a draft is patched to `status: "done"`, its whole directory moves from `outbox/` to `sent/`; `GET /:kind/drafts/:id` and asset reads still find it there.
+Each feature (`kind`) gets its own directory, so drafts of different kinds never share an outbox — `x-article` drafts live under `~/.kaitox/x-article/`, a future feature under its own. `GET /:kind/drafts` lists both directories for that kind — the outbox (statuses `pending` / `uploading` / `failed`) **and** done drafts from `sent/` (consumers show them in a "done" tab), newest first. When a draft is patched to `status: "done"`, its whole directory moves from `<kind>/outbox/` to `<kind>/sent/`; `GET /:kind/drafts/:id` and asset reads still find it there.
 
 ## Security model
 

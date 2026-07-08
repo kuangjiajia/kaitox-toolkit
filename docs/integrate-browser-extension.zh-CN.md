@@ -36,7 +36,7 @@ bundle），并将其转换成 X（Twitter）Article 草稿——这正是 [`app
 ```
 CLI / Obsidian / your service            local relay               your extension (content script on x.com)
         │  POST /x-article/drafts             │                              │
-        ├────────────────────────────────────►│  stores ~/.kaitox/outbox/<id>│
+        ├────────────────────────────────────►│  stores ~/.kaitox/x-article/…│
         │  (raw Markdown + base64 images)     │                              │
         │                                     │◄─ GET /x-article/drafts ────┤ (poll ~5s; server-side
         │                                     │◄─ GET …/drafts/:id ─────────┤  filtered by kind)

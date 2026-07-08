@@ -26,7 +26,6 @@ import { createReadStream } from 'node:fs';
 import { writeFile, rm, mkdir } from 'node:fs/promises';
 import type { DraftBundle } from '@kaitox/relay-protocol';
 import {
-  draftKind,
   isValidKindSegment,
   validatePostDraftWireBody,
   validateSetCoverWireBody,
@@ -128,15 +127,14 @@ function settingView(state: RelayState): { port: number; version: string; tokenC
   return { port: relayPort(), version: RELAY_VERSION, tokenConfigured: Boolean(state.token) };
 }
 
-/** 按 id 取草稿并校验 kind 归属；不存在 / 非法 id / kind 不匹配都视作 404（跨命名空间不可见）。 */
+/** 按 id 取某个 kind 下的草稿；不存在 / 非法 id 都视作 404。草稿按 kind 命名空间存储，
+ *  只在该 kind 的目录里查找，因此跨命名空间天然不可见。 */
 async function getDraftInKind(kind: string, id: string): Promise<DraftBundle | null> {
-  let d: DraftBundle | null;
   try {
-    d = await getDraft(id);
+    return await getDraft(id, kind);
   } catch {
     return null;
   }
-  return d && draftKind(d) === kind ? d : null;
 }
 
 async function handle(req: IncomingMessage, res: ServerResponse, state: RelayState): Promise<void> {
@@ -249,7 +247,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, state: RelaySta
       const fileName = decodeURIComponent(parts[4]);
       let p: string | null;
       try {
-        p = await getAssetPath(id, fileName);
+        p = await getAssetPath(id, fileName, kind);
       } catch {
         sendJson(req, res, 400, { error: '非法文件名' });
         return;
@@ -293,7 +291,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, state: RelaySta
       }
       let updated: Awaited<ReturnType<typeof setCover>>;
       try {
-        updated = await setCover(id, v.value);
+        updated = await setCover(id, v.value, kind);
       } catch {
         sendJson(req, res, 400, { error: '非法文件名' });
         return;
@@ -322,7 +320,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, state: RelaySta
         sendJson(req, res, 400, { error: 'invalid status patch', issues: v.issues });
         return;
       }
-      const updated = await patchDraft(id, v.value);
+      const updated = await patchDraft(id, v.value, kind);
       if (!updated) {
         sendJson(req, res, 404, { error: 'not found' });
         return;
@@ -337,7 +335,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, state: RelaySta
         sendJson(req, res, 404, { deleted: false });
         return;
       }
-      const ok = await deleteDraft(id);
+      const ok = await deleteDraft(id, kind);
       sendJson(req, res, ok ? 200 : 404, { deleted: ok });
       return;
     }

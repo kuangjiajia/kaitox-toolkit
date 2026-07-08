@@ -26,11 +26,16 @@ export function relayPort(): number {
 export function kaitoxHome(): string {
   return process.env.KAITOX_HOME || join(homedir(), '.kaitox');
 }
-export function outboxDir(): string {
-  return join(kaitoxHome(), 'outbox');
+/**
+ * 每个功能（kind）的数据都放在自己的命名空间目录下：~/.kaitox/<kind>/{outbox,sent}。
+ * kind 已在路由边界经 isValidKindSegment 校验（/^[a-z0-9][a-z0-9-]*$/，不含 . / ..），
+ * 用作目录段是安全的。x-article 草稿落在 ~/.kaitox/x-article/outbox 下，后续功能各自独立。
+ */
+export function outboxDir(kind: string): string {
+  return join(kaitoxHome(), kind, 'outbox');
 }
-export function sentDir(): string {
-  return join(kaitoxHome(), 'sent');
+export function sentDir(kind: string): string {
+  return join(kaitoxHome(), kind, 'sent');
 }
 export function configPath(): string {
   return join(kaitoxHome(), 'config.json');

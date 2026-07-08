@@ -2,17 +2,13 @@ English | [简体中文](README.zh-CN.md)
 
 # Kaitox
 
-A personal toolkit — the `kaitox` CLI, an Obsidian plugin, a Chrome extension, and agent skills — on shared local infrastructure. First feature: **publish local Markdown as X (Twitter) Article drafts**, images, formatting and cover included.
+A personal toolkit — an agent skill, a Chrome extension, an Obsidian plugin, and the `kaitox` CLI — on shared local infrastructure. First feature: **publish local Markdown as X (Twitter) Article drafts**, images, formatting and cover included.
 
-```bash
-kaitox x push post.md
-```
-
-Then open [x.com/compose/articles](https://x.com/compose/articles) and click "上传草稿" (upload draft) in the Kaitox panel. Done.
+The easiest way to use it: install the agent skill, then just ask your coding agent (Claude Code / Codex) to sync a Markdown file — it drives everything for you.
 
 ## How it works
 
-1. **Push** — the CLI (or the Obsidian plugin, or your own script) style-checks the Markdown, packages it with its image bytes, and delivers it to a local relay on `127.0.0.1`.
+1. **Push** — an agent (via the Kaitox skill), the Obsidian plugin, the CLI, or your own script style-checks the Markdown, packages it with its image bytes, and delivers it to a local relay on `127.0.0.1`.
 2. **Relay** — a loopback-only server stores pending drafts on disk. Nothing leaves your machine.
 3. **Upload** — the Chrome extension picks the draft up on the X drafts page and creates the Article draft inside your own logged-in session.
 
@@ -22,10 +18,10 @@ No official API, no API keys: the extension drives the web endpoints of your own
 
 | Product | What it does | Details |
 |---|---|---|
-| **CLI** | `kaitox x push / list / status` — check, package and deliver; manages the relay for you | [`packages/cli`](packages/cli/README.md) |
-| **Obsidian plugin** | Sync the current note as a draft: wikilinks, images, `cover:` frontmatter (desktop only) | [`apps/obsidian`](apps/obsidian/README.md) |
+| **Agent skill** | Teaches Claude Code / Codex (and compatible agents) to run the whole publish loop for you — the recommended way | [`skills/`](skills/README.md) |
 | **Chrome extension** | Uploads pending drafts from the X drafts page, in your own session | [`apps/extension`](apps/extension/README.md) |
-| **Agent skills** | Teach Claude Code (and compatible agents) to run the whole loop for you | [`skills/`](skills/README.md) |
+| **Obsidian plugin** | Sync the current note as a draft: wikilinks, images, `cover:` frontmatter (desktop only) | [`apps/obsidian`](apps/obsidian/README.md) |
+| **CLI** | Style-check, package and deliver a Markdown file to the relay from your terminal | [`packages/cli`](packages/cli/README.md) |
 
 Under the hood, three npm packages (ESM-only, Node >= 18):
 
@@ -39,69 +35,56 @@ Under the hood, three npm packages (ESM-only, Node >= 18):
 
 **Requirements:** Node.js ≥ 18, an X account you stay logged into, and Chrome (or any Chromium browser) for the upload step.
 
-**1. Install the CLI** from npm — it brings the local relay with it and gives you the `kaitox` command:
+Two pieces: an agent **skill** to push drafts, and the **Chrome extension** that uploads them (the browser half that actually writes into X — nothing replaces it).
+
+### 1. Install the agent skill
+
+Drive Kaitox from Claude Code, Codex, or a compatible agent by installing the [`kaitox-x-article` skill](skills/README.md) — from a checkout of this repo:
 
 ```bash
-npm i -g @kaitox/cli
-kaitox --version
+# Claude Code — a skill directory that auto-activates from its description
+cp -r skills/kaitox-x-article ~/.claude/skills/                        # or .claude/skills/ per project
+
+# Codex — a prompt you invoke with /kaitox-x-article
+cp skills/kaitox-x-article/SKILL.md ~/.codex/prompts/kaitox-x-article.md
 ```
 
-**2. Start the local relay** — the extension polls it on `127.0.0.1`, so it has to be running:
+That's the whole push-side setup: the skill **installs the `kaitox` CLI for you** when it's missing (`npm i -g @kaitox/cli`, or falls back to `npx`) and **starts the local relay on its own**. For other agent hosts, see [`skills/README.md`](skills/README.md).
 
-```bash
-kaitox relay --daemon      # runs in the background
-```
+> Rather drive it from the terminal without an agent? Install the CLI with `npm i -g @kaitox/cli` — command and flag reference, plus relay management, live in the [CLI README](packages/cli/README.md).
 
-`kaitox x push` also starts the relay automatically, so you can skip this if you push first; manage it with `kaitox relay status` / `kaitox relay stop`.
+### 2. Install the Chrome extension
 
-**3. Install the Chrome extension** — download it from the Releases page:
+Download it from the Releases page:
 
 <https://github.com/kuangjiajia/kaitox-toolkit/releases>
 
 Open the **Kaitox Chrome extension** release, download `kaitox-extension-<version>.zip`, and unzip it. Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the unzipped folder.
 
-> 🖼️ _Tutorial image — loading the unpacked extension in `chrome://extensions`._ — `docs/images/01-load-extension.png`
-<!-- ![Load the unpacked extension](docs/images/01-load-extension.png) -->
+![Load the unpacked extension](docs/images/01-load-extension.png)
 
 Open <https://x.com/compose/articles> while logged in — with the relay running, the Kaitox panel appears in the corner.
 
-> 🖼️ _Tutorial image — the Kaitox panel on the X drafts page._ — `docs/images/02-panel.png`
-<!-- ![Kaitox panel on x.com/compose/articles](docs/images/02-panel.png) -->
+![Kaitox panel on x.com/compose/articles](docs/images/02-panel.png)
 
-(Optional) the [Obsidian plugin](apps/obsidian/README.md) pushes drafts straight from your vault: from the same [Releases page](https://github.com/kuangjiajia/kaitox-toolkit/releases), open the **Kaitox Obsidian plugin** release and drop its `main.js` and `manifest.json` into `.obsidian/plugins/kaitox/`, then enable it in Settings. The [agent skill](skills/README.md) lets a coding agent run the whole loop for you.
+(Optional) the [Obsidian plugin](apps/obsidian/README.md) pushes drafts straight from your vault: from the same [Releases page](https://github.com/kuangjiajia/kaitox-toolkit/releases), open the **Kaitox Obsidian plugin** release and drop its `main.js` and `manifest.json` into `.obsidian/plugins/kaitox/`, then enable it in Settings.
 
-> Placeholders above are commented-out image tags. Drop the screenshot at the given `docs/images/…` path and uncomment the line right below each caption. See [`docs/images/README.md`](docs/images/README.md).
+> The remaining `> 🖼️ …` captions below are still placeholders (commented-out image tags). Drop the screenshot at the given `docs/images/…` path and uncomment the line right below each caption. See [`docs/images/README.md`](docs/images/README.md).
 
 ## Using the X feature
 
-Turn any Markdown file into an X Article draft in two moves — push from the terminal, upload from the browser.
+Two moves: ask your agent to sync the Markdown, then upload from the browser.
 
-### 1. Push the Markdown
+### 1. Ask your agent to sync the Markdown
 
-```bash
-kaitox x push path/to/post.md
-```
+With the skill installed, tell your agent what to publish — for example:
 
-`push` style-checks the file, resolves its images to bytes, starts the local relay if it isn't running, and queues the draft on your machine. It prints an **X-friendliness report** first; if the content isn't X-friendly it asks whether to fix it, fall back to plaintext, or upload as-is.
+> Sync `./post.md` to an X Article draft.
 
-> 🖼️ _Tutorial image — `kaitox x push` output with the style report and draft id._ — `docs/images/03-push.png`
-<!-- ![kaitox x push output](docs/images/03-push.png) -->
+(In Codex, run `/kaitox-x-article`.) The agent style-checks the file, explains any X-friendliness issues in plain language, and lets you choose how to handle them — fix them, degrade to plaintext, or upload as-is — then delivers the draft to your local relay. It installs the CLI and starts the relay on its own if they aren't ready, so you never touch the terminal. You can also point it at a cover image or override the title in the same request.
 
-Common flags:
-
-| Flag | Effect |
-|---|---|
-| `--title "…"` | Override the article title (default: `title:` frontmatter → first heading → file name). |
-| `--cover img.png` | Set the article cover — a local path or `http(s)` URL. Kept out of the body. |
-| `--plaintext` | Degrade tables / code / HTML / nested lists to safe plain text. |
-| `--force` | Upload as-is even when the style check flags issues. |
-
-Check the queue and results:
-
-```bash
-kaitox x list          # pending drafts on the relay
-kaitox x status <id>   # one draft's status + the article rest_id once created
-```
+> 🖼️ _Tutorial image — the agent syncing a Markdown file: style report and draft id._ — `docs/images/03-push.png`
+<!-- ![Agent syncing a Markdown file to an X draft](docs/images/03-push.png) -->
 
 ### 2. Upload from the browser
 
@@ -110,7 +93,7 @@ Open <https://x.com/compose/articles>, find your draft in the Kaitox panel, and 
 > 🖼️ _Tutorial image — clicking 上传草稿 and the resulting Article draft in the X editor._ — `docs/images/04-upload-result.png`
 <!-- ![Uploading a draft and the result in the X editor](docs/images/04-upload-result.png) -->
 
-Full flag reference, frontmatter and image-resolution rules, and troubleshooting live in the [CLI README](packages/cli/README.md).
+Prefer to run it yourself from the terminal? The full `kaitox x push` reference — flags, frontmatter, image-resolution rules, and `list` / `status` — is in the [CLI README](packages/cli/README.md).
 
 ## Build on it
 

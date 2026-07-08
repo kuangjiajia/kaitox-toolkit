@@ -1,7 +1,11 @@
-/** 草稿包在磁盘上的读写。布局：~/.kaitox/outbox/<id>/bundle.json + assets/<fileName>。 */
+/**
+ * 草稿包在磁盘上的读写。按功能（kind）命名空间化：
+ * ~/.kaitox/<kind>/{outbox,sent}/<id>/bundle.json + assets/<fileName>。
+ * kind 一律由路由层从 /:kind/... 路径段传入（已校验），storage 只当作目录段用。
+ */
 import { mkdir, readFile, writeFile, readdir, rm, rename, stat } from 'node:fs/promises';
 import { join, basename } from 'node:path';
-import { base64ToBytes, draftKind } from '@kaitox/relay-protocol';
+import { base64ToBytes } from '@kaitox/relay-protocol';
 import type { DraftBundle, DraftListItem, DraftStatus, PostDraftWireBody } from '@kaitox/relay-protocol';
 import { outboxDir, sentDir } from './config.js';
 import { fitImageBytes } from './imageFit.js';
@@ -21,20 +25,20 @@ export function sanitizeFileName(name: string): string {
   return s;
 }
 
-async function ensureDirs(): Promise<void> {
-  await mkdir(outboxDir(), { recursive: true });
-  await mkdir(sentDir(), { recursive: true });
+async function ensureDirs(kind: string): Promise<void> {
+  await mkdir(outboxDir(kind), { recursive: true });
+  await mkdir(sentDir(kind), { recursive: true });
 }
 
-function draftDir(id: string, sent = false): string {
-  return join(sent ? sentDir() : outboxDir(), id);
+function draftDir(kind: string, id: string, sent = false): string {
+  return join(sent ? sentDir(kind) : outboxDir(kind), id);
 }
 
-/** 落盘一份草稿包（POST /:kind/drafts）。kind 由路由层从路径段传入盖章。返回 id。 */
-export async function saveDraft(wire: PostDraftWireBody, kind?: string): Promise<string> {
-  await ensureDirs();
+/** 落盘一份草稿包（POST /:kind/drafts）。kind 由路由层从路径段传入，用于命名空间与盖章。返回 id。 */
+export async function saveDraft(wire: PostDraftWireBody, kind: string): Promise<string> {
+  await ensureDirs(kind);
   const id = sanitizeId(wire.bundle.id);
-  const dir = draftDir(id);
+  const dir = draftDir(kind, id);
   await mkdir(join(dir, ASSETS_DIR), { recursive: true });
 
   // 写资源字节（base64 → 二进制）；超过 X 上限的图片入库前静默压到限内。
@@ -49,8 +53,8 @@ export async function saveDraft(wire: PostDraftWireBody, kind?: string): Promise
   const bundle: DraftBundle = {
     ...wire.bundle,
     id,
-    // kind 以路径段为准盖章：新 bundle 从此必有 kind（absent 只剩历史磁盘 bundle）。
-    kind: kind ?? wire.bundle.kind,
+    // kind 以路径段为准盖章，与草稿所在的命名空间目录一致。
+    kind,
     // 重编码可能改变格式与体积，元数据跟着落盘后的实际字节走。
     assets: (wire.bundle.assets ?? []).map((meta) => {
       const w = written.get(sanitizeFileName(meta.fileName));
@@ -71,27 +75,26 @@ async function readBundleFrom(dir: string): Promise<DraftBundle | null> {
   }
 }
 
-/** 草稿列表：outbox（pending/uploading/failed）+ sent（done），按创建时间倒序。
+/** 某个 kind 的草稿列表：outbox（pending/uploading/failed）+ sent（done），按创建时间倒序。
  *  已上传的草稿要留在列表里（消费方按 status 分栏展示），角标等按 status!=='done' 自行过滤。
- *  传 kind 时服务端过滤（legacy 无 kind 的 bundle 经 draftKind() 归入 'x-article'）。 */
-export async function listDrafts(kind?: string): Promise<DraftListItem[]> {
-  await ensureDirs();
+ *  目录已按 kind 命名空间化，因此天然只含该 kind 的草稿，无需再逐条过滤。 */
+export async function listDrafts(kind: string): Promise<DraftListItem[]> {
+  await ensureDirs(kind);
   const items: DraftListItem[] = [];
   const seen = new Set<string>();
   // outbox 优先：万一 done 迁移 sent/ 时 rename 失败，两边同 id 以 outbox 为准。
   for (const sent of [false, true]) {
     let ids: string[];
     try {
-      ids = await readdir(sent ? sentDir() : outboxDir());
+      ids = await readdir(sent ? sentDir(kind) : outboxDir(kind));
     } catch {
       continue;
     }
     for (const id of ids) {
       if (seen.has(id)) continue;
-      const b = await readBundleFrom(draftDir(id, sent));
+      const b = await readBundleFrom(draftDir(kind, id, sent));
       if (!b) continue;
       seen.add(id);
-      if (kind && draftKind(b) !== kind) continue;
       items.push({
         id: b.id,
         kind: b.kind,
@@ -109,18 +112,20 @@ export async function listDrafts(kind?: string): Promise<DraftListItem[]> {
   return items;
 }
 
-/** 读取单个草稿包（先 outbox 后 sent）。 */
-export async function getDraft(id: string): Promise<DraftBundle | null> {
+/** 读取某个 kind 下的单个草稿包（先 outbox 后 sent）。 */
+export async function getDraft(id: string, kind: string): Promise<DraftBundle | null> {
   const safe = sanitizeId(id);
-  return (await readBundleFrom(draftDir(safe))) ?? (await readBundleFrom(draftDir(safe, true)));
+  return (
+    (await readBundleFrom(draftDir(kind, safe))) ?? (await readBundleFrom(draftDir(kind, safe, true)))
+  );
 }
 
 /** 资源文件的绝对路径（存在才返回）。先 outbox 后 sent。 */
-export async function getAssetPath(id: string, fileName: string): Promise<string | null> {
+export async function getAssetPath(id: string, fileName: string, kind: string): Promise<string | null> {
   const safe = sanitizeId(id);
   const safeName = sanitizeFileName(fileName);
   for (const sent of [false, true]) {
-    const p = join(draftDir(safe, sent), ASSETS_DIR, safeName);
+    const p = join(draftDir(kind, safe, sent), ASSETS_DIR, safeName);
     try {
       await stat(p);
       return p;
@@ -142,9 +147,10 @@ export async function setCover(
     base64: string;
     original?: { fileName: string; mime: string; base64: string };
   },
+  kind: string,
 ): Promise<DraftBundle | null> {
   const safe = sanitizeId(id);
-  const dir = draftDir(safe);
+  const dir = draftDir(kind, safe);
   const b = await readBundleFrom(dir);
   if (!b) return null;
   // 加 cover- 前缀，避免与正文图片同名互踩（正文 assets 的 fileName 来自 markdown src）。
@@ -189,9 +195,10 @@ export async function setCover(
 export async function patchDraft(
   id: string,
   patch: { status: DraftStatus; restId?: string; error?: string },
+  kind: string,
 ): Promise<DraftBundle | null> {
   const safe = sanitizeId(id);
-  const dir = draftDir(safe);
+  const dir = draftDir(kind, safe);
   const b = await readBundleFrom(dir);
   if (!b) return null;
   const updated: DraftBundle = {
@@ -202,7 +209,7 @@ export async function patchDraft(
   };
   await writeFile(join(dir, BUNDLE_FILE), JSON.stringify(updated, null, 2), 'utf8');
   if (patch.status === 'done') {
-    const dest = draftDir(safe, true);
+    const dest = draftDir(kind, safe, true);
     await rm(dest, { recursive: true, force: true });
     await rename(dir, dest).catch(() => {});
   }
@@ -210,11 +217,11 @@ export async function patchDraft(
 }
 
 /** 删除草稿（outbox + sent 都删）。 */
-export async function deleteDraft(id: string): Promise<boolean> {
+export async function deleteDraft(id: string, kind: string): Promise<boolean> {
   const safe = sanitizeId(id);
   let removed = false;
   for (const sent of [false, true]) {
-    const dir = draftDir(safe, sent);
+    const dir = draftDir(kind, safe, sent);
     try {
       await stat(dir);
       await rm(dir, { recursive: true, force: true });

@@ -21,9 +21,10 @@ CLI / Obsidian / your service          local relay              Chrome extension
         │  POST /x-article/drafts          │                            │
         │  raw Markdown + image bytes      │                            │
         │  (base64, single JSON)           │                            │
-        ├─────────────────────────────────▶│  ~/.kaitox/outbox/<id>/    │
-        │                                  │    bundle.json             │
-        │                                  │    assets/<fileName>       │
+        ├─────────────────────────────────▶│  ~/.kaitox/x-article/      │
+        │                                  │    outbox/<id>/            │
+        │                                  │      bundle.json           │
+        │                                  │      assets/<fileName>     │
         │                                  │◀──── polls every 5s ──────┤
         │                                  │  GET /x-article/drafts     │
         │                                  │  GET assets (bytes)        │
@@ -59,7 +60,7 @@ kaitox/
 │   │                        #   x.com/compose/articles and uploads drafts on click
 │   └── obsidian/            # Obsidian plugin, private — pushes the current note to the relay
 ├── skills/
-│   └── x-article/SKILL.md   # agent skill: teaches coding agents to drive kaitox x push
+│   └── kaitox-x-article/SKILL.md   # agent skill: teaches coding agents to drive kaitox x push
 ├── test/
 │   ├── integration.mjs             # end-to-end suite: in-process relay + mocked X API
 │   └── relay-protocol.smoke.mjs    # protocol-only smoke, uses relay-protocol like a third party

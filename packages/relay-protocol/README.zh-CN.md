@@ -222,7 +222,7 @@ const { id } = await relay.postDraft({
 console.log(`queued draft ${id}`);
 ```
 
-relay 会把它存到 `~/.kaitox/outbox/<id>/` 下（`bundle.json` + `assets/<fileName>`）。对于 `kind: 'x-article'` 的草稿，Kaitox Chrome 插件轮询 `/x-article/drafts`，并在点击时用用户自己已登录的 x.com 会话创建 Article 草稿。
+relay 会把它存到 `~/.kaitox/<kind>/outbox/<id>/` 下——如 `~/.kaitox/x-article/outbox/<id>/`（`bundle.json` + `assets/<fileName>`）。对于 `kind: 'x-article'` 的草稿，Kaitox Chrome 插件轮询 `/x-article/drafts`，并在点击时用用户自己已登录的 x.com 会话创建 Article 草稿。
 
 > **合规提示。** 以这种方式发布 X Article，是驱动用户自己已登录的浏览器会话去调 X 的私有网页接口。这属非官方用法，X 轮换 queryId 时随时可能失效，且不应用于批量自动化。风险自担。
 
@@ -274,7 +274,7 @@ const bytes = base64ToBytes(b64);
 `kind` 判别字段让 relay 成为一个通用的本地草稿队列：
 
 1. **推送**时用一个以 kind 为作用域的客户端：`new HttpRelayClient(base, { kind: 'my-feature' })`。任何满足路径段规则（`/^[a-z0-9][a-z0-9-]*$/`，且不是 `health`/`setting`/`drafts`——可用 `isValidKindSegment` 检查）的字符串都合法——不需要修改协议。
-2. **relay 原样存储和转发 `kind`。** 它从不解释这个字段；你的草稿包和 `x-article` 草稿在磁盘上躺在同一个 outbox 里，但拥有自己的路由命名空间（`/my-feature/drafts`）——跨 kind 访问一律 404。
+2. **relay 原样存储和转发 `kind`。** 它从不解释这个字段，但会按它做命名空间：你的草稿包拥有自己的磁盘目录（`~/.kaitox/my-feature/{outbox,sent}`）和路由命名空间（`/my-feature/drafts`），与 `x-article` 草稿彼此隔离——跨 kind 访问一律 404。
 3. **消费**时用同一个 kind 作用域客户端：`listDrafts()` 只返回你的 kind（服务端已过滤），再用 `ack` 驱动 `pending → uploading → done | failed` 生命周期。
 
 你的功能免费获得持久化、REST 接口、CORS、可选 token 鉴权和一个共享客户端。完整演练见[接入你自己的本地服务](../../docs/integrate-local-service.zh-CN.md)；运行 relay 本身见 [`@kaitox/relay`](../relay/README.md)。

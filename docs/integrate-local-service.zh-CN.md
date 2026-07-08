@@ -14,7 +14,7 @@ Kaitox 的 relay 就是一个普通的本地 HTTP 服务器。Kaitox CLI 和 Obs
 
 ```text
 your service ──POST /x-article/drafts──▶ local relay (127.0.0.1:8765)
-                                             │  stores ~/.kaitox/outbox/<id>/
+                                             │  stores ~/.kaitox/x-article/outbox/<id>/
                                              ▼
                           Chrome extension on x.com/compose/articles
                           polls every 5s → on click, uploads images and
@@ -132,7 +132,7 @@ const { id } = await relay.postDraft({
 console.log(`queued draft ${id}`);
 ```
 
-`postDraft` 会生成草稿 id、把字节做 base64 编码，并发送单个 JSON 请求体——没有 multipart。成功后 relay 会把草稿包存放在 `~/.kaitox/outbox/<id>/` 下，状态为 `pending`。
+`postDraft` 会生成草稿 id、把字节做 base64 编码，并发送单个 JSON 请求体——没有 multipart。成功后 relay 会把草稿包存放在 `~/.kaitox/<kind>/outbox/<id>/` 下（如 `~/.kaitox/x-article/outbox/<id>/`），状态为 `pending`。
 
 ### 4. 轮询结果
 
@@ -154,7 +154,7 @@ const done = await waitForResult(relay, id);
 console.log(`draft created, rest_id = ${done.restId}`);
 ```
 
-注意：当一条草稿到达 `done` 时，relay 会把它从 `~/.kaitox/outbox/` 移动到 `~/.kaitox/sent/`。`GET /:kind/drafts/:id` 和 `GET /:kind/drafts` 列表仍然会包含它（状态为 `status: 'done'`）。
+注意：当一条草稿到达 `done` 时，relay 会把它从 `~/.kaitox/<kind>/outbox/` 移动到 `~/.kaitox/<kind>/sent/`。`GET /:kind/drafts/:id` 和 `GET /:kind/drafts` 列表仍然会包含它（状态为 `status: 'done'`）。
 
 ### 5. 可选：封面图
 

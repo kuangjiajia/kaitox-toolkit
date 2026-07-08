@@ -222,7 +222,7 @@ const { id } = await relay.postDraft({
 console.log(`queued draft ${id}`);
 ```
 
-The relay stores it under `~/.kaitox/outbox/<id>/` (`bundle.json` + `assets/<fileName>`). For `kind: 'x-article'` drafts, the kaitox Chrome extension polls `/x-article/drafts` and, on click, creates the Article draft using the user's own logged-in x.com session.
+The relay stores it under `~/.kaitox/<kind>/outbox/<id>/` — e.g. `~/.kaitox/x-article/outbox/<id>/` (`bundle.json` + `assets/<fileName>`). For `kind: 'x-article'` drafts, the kaitox Chrome extension polls `/x-article/drafts` and, on click, creates the Article draft using the user's own logged-in x.com session.
 
 > **Compliance note.** Publishing X Articles this way drives the user's own logged-in browser session against X's private web endpoints. It is unofficial, may break whenever X rotates queryIds, and should not be used for mass automation. Use at your own risk.
 
@@ -274,7 +274,7 @@ const bytes = base64ToBytes(b64);
 The `kind` discriminator makes the relay a generic local draft queue:
 
 1. **Push** with a kind-scoped client: `new HttpRelayClient(base, { kind: 'my-feature' })`. Any string that satisfies the path-segment rule (`/^[a-z0-9][a-z0-9-]*$/`, not `health`/`setting`/`drafts` — check with `isValidKindSegment`) is valid — no protocol change needed.
-2. **The relay stores and forwards `kind` untouched.** It never interprets it; your bundles sit in the same outbox on disk alongside `x-article` drafts, but get their own route namespace (`/my-feature/drafts`) — cross-kind access 404s.
+2. **The relay stores and forwards `kind` untouched.** It never interprets it, but it does namespace by it: your bundles get their own on-disk directory (`~/.kaitox/my-feature/{outbox,sent}`) and route namespace (`/my-feature/drafts`), separate from `x-article` drafts — cross-kind access 404s.
 3. **Consume** with the same kind-scoped client: `listDrafts()` returns only your kind (filtered server-side), and `ack` drives the `pending → uploading → done | failed` lifecycle.
 
 Your feature gets persistence, a REST surface, CORS, optional token auth, and a shared client for free. See [Integrating your own local service](../../docs/integrate-local-service.md) for the full walkthrough, and [`@kaitox/relay`](../relay/README.md) for running the relay itself.

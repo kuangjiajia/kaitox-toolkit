@@ -10,8 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@kaitox/relay-protocol": "^0.5.0",
-    "@kaitox/x-article": "^0.5.0"
+    "@kaitox/relay-protocol": "^0.5.1",
+    "@kaitox/x-article": "^0.5.1"
   },
   "devDependencies": {
     "obsidian": "^1.4.11"

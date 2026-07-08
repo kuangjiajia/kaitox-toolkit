@@ -8,8 +8,8 @@
  *   kaitox-relay status    查看运行状态
  *   kaitox-relay restart   重启：杀掉端口上的旧进程后重新后台启动
  *
- * 需要 Node 18+（用到全局 fetch）。数据落在 ~/.kaitox/outbox（可用 KAITOX_HOME 覆盖），
- * 端口默认 8765（可用 KAITOX_RELAY_PORT 覆盖）。
+ * 需要 Node 18+（用到全局 fetch）。数据按功能落在 ~/.kaitox/<kind>/{outbox,sent}
+ * （如 ~/.kaitox/x-article/outbox；可用 KAITOX_HOME 覆盖），端口默认 8765（可用 KAITOX_RELAY_PORT 覆盖）。
  */
 import { fileURLToPath } from 'node:url';
 import { startRelay, type RelayServerHandle } from './server.js';

@@ -14,7 +14,7 @@ Kaitox's relay is a plain local HTTP server. The Kaitox CLI and Obsidian plugin 
 
 ```text
 your service ──POST /x-article/drafts──▶ local relay (127.0.0.1:8765)
-                                             │  stores ~/.kaitox/outbox/<id>/
+                                             │  stores ~/.kaitox/x-article/outbox/<id>/
                                              ▼
                           Chrome extension on x.com/compose/articles
                           polls every 5s → on click, uploads images and
@@ -133,7 +133,7 @@ const { id } = await relay.postDraft({
 console.log(`queued draft ${id}`);
 ```
 
-`postDraft` generates the draft id, base64-encodes the bytes, and sends one JSON body — no multipart. On success the relay stores the bundle under `~/.kaitox/outbox/<id>/` with status `pending`.
+`postDraft` generates the draft id, base64-encodes the bytes, and sends one JSON body — no multipart. On success the relay stores the bundle under `~/.kaitox/<kind>/outbox/<id>/` (e.g. `~/.kaitox/x-article/outbox/<id>/`) with status `pending`.
 
 ### 4. Poll for the result
 
@@ -155,7 +155,7 @@ const done = await waitForResult(relay, id);
 console.log(`draft created, rest_id = ${done.restId}`);
 ```
 
-Note: when a draft reaches `done` the relay moves it from `~/.kaitox/outbox/` to `~/.kaitox/sent/`. Both `GET /:kind/drafts/:id` and the `GET /:kind/drafts` listing still include it (with `status: 'done'`).
+Note: when a draft reaches `done` the relay moves it from `~/.kaitox/<kind>/outbox/` to `~/.kaitox/<kind>/sent/`. Both `GET /:kind/drafts/:id` and the `GET /:kind/drafts` listing still include it (with `status: 'done'`).
 
 ### 5. Optional: cover image
 

@@ -16,19 +16,27 @@ skills/
 
 | Skill | 用途 |
 |---|---|
-| [`x-article`](x-article/SKILL.md) | 通过 `kaitox x push` 对本地 Markdown 做风格检查并同步为 X (Twitter) Article 草稿到本地 relay；之后由浏览器插件在已登录的 x.com 草稿页完成上传。 |
+| [`kaitox-x-article`](kaitox-x-article/SKILL.md) | 通过 `kaitox x push` 对本地 Markdown 做风格检查并同步为 X (Twitter) Article 草稿到本地 relay；之后由浏览器插件在已登录的 x.com 草稿页完成上传。 |
 
 ## 安装
 
-把 skill 目录拷进你 agent 的 skills 目录，以 Claude Code 为例：
+一个 skill 本质就是它的 `SKILL.md`，按你 agent 宿主的方式装即可：
+
+**Claude Code** —— 拷贝整个 skill 目录，靠 `description` 自动触发：
 
 ```bash
-cp -r skills/x-article ~/.claude/skills/        # 全局
+cp -r skills/kaitox-x-article ~/.claude/skills/        # 全局
 # 或
-cp -r skills/x-article .claude/skills/          # 单个项目
+cp -r skills/kaitox-x-article .claude/skills/          # 单个项目
 ```
 
-任何能发现 `SKILL.md` 的宿主也可以直接指向本仓库的 `skills/` 目录。
+**Codex** —— 把 `SKILL.md` 拷进 Codex 的 prompts 目录，它会成为 `/kaitox-x-article` 斜杠命令（需显式调用——Codex 不会像 Claude Code 那样按 description 自动触发）：
+
+```bash
+cp skills/kaitox-x-article/SKILL.md ~/.codex/prompts/kaitox-x-article.md
+```
+
+其它任何能发现 `SKILL.md` 的宿主也可以直接指向本仓库的 `skills/` 目录。
 
 ## 新增 skill
 

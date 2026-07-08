@@ -19,9 +19,10 @@ CLI / Obsidian / your service          local relay              Chrome extension
         │  POST /x-article/drafts          │                            │
         │  raw Markdown + image bytes      │                            │
         │  (base64, single JSON)           │                            │
-        ├─────────────────────────────────▶│  ~/.kaitox/outbox/<id>/    │
-        │                                  │    bundle.json             │
-        │                                  │    assets/<fileName>       │
+        ├─────────────────────────────────▶│  ~/.kaitox/x-article/      │
+        │                                  │    outbox/<id>/            │
+        │                                  │      bundle.json           │
+        │                                  │      assets/<fileName>     │
         │                                  │◀──── polls every 5s ──────┤
         │                                  │  GET /x-article/drafts     │
         │                                  │  GET assets (bytes)        │
@@ -54,7 +55,7 @@ kaitox/
 │   │                        #   x.com/compose/articles，点击时上传草稿
 │   └── obsidian/            # Obsidian 插件，私有 — 把当前笔记推送到 relay
 ├── skills/
-│   └── x-article/SKILL.md   # agent skill：教编码 agent 驱动 kaitox x push
+│   └── kaitox-x-article/SKILL.md   # agent skill：教编码 agent 驱动 kaitox x push
 ├── test/
 │   ├── integration.mjs             # 端到端套件：进程内 relay + 被 mock 的 X API
 │   └── relay-protocol.smoke.mjs    # 仅协议的冒烟测试，像第三方一样使用 relay-protocol

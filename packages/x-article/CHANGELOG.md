@@ -1,5 +1,13 @@
 # @kaitox/x-article
 
+## 0.5.1
+
+### Patch Changes
+
+- Kind-namespaced relay storage: draft bundles now live under `~/.kaitox/<kind>/{outbox,sent}` (e.g. `~/.kaitox/x-article/outbox`) instead of a shared `~/.kaitox/{outbox,sent}`. Storage APIs take an explicit `kind` and cross-namespace isolation comes from the directory layout itself. Docs and READMEs refreshed across all packages (extension screenshots, install flow, skill rename to `kaitox-x-article`).
+- Updated dependencies
+  - @kaitox/relay-protocol@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes

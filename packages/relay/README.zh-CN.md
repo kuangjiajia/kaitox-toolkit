@@ -2,7 +2,7 @@
 
 # @kaitox/relay
 
-[Kaitox](https://kaitox.ai) 工具集的本地、仅回环草稿 relay。上传端（[`@kaitox/cli`](../cli/README.md)、Obsidian 插件，或你自己的服务）把草稿包——原始 Markdown 加图片字节——POST 到 `http://127.0.0.1:8765`；relay 将其存到磁盘上的 `~/.kaitox/outbox/` 下，Kaitox Chrome 插件则在 `https://x.com/compose/articles` 页面轮询它，用你自己的登录会话发布草稿。
+[Kaitox](https://kaitox.ai) 工具集的本地、仅回环草稿 relay。上传端（[`@kaitox/cli`](../cli/README.md)、Obsidian 插件，或你自己的服务）把草稿包——原始 Markdown 加图片字节——POST 到 `http://127.0.0.1:8765`；relay 将其存到磁盘上的 `~/.kaitox/<kind>/outbox/` 下（如 `~/.kaitox/x-article/outbox/`），Kaitox Chrome 插件则在 `https://x.com/compose/articles` 页面轮询它，用你自己的登录会话发布草稿。
 
 纯 `node:http` 服务，构建在零依赖的 [`@kaitox/relay-protocol`](../relay-protocol/README.md) 线上契约之上；超过 X 上传上限（5MB）的图片在入库时由 [sharp](https://sharp.pixelplumbing.com) 静默重编码。附带 `kaitox-relay` 命令行。
 
@@ -45,7 +45,7 @@ kaitox-relay --version  # print the version
 
 | 设置 | 默认值 | 含义 |
 | --- | --- | --- |
-| `KAITOX_HOME` | `~/.kaitox` | 数据目录（outbox、sent、配置、pidfile） |
+| `KAITOX_HOME` | `~/.kaitox` | 数据目录（按 kind 的 `<kind>/{outbox,sent}`、配置、pidfile） |
 | `KAITOX_RELAY_PORT` | `8765` | 监听端口（host 恒为 `127.0.0.1`） |
 | `~/.kaitox/config.json` → `token` | 未设置 | 可选的每机共享 token |
 
@@ -65,18 +65,19 @@ kaitox-relay --version  # print the version
 
 ```text
 ~/.kaitox/
-├── config.json              # optional { "token": "..." }
-├── relay.pid                # pid of the running relay
-├── outbox/                  # drafts waiting to be published
-│   └── <id>/
-│       ├── bundle.json      # DraftBundle: raw Markdown, metadata, asset manifest
-│       └── assets/
-│           └── <fileName>   # decoded image bytes
-└── sent/                    # drafts whose status was patched to 'done'
-    └── <id>/                # same layout as outbox/<id>/
+├── config.json                 # optional { "token": "..." }
+├── relay.pid                   # pid of the running relay
+└── <kind>/                     # 每个功能一个命名空间目录，如 x-article
+    ├── outbox/                 # drafts waiting to be published
+    │   └── <id>/
+    │       ├── bundle.json     # DraftBundle: raw Markdown, metadata, asset manifest
+    │       └── assets/
+    │           └── <fileName>  # decoded image bytes
+    └── sent/                   # drafts whose status was patched to 'done'
+        └── <id>/               # same layout as outbox/<id>/
 ```
 
-`GET /:kind/drafts` 会列出两个目录——outbox（状态为 `pending` / `uploading` / `failed`）**以及** `sent/` 里已完成的草稿（消费端将它们展示在「已完成」标签页里）——由服务端按 kind 过滤，最新在前。当草稿被 patch 成 `status: "done"` 时，它的整个目录会从 `outbox/` 移到 `sent/`；`GET /:kind/drafts/:id` 和资产读取仍能在那里找到它。
+每个功能（`kind`）有自己的目录，不同 kind 的草稿绝不共用一个 outbox——`x-article` 草稿在 `~/.kaitox/x-article/` 下，后续功能各自独立。`GET /:kind/drafts` 会列出该 kind 的两个目录——outbox（状态为 `pending` / `uploading` / `failed`）**以及** `sent/` 里已完成的草稿（消费端将它们展示在「已完成」标签页里）——最新在前。当草稿被 patch 成 `status: "done"` 时，它的整个目录会从 `<kind>/outbox/` 移到 `<kind>/sent/`；`GET /:kind/drafts/:id` 和资产读取仍能在那里找到它。
 
 ## 安全模型
 

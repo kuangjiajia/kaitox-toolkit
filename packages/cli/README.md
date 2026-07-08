@@ -62,7 +62,7 @@ kaitox relay restart    # kill whatever holds the port, then start again
 kaitox relay status     # is it running, and on which URL
 ```
 
-The relay listens on `http://127.0.0.1:8765` and stores drafts under `~/.kaitox/outbox/`. Override with `KAITOX_RELAY_PORT` and `KAITOX_HOME`. It binds to `127.0.0.1` only. See [@kaitox/relay](../relay) for details, including the optional per-install token.
+The relay listens on `http://127.0.0.1:8765` and stores drafts under `~/.kaitox/x-article/outbox/` (each feature gets its own `~/.kaitox/<kind>/` namespace). Override with `KAITOX_RELAY_PORT` and `KAITOX_HOME`. It binds to `127.0.0.1` only. See [@kaitox/relay](../relay) for details, including the optional per-install token.
 
 ### `kaitox --version`, `kaitox help`
 
@@ -103,11 +103,11 @@ Bundle file names are sanitized and de-duplicated, so images with the same base 
 
 ## Agent skill
 
-Agent skills are their own product of the Kaitox toolkit, living at the repo root under [`skills/`](../../skills/README.md). The [`x-article` skill](../../skills/x-article/SKILL.md) teaches Claude Code / Codex-style coding agents the full loop around this CLI: run `kaitox x push`, translate every style error/warning into plain language, offer the fix / `--plaintext` / `--force` choice to the user (agents run without a TTY, so the explicit flags matter), and hand off to the browser step. See [`skills/README.md`](../../skills/README.md) for how to install it.
+Agent skills are their own product of the Kaitox toolkit, living at the repo root under [`skills/`](../../skills/README.md). The [`kaitox-x-article` skill](../../skills/kaitox-x-article/SKILL.md) teaches Claude Code / Codex-style coding agents the full loop around this CLI: run `kaitox x push`, translate every style error/warning into plain language, offer the fix / `--plaintext` / `--force` choice to the user (agents run without a TTY, so the explicit flags matter), and hand off to the browser step. See [`skills/README.md`](../../skills/README.md) for how to install it.
 
 ## What happens after push
 
-`push` only delivers the draft to the local relay, which stores it under `~/.kaitox/outbox/<id>/`. To actually create the draft on X:
+`push` only delivers the draft to the local relay, which stores it under `~/.kaitox/x-article/outbox/<id>/`. To actually create the draft on X:
 
 1. Open <https://x.com/compose/articles> in a browser where the Kaitox Chrome extension is installed and you are logged in to X.
 2. The extension polls the local relay every 5 seconds and shows pending drafts in its panel.

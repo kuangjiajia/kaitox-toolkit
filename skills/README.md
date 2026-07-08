@@ -16,19 +16,27 @@ skills/
 
 | Skill | What it does |
 |---|---|
-| [`x-article`](x-article/SKILL.md) | Style-check a local Markdown file and sync it to the local relay as an X (Twitter) Article draft via `kaitox x push`; the browser extension then uploads it from the logged-in x.com drafts page. |
+| [`kaitox-x-article`](kaitox-x-article/SKILL.md) | Style-check a local Markdown file and sync it to the local relay as an X (Twitter) Article draft via `kaitox x push`; the browser extension then uploads it from the logged-in x.com drafts page. |
 
 ## Install
 
-Copy the skill directory into your agent's skills directory, e.g. for Claude Code:
+A skill is just its `SKILL.md`. Install it the way your agent host expects:
+
+**Claude Code** — copy the skill directory; it auto-activates from its `description`:
 
 ```bash
-cp -r skills/x-article ~/.claude/skills/        # user-wide
+cp -r skills/kaitox-x-article ~/.claude/skills/        # user-wide
 # or
-cp -r skills/x-article .claude/skills/          # per project
+cp -r skills/kaitox-x-article .claude/skills/          # per project
 ```
 
-Any host that discovers `SKILL.md` files can also be pointed directly at this repo's `skills/` directory.
+**Codex** — copy the `SKILL.md` into your Codex prompts directory; it becomes the `/kaitox-x-article` slash command (invoke it explicitly — Codex doesn't auto-trigger on the description):
+
+```bash
+cp skills/kaitox-x-article/SKILL.md ~/.codex/prompts/kaitox-x-article.md
+```
+
+Any other host that discovers `SKILL.md` files can also be pointed directly at this repo's `skills/` directory.
 
 ## Add a skill
 
