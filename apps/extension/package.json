@@ -1,6 +1,6 @@
 {
   "name": "@kaitox/extension",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Kaitox Chrome extension (MV3) — browser product of the Kaitox toolkit. Current feature: uploads pending Markdown drafts from the local relay as X (Twitter) Article drafts on x.com.",
   "type": "module",
   "private": true,

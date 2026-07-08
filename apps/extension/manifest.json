@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kaitox",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Kaitox toolkit browser companion. Uploads pending Markdown drafts from the local Kaitox relay as X (Twitter) Article drafts.",
   "permissions": ["storage", "alarms", "activeTab", "scripting"],
   "host_permissions": [
