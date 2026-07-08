@@ -242,6 +242,18 @@ Node 内置模块。asset 的**下载**方向（`GET /:kind/drafts/:id/assets/:f
 - **消费方必须拒绝高于自己所知的版本**，给出清晰的错误，而不是错误解析。
 - **relay 盲目地存储任何版本** —— 拒绝是消费方的职责；relay 保持对内容无感知。
 
+### 3.8 内嵌帖子（`TWEET` 实体）
+
+**独占一行**的 `x.com`/`twitter.com` 帖子链接（整段就是一条裸链接）会转成内嵌帖子：
+一个 `TWEET` 实体（`data` 只含 `tweet_id`）由 `atomic` block 承载，与 `DIVIDER` 同构。
+两个要点：
+
+- **只认独占的裸链接。** `[文字](url)` 与段内混着正文的链接仍是 `LINK`。`parseTweetId`
+  整串锚定（`^…$`），行内链接绝不命中；只有整段每一行都是帖子链接时才改写。
+- **`data` 只放 `tweet_id`，别的都不放。** X input 强类型 —— 任何多余字段（比如 X 编辑器
+  有时会带的可选 `entity_key` UUID）都可能 `GRAPHQL_VALIDATION_FAILED`。这里不涉及上传/
+  `media_id`，因此完全在 `contentState.ts` 与无框架预览里运行。
+
 ## 4. 新增一个功能（实例演练：`linkedin`）
 
 这套工具集的设计使得新增一个功能几乎不触碰任何已有代码。假设你想要 `kaitox linkedin push`：

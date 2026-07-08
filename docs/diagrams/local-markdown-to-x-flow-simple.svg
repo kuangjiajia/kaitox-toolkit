@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Kaitox local Markdown to X Article draft simplified flow</title>
+  <desc id="desc">A simplified Excalidraw-style flowchart with four steps: pick Markdown, store it locally, upload from the X page, and get an X Article draft.</desc>
+  <defs>
+    <filter id="roughen" x="-3%" y="-3%" width="106%" height="106%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="18" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.15"/>
+    </filter>
+    <marker id="arrowhead" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M 1 2 L 11 7 L 1 12" fill="none" stroke="#242424" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .bg { fill: #fffdf6; }
+      .title { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 48px; font-weight: 700; fill: #202020; }
+      .subtitle { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 25px; fill: #4b5563; }
+      .box { stroke: #242424; stroke-width: 3; filter: url(#roughen); }
+      .yellow { fill: #fff2bf; }
+      .blue { fill: #dceeff; }
+      .green { fill: #dff7df; }
+      .pink { fill: #ffe3e3; }
+      .purple { fill: #eee7ff; }
+      .note { fill: #fffaf0; stroke: #242424; stroke-width: 2.5; filter: url(#roughen); }
+      .step { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 30px; font-weight: 700; fill: #202020; }
+      .text { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 23px; fill: #303030; }
+      .small { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 20px; fill: #525252; }
+      .tiny { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 18px; fill: #5f5f5f; }
+      .arrow { fill: none; stroke: #242424; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrowhead); filter: url(#roughen); }
+      .label-bg { fill: #fffdf6; }
+      .label { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 18px; fill: #343434; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="900"/>
+
+  <text class="title" x="70" y="82">本地 Markdown 上传到 X：重点版</text>
+  <text class="subtitle" x="72" y="128">一句话：Kaitox 先把本地文章放进本机草稿箱，Chrome 扩展再用你已登录的 X 页面生成 Article 草稿。</text>
+
+  <rect class="box yellow" x="75" y="235" width="300" height="230" rx="24"/>
+  <text class="step" x="225" y="294" text-anchor="middle">1. 选择 Markdown</text>
+  <text class="text" x="225" y="345" text-anchor="middle">CLI / Obsidian / 脚本</text>
+  <text class="small" x="225" y="386" text-anchor="middle">读取正文</text>
+  <text class="small" x="225" y="418" text-anchor="middle">顺手把图片也收进来</text>
+
+  <rect class="box blue" x="465" y="235" width="300" height="230" rx="24"/>
+  <text class="step" x="615" y="294" text-anchor="middle">2. 放进本机草稿箱</text>
+  <text class="text" x="615" y="345" text-anchor="middle">Local Relay</text>
+  <text class="small" x="615" y="386" text-anchor="middle">只在 127.0.0.1</text>
+  <text class="small" x="615" y="418" text-anchor="middle">负责暂存和状态</text>
+
+  <rect class="box green" x="855" y="235" width="300" height="230" rx="24"/>
+  <text class="step" x="1005" y="294" text-anchor="middle">3. 在 X 页面上传</text>
+  <text class="text" x="1005" y="345" text-anchor="middle">Chrome 扩展读取草稿</text>
+  <text class="small" x="1005" y="386" text-anchor="middle">用浏览器已有登录态</text>
+  <text class="small" x="1005" y="418" text-anchor="middle">上传图片并整理正文</text>
+
+  <rect class="box pink" x="1245" y="235" width="300" height="230" rx="24"/>
+  <text class="step" x="1395" y="294" text-anchor="middle">4. 得到 X 草稿</text>
+  <text class="text" x="1395" y="345" text-anchor="middle">打开 Article 编辑页</text>
+  <text class="small" x="1395" y="386" text-anchor="middle">用户检查、修改</text>
+  <text class="small" x="1395" y="418" text-anchor="middle">确认后再发布</text>
+
+  <path class="arrow" d="M 375 350 C 405 350 430 350 462 350"/>
+  <rect class="label-bg" x="385" y="318" width="70" height="26" rx="8"/>
+  <text class="label" x="390" y="338">文章+图片</text>
+
+  <path class="arrow" d="M 765 350 C 795 350 820 350 852 350"/>
+  <rect class="label-bg" x="776" y="318" width="66" height="26" rx="8"/>
+  <text class="label" x="781" y="338">用户点击</text>
+
+  <path class="arrow" d="M 1155 350 C 1185 350 1210 350 1242 350"/>
+  <rect class="label-bg" x="1170" y="318" width="52" height="26" rx="8"/>
+  <text class="label" x="1176" y="338">生成</text>
+
+  <rect class="note" x="95" y="600" width="415" height="180" rx="18"/>
+  <text class="step" x="125" y="650">重点 1</text>
+  <text class="text" x="125" y="695">Relay 只是本机草稿箱</text>
+  <text class="small" x="125" y="732">不公开到外网，也不替 X 做发布。</text>
+
+  <rect class="note" x="590" y="600" width="420" height="180" rx="18"/>
+  <text class="step" x="620" y="650">重点 2</text>
+  <text class="text" x="620" y="695">真正上传发生在 X 页面里</text>
+  <text class="small" x="620" y="732">扩展借用你已经登录的浏览器会话。</text>
+
+  <rect class="note" x="1090" y="600" width="415" height="180" rx="18"/>
+  <text class="step" x="1120" y="650">重点 3</text>
+  <text class="text" x="1120" y="695">最后只创建草稿</text>
+  <text class="small" x="1120" y="732">不会自动替你点“发布”。</text>
+
+  <rect class="box purple" x="405" y="815" width="790" height="48" rx="18"/>
+  <text class="small" x="800" y="846" text-anchor="middle">给别人解释时，说这条线就够了：本地文章 → 本机草稿箱 → 已登录的 X 页面 → X Article 草稿</text>
+</svg>

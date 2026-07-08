@@ -76,7 +76,7 @@ export interface ContentBlock {
  * 新增成员时的更新清单：EntityValue 变体、contentState.ts 生产侧、
  * previewHtml.ts renderAtomic（块级）/ renderSegment（行内）、test/preview.mjs fixture。
  */
-export type EntityType = 'MEDIA' | 'DIVIDER' | 'MARKDOWN' | 'LINK';
+export type EntityType = 'MEDIA' | 'DIVIDER' | 'MARKDOWN' | 'LINK' | 'TWEET';
 
 export interface MediaItem {
   /** 等于该实体在 entity_map 中的 key。 */
@@ -93,7 +93,10 @@ export type EntityValue =
   // MARKDOWN 必须是 Mutable：X 编辑器自己的载荷实测如此（2026-07 抓包），
   // Immutable 的 MARKDOWN 实体能过 GraphQL 校验但渲染端会丢内容（表格/代码块消失）。
   | { type: 'MARKDOWN'; mutability: 'Mutable'; data: { markdown: string } }
-  | { type: 'LINK'; mutability: 'Mutable'; data: { url: string } };
+  | { type: 'LINK'; mutability: 'Mutable'; data: { url: string } }
+  // TWEET：内嵌一条帖子（引用推文）。data 只放 tweet_id（X 强类型 input，多余字段会
+  // GRAPHQL_VALIDATION_FAILED）。实测载荷里 entity_key(UUID) 可有可无，故省略。
+  | { type: 'TWEET'; mutability: 'Immutable'; data: { tweet_id: string } };
 
 export interface EntityMapEntry {
   key: number;
@@ -129,6 +132,7 @@ export const ENTITY_TYPES: Record<EntityType, true> = {
   DIVIDER: true,
   MARKDOWN: true,
   LINK: true,
+  TWEET: true,
 };
 
 /** switch 的穷尽性兜底：漏 case 时编译报错（参数非 never），运行时也吼出来而不是静默丢。 */

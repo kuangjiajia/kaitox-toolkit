@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@kaitox/relay-protocol": "^0.5.1",
-    "@kaitox/x-article": "^0.5.1"
+    "@kaitox/x-article": "^0.5.1",
+    "mermaid": "^11.16.0"
   },
   "devDependencies": {
     "obsidian": "^1.4.11"

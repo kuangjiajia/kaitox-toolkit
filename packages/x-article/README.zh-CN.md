@@ -18,9 +18,9 @@ npm i @kaitox/x-article
 
 ## 工作原理
 
-X Article 在一个 Draft.js 风格的编辑器里编辑。底层一篇草稿就是一个 `content_state`——由 `blocks` 数组（段落、标题、列表项、引用、atomic 块）加一个 `entity_map`（链接、图片、分隔线、内嵌 Markdown）组成。本包做三件事：
+X Article 在一个 Draft.js 风格的编辑器里编辑。底层一篇草稿就是一个 `content_state`——由 `blocks` 数组（段落、标题、列表项、引用、atomic 块）加一个 `entity_map`（链接、图片、分隔线、内嵌 Markdown、内嵌帖子）组成。本包做三件事：
 
-1. **转换**：把 Markdown 转成该 `content_state`（`markdownToContentState`）。图片会变成引用 `media_id` 的 `MEDIA` entity，所以图片必须*先*上传。
+1. **转换**：把 Markdown 转成该 `content_state`（`markdownToContentState`）。图片会变成引用 `media_id` 的 `MEDIA` entity，所以图片必须*先*上传；独占一行的 `x.com`/`twitter.com` 帖子链接会变成内嵌帖子（`TWEET` entity）。
 2. **对接 X**（`XArticleClient`）：分片上传媒体（`INIT`/`APPEND`/`FINALIZE`），然后调 GraphQL 的 `ArticleEntityDraftCreate` mutation，可选地再调 `ArticleEntityUpdateCoverMedia` 设置封面图。
 3. **编排**整条流水线（`publishXArticle`）：收集图片 src → 逐张上传 → 转换 → 建草稿 → 设封面。
 
@@ -113,7 +113,8 @@ const result = await publishXArticle({
 | `sanitizeContentState(cs)` | 按白名单重建 `content_state` 使 X 能接受：剥掉未知字段，丢弃非法 inline style，降级不支持的块类型（`header-three` → `header-two`，`code-block` → `unstyled`）。`createArticleDraft` 会自动应用。 |
 | `checkMarkdownStyle(markdown, opts?)` | 对 Markdown 做推特友好度 lint；返回 `StyleReport`。见[风格检查器](#风格检查器)。 |
 | `toPlaintextMarkdown(markdown)` | 只降级转换器真正会丢内容的结构（HTML 块、嵌套列表）；表格与代码围栏原样保留——X 原生渲染它们。 |
-| `extractMermaidBlocks(markdown)` | 把顶层 ```` ```mermaid ```` 围栏替换成 `![...](mermaid://diagram-N)` 图片引用，返回变换后的 markdown 和提取出的块——图片渲染由调用方完成（需要浏览器；Kaitox 插件用 mermaid.js），字节经 `fetchImage` 提供。 |
+| `extractMermaidBlocks(markdown)` | 把顶层 ```` ```mermaid ```` 围栏替换成 `![...](mermaid://diagram-N)` 图片引用，返回变换后的 markdown 和提取出的块。用下面的辅助函数把每个块渲染成图，字节经 `fetchImage` 提供。 |
+| `renderMermaidSvgUrl(mermaid, code)` / `renderMermaidPng(mermaid, code)` / `MERMAID_INIT_CONFIG` | 仅浏览器可用的 mermaid → 图片渲染器（预览用 SVG blob URL，上传用 PNG 字节）。自行加载 mermaid.js（约 8MB），先 `mermaid.initialize(MERMAID_INIT_CONFIG)` 一次，再把实例传进来——这样各消费方渲染出的图逐像素一致。Chrome 扩展与 Obsidian 插件都用它们。 |
 | `renderPreviewHtml(markdown, opts?)` | 把发布效果渲染成（已转义的）HTML 字符串预览。见[预览渲染器](#预览渲染器)。 |
 | `renderModelHtml(model, opts?)` / `buildPreviewModel(markdown)` | `renderPreviewHtml` 的两个半步：先构建可渲染模型，再渲染。 |
 | `segmentText(text, styles, entityRanges)` / `groupBlocks(blocks)` | 预览底层工具：把 block 文本切成样式均匀的段；把连续列表项归组给 `<ul>`/`<ol>`。想自己写渲染层（原生 DOM、React 等）时直接用它们、跳过 HTML 层。 |
@@ -137,6 +138,7 @@ const result = await publishXArticle({
 | `**b**` `*i*` `~~s~~` | `inline_style_ranges`（`Bold` / `Italic` / `Strikethrough`——X 只接受这三种） |
 | `` `inline code` `` | 纯文本（X 没有行内代码样式） |
 | `[text](url)` | `LINK` entity |
+| 独占一行的 `x.com`/`twitter.com` 帖子链接 | `atomic` 块 + `TWEET` entity（内嵌帖子；仅裸链接独占一行触发） |
 | `![alt](src)` | `atomic` 块 + `MEDIA` entity（需要已上传的 `media_id`） |
 | 围栏代码 | `atomic` 块 + `MARKDOWN` entity（渲染为纯文本代码框） |
 | 表格 | `atomic` 块 + `MARKDOWN` entity——X 端原生渲染为表格 |

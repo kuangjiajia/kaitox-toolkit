@@ -166,6 +166,20 @@ const levels = renderPreviewHtml('# t\n\n## 大\n\n### 小\n\n> 引用');
 check('## → h2.xp-h1、### → h3.xp-h2', levels.includes('<h2 class="xp-h1">大</h2>') && levels.includes('<h3 class="xp-h2">小</h3>'));
 check('引用 → blockquote.xp-quote', levels.includes('<blockquote class="xp-quote">引用</blockquote>'));
 
+// --- 内嵌帖子（TWEET）--------------------------------------------------------
+
+const tweetHtml = renderPreviewHtml('https://x.com/arena/status/2074591193783320851');
+check('独占帖子链接 → xp-tweet 卡片', tweetHtml.includes('<figure class="xp-tweet">'));
+check('TWEET 卡片链接指向规范帖子 URL', tweetHtml.includes('href="https://x.com/i/status/2074591193783320851"'));
+check('独占帖子链接不渲染成普通 xp-link', !tweetHtml.includes('xp-link'));
+const inlineTweetLink = renderPreviewHtml('见 [这条](https://x.com/arena/status/2074591193783320851) 帖子');
+check(
+  'markdown 链接语法的帖子链接仍是普通 <a class="xp-link">',
+  inlineTweetLink.includes('<a class="xp-link"') &&
+    inlineTweetLink.includes('href="https://x.com/arena/status/2074591193783320851"') &&
+    !inlineTweetLink.includes('xp-tweet'),
+);
+
 // --- extractMermaidBlocks：mermaid 围栏 → 图片引用 ---------------------------
 
 const mmdMd = `# 标题
@@ -229,6 +243,8 @@ const truthMd = `# 标题
 const t = 1;
 \`\`\`
 
+https://x.com/arena/status/2074591193783320851
+
 [链接](https://example.com/t)
 `;
 
@@ -253,6 +269,7 @@ const truthMarkers = {
   DIVIDER: '<hr class="xp-divider">',
   MARKDOWN: '<pre class="xp-md">const t = 1;</pre>',
   LINK: 'href="https://example.com/t"',
+  TWEET: 'href="https://x.com/i/status/2074591193783320851"',
 };
 for (const [name, marker] of Object.entries(truthMarkers)) {
   check(`真值渲染有产出「${name}」`, truthHtml.includes(marker));

@@ -1,0 +1,659 @@
+/*
+ * Kaitox 发布预览面板样式。颜色走 Obsidian 主题变量，自动适配亮/暗色主题与用户强调色；
+ * 唯独 X 文章预览卡保持浅色——它是「X 阅读页会长什么样」的所见即所得，故意不跟随暗色。
+ * （X 预览内部的 .xp-* 结构样式由 @kaitox/x-article/preview.css 提供，构建时拼接在后。）
+ */
+
+.kx-view.view-content {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---- toolbar ---- */
+.kx-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.kx-toolbar-left,
+.kx-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.kx-logo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* White logo PNG used as a mask, tinted with the theme text color:
+   white on dark themes, dark enough to stay visible on light ones. */
+.kx-logo-img {
+  width: 24px;
+  height: 24px;
+  background-color: var(--text-normal);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+.kx-ic {
+  display: inline-flex;
+  align-items: center;
+}
+.kx-ic .svg-icon {
+  width: 15px;
+  height: 15px;
+}
+
+/* segmented control */
+.kx-seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--background-modifier-hover);
+}
+.kx-seg-btn {
+  height: 26px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.kx-seg-btn.is-on {
+  background: var(--background-primary);
+  color: var(--text-normal);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+}
+.kx-seg-btn.kx-soon {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+.kx-soontag {
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* buttons */
+.kx-lint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+.kx-lint:hover {
+  background: var(--background-modifier-hover);
+}
+.kx-lint.is-on {
+  background: var(--background-modifier-warning, rgba(233, 165, 39, 0.15));
+  border-color: var(--color-yellow, #e8a527);
+  color: var(--text-normal);
+}
+.kx-badge {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--color-yellow, #e9a527);
+  color: #3a2a05;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kx-icon-btn {
+  flex: none;
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.kx-icon-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.kx-icon-btn .svg-icon {
+  width: 18px;
+  height: 18px;
+}
+.kx-primary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kx-primary:hover {
+  background: var(--interactive-accent-hover);
+}
+.kx-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  margin-left: 2px;
+  border-radius: 50%;
+}
+.kx-dot.is-on {
+  background: #22b07d;
+  box-shadow: 0 0 0 3px rgba(34, 176, 125, 0.18);
+}
+.kx-dot.is-off {
+  background: var(--text-faint);
+}
+
+/* ---- context strip ---- */
+.kx-ctx {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.kx-ctx .kx-ic .svg-icon {
+  width: 12px;
+  height: 12px;
+}
+.kx-ctx-sep {
+  opacity: 0.5;
+}
+
+/* ---- body ---- */
+.kx-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--background-secondary);
+}
+
+/* preview card (intentionally light — a WYSIWYG of X's reading page) */
+.kx-preview-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 20px 16px 60px;
+}
+.kx-card {
+  width: 100%;
+  max-width: 600px;
+  background: #ffffff;
+  border: 1px solid #ece9e3;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(60, 50, 30, 0.07);
+}
+.kx-cover-hero {
+  position: relative;
+  margin: 16px 16px 4px;
+  aspect-ratio: 2 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Light "no cover yet" placeholder: a soft diagonal hatch. Like the preview
+     card, this is a Kaitox affordance (not part of X's rendering), so it stays
+     light regardless of the Obsidian theme. */
+  background-color: #edece7;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #e7e5df 0,
+    #e7e5df 9px,
+    #efeee9 9px,
+    #efeee9 18px
+  );
+}
+.kx-cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.kx-cover-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #3a3a34;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.09);
+  cursor: pointer;
+}
+.kx-cover-add:hover {
+  background: #fafaf7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.kx-cover-add .svg-icon {
+  width: 17px;
+  height: 17px;
+}
+.kx-cover-btn {
+  position: absolute;
+  border: none;
+  border-radius: 99px;
+  background: rgba(15, 20, 25, 0.72);
+  color: #fff;
+  font-size: 11.5px;
+  height: 28px;
+  padding: 0 13px;
+  cursor: pointer;
+}
+.kx-cover-btn:hover {
+  background: rgba(15, 20, 25, 0.9);
+}
+.kx-cover-replace {
+  bottom: 11px;
+  right: 11px;
+}
+.kx-cover-remove {
+  top: 11px;
+  right: 11px;
+}
+.kx-article-host .xp-article {
+  padding-top: 20px;
+}
+
+/* ---- style check ---- */
+.kx-lint-wrap {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px 18px 50px;
+}
+.kx-lint-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.kx-lint-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+.kx-lint-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.kx-chips {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.kx-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.kx-chip.is-error {
+  background: rgba(226, 75, 74, 0.16);
+  color: var(--color-red, #c0392b);
+}
+.kx-chip.is-warn {
+  background: rgba(233, 165, 39, 0.18);
+  color: var(--color-orange, #9a6212);
+}
+.kx-chip.is-info {
+  background: rgba(55, 138, 221, 0.16);
+  color: var(--color-blue, #1e5fa5);
+}
+.kx-chip.is-ok {
+  background: rgba(34, 176, 125, 0.16);
+  color: var(--color-green, #0f6e56);
+}
+.kx-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kx-issue {
+  display: flex;
+  gap: 10px;
+  padding: 12px 13px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-left-width: 3px;
+  border-radius: 0 10px 10px 0;
+}
+.kx-issue.is-error {
+  border-left-color: var(--color-red, #e24b4a);
+}
+.kx-issue.is-warning {
+  border-left-color: var(--color-orange, #ef9f27);
+}
+.kx-issue.is-info {
+  border-left-color: var(--color-blue, #378add);
+}
+.kx-issue-ic {
+  flex: none;
+  margin-top: 1px;
+}
+.kx-issue.is-error .kx-issue-ic {
+  color: var(--color-red, #e24b4a);
+}
+.kx-issue.is-warning .kx-issue-ic {
+  color: var(--color-orange, #ba7517);
+}
+.kx-issue.is-info .kx-issue-ic {
+  color: var(--color-blue, #185fa5);
+}
+.kx-issue-ic .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+.kx-issue-msg {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-normal);
+  margin-bottom: 2px;
+}
+.kx-issue-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---- empty / error ---- */
+.kx-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.kx-empty-ic {
+  color: var(--text-faint);
+  margin-bottom: 12px;
+}
+.kx-empty-ic .svg-icon {
+  width: 30px;
+  height: 30px;
+}
+.kx-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-bottom: 4px;
+}
+.kx-empty-sub {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+/* ---- push / settings modal ---- */
+.kx-modal .kx-modal-title {
+  margin: 0 0 2px;
+}
+.kx-modal-note {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-bottom: 14px;
+}
+.kx-push-cover {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 11px;
+  background: var(--background-secondary);
+  margin-bottom: 14px;
+}
+.kx-push-cover-thumb {
+  width: 58px;
+  height: 32px;
+  flex: none;
+  border-radius: 6px;
+  overflow: hidden;
+  background: linear-gradient(120deg, #1d3b8f, #2e6fe8);
+}
+.kx-push-cover-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.kx-push-cover-info {
+  flex: 1;
+  min-width: 0;
+}
+.kx-push-cover-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+.kx-push-cover-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.kx-push-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.kx-push-target {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 11px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 11px;
+  margin-bottom: 14px;
+}
+.kx-push-target-info {
+  flex: 1;
+}
+.kx-push-target-main {
+  font-size: 13px;
+  color: var(--text-normal);
+}
+.kx-push-target-sub {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.kx-push-seg {
+  display: inline-flex;
+  margin-bottom: 8px;
+}
+.kx-push-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.kx-steps {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+.kx-step {
+  display: flex;
+  gap: 10px;
+}
+.kx-step-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.kx-step-n {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kx-step-n.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.kx-step-line {
+  width: 2px;
+  flex: 1;
+  background: var(--background-modifier-border);
+}
+.kx-step-txt {
+  padding-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.kx-modal-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 6px;
+}
+.kx-ghost {
+  height: 38px;
+  padding: 0 18px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 9px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.kx-ghost:hover {
+  background: var(--background-modifier-hover);
+}
+.kx-modal-actions .kx-primary {
+  height: 38px;
+}
+.kx-grow {
+  flex: 1;
+  justify-content: center;
+}
+
+/* success */
+.kx-success {
+  text-align: center;
+  padding: 14px 6px 6px;
+}
+.kx-success-check {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kx-success-check .svg-icon {
+  width: 28px;
+  height: 28px;
+}
+.kx-success-check-error {
+  background: var(--background-modifier-error, #e24b4a);
+}
+.kx-spin {
+  display: inline-flex;
+  animation: kx-spin 0.8s linear infinite;
+}
+@keyframes kx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.kx-success-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-normal);
+  margin-bottom: 6px;
+}
+.kx-success-sub {
+  font-size: 12.5px;
+  color: var(--text-faint);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+.kx-success-warn {
+  font-size: 12px;
+  color: var(--color-orange, #9a6212);
+  margin-bottom: 8px;
+}
+.kx-success-queue {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  margin-bottom: 18px;
+  border-radius: 99px;
+  background: var(--background-secondary);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}

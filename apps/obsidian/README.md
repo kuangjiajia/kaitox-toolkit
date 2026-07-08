@@ -2,19 +2,18 @@ English | [简体中文](README.zh-CN.md)
 
 # @kaitox/obsidian
 
-The Obsidian product of the [Kaitox](../../README.md) personal toolkit (private, not published). Current feature: sync the active note as an **X (Twitter) Article draft** straight from your vault.
+The Obsidian product of the [Kaitox](../../README.md) personal toolkit (private, not published). Current feature: preview the active note as an **X (Twitter) Article** and push it to your drafts — straight from your vault.
 
 ## How it works
 
-The plugin is an upload client of the Kaitox pipeline — it checks and packages; the actual upload happens in your browser:
+Kaitox for Obsidian is an upload client of the pipeline — it previews, checks, and packages; the actual publish happens in your browser. It opens a **publish-preview panel** (right sidebar) that mirrors the active note live:
 
-1. Read the active note; parse `title:` and `cover:` from the frontmatter.
-2. Resolve every image into bytes — `![[wikilink]]` embeds, standard `![alt](src)` with vault-relative paths, and remote `http(s)` URLs — rewriting them to stable file names (duplicate references reuse one asset). Unresolved images are left as-is and reported in a notice.
-3. Run the X-friendliness style check (`checkMarkdownStyle` from [`@kaitox/x-article`](../../packages/x-article/README.md)). Friendly notes upload immediately; otherwise a modal lists every issue (severity, line, suggestion) and asks: **fix it** / **plaintext fallback** / **upload as-is**. Closing the modal cancels.
-4. POST the draft bundle (raw Markdown + image bytes, plus the style report and note metadata) to the local relay at `http://127.0.0.1:8765` via [`@kaitox/relay-protocol`](../../packages/relay-protocol/README.md).
-5. The [Chrome extension](../extension) picks the draft up on `x.com/compose/articles` inside your logged-in session — click "上传草稿" (upload draft) there to finish.
-
-In plaintext mode the Markdown is degraded once at upload time (`toPlaintextMarkdown`); image references and assets are kept unchanged.
+1. **Channel switch** — pick the target (X Article today; WeChat is reserved as a `soon` slot). Adding a channel is a new engine plus one row — no relay changes (kinds are namespaced).
+2. **Live preview** — the note is resolved (frontmatter `title:`/`cover:`, `![[wikilink]]` embeds, vault-relative `![alt](src)`, and remote `http(s)` images become bytes; duplicate references reuse one asset) and rendered exactly as it will look as an X Article, via the same conversion path as publishing (`renderPreviewHtml` from [`@kaitox/x-article`](../../packages/x-article/README.md)). What you see is what gets pushed.
+3. **Style check** — a toolbar toggle (with an attention badge counting errors + warnings) lists every X-friendliness issue (`checkMarkdownStyle`): tables → plaintext, non-recompressible oversized images, external links shown as plaintext, plus what passes.
+4. **Cover** — upload / replace / remove a cover inline; it ships separately from the body (sentinel src `__cover__`) and never appears in the article text. With no inline cover, the frontmatter `cover:` is used.
+5. **Push to drafts** — POST the bundle (raw Markdown + image bytes + style report + note metadata) to the local relay at `http://127.0.0.1:8765` via [`@kaitox/relay-protocol`](../../packages/relay-protocol/README.md). A green dot reflects relay connectivity. When the note isn't friendly, the push dialog offers a **plaintext fallback** (`toPlaintextMarkdown`, which degrades HTML blocks / nested lists but keeps images and assets unchanged).
+6. **Finish in the browser** — the [Chrome extension](../extension) picks the draft up on `x.com/compose/articles` inside your logged-in session and creates the Article draft there. The success dialog links straight to the editor.
 
 ## Install
 
@@ -32,10 +31,12 @@ npm run build:obsidian   # bundles the plugin → apps/obsidian/dist/
 
 ## Usage
 
-Trigger the sync either way:
+Open the panel, then push:
 
-- Command palette: **同步当前笔记为 X Article 草稿** (sync current note as X Article draft)
-- Ribbon action: the paper-plane icon ("kaitox：同步到 X 草稿")
+- Ribbon action: the paper-plane icon (**Kaitox：发布预览**) opens the publish-preview panel.
+- Command palette: **打开发布预览面板** (open publish-preview panel), or **推送当前笔记到草稿箱** (push current note to drafts) to skip the panel and go straight to the push dialog.
+
+Inside the panel, the toolbar carries the channel switch, the **样式检查** (style check) toggle, a settings gear, the relay status dot, and the **推送到草稿箱** (push to drafts) button.
 
 Frontmatter keys the plugin reads:
 
@@ -54,7 +55,7 @@ Image resolution rules:
 - `![alt](relative/path.png)` — resolved against the vault (URL-encoded paths are decoded).
 - `![alt](https://...)` — fetched and bundled as bytes.
 
-After a successful post you get a notice; open <https://x.com/compose/articles> and click "上传草稿" in the Kaitox panel. If the post fails, make sure the local relay is running (`kaitox relay --daemon` or just `kaitox x push` once, which auto-starts it).
+After a successful push, open <https://x.com/compose/articles> (the success dialog links there) and let the Kaitox extension create the draft. If the push fails, make sure the local relay is running (`kaitox relay --daemon` or just `kaitox x push` once, which auto-starts it) — the toolbar's status dot goes green when it's reachable.
 
 ## Settings
 
@@ -62,6 +63,7 @@ After a successful post you get a notice; open <https://x.com/compose/articles> 
 |---|---|---|
 | relay 地址 (relay base URL) | `http://127.0.0.1:8765` | Address of the local kaitox relay. |
 | relay token (optional) | empty | If your relay enforces a token (`~/.kaitox/config.json`), set the same value here; it is sent as the `x-kaitox-token` header. |
+| 推送后打开 X 文章编辑器 (open X composer after push) | off | After a successful push, open `x.com/compose/articles` automatically. |
 
 ## Compliance
 

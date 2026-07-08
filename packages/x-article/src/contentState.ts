@@ -16,6 +16,7 @@
  *   **bold** / *italic* / ~~del~~ →  inline_style_ranges（Bold/Italic/Strikethrough）
  *   `code`（行内）             →  普通文本（X 无行内代码样式，实测 Code 枚举被拒）
  *   [text](url)              →  LINK 实体 + entity_range 覆盖 text
+ *   独占一行的 x/twitter 帖子链接 →  atomic block + TWEET 实体（内嵌引用推文，只取 tweet_id）
  *   ![alt](src)              →  atomic block + MEDIA 实体（图片需先上传拿 media_id）
  *   ```代码```               →  atomic block + MARKDOWN 实体（整段围栏原样塞进去）
  *   ---（分割线）             →  atomic block + DIVIDER 实体
@@ -163,7 +164,8 @@ class ContentStateBuilder {
         break;
       }
       case 'paragraph':
-        this.handleParagraph(token);
+        // 独占段落的 x/twitter 帖子链接 → 内嵌引用推文；否则按普通段落处理（链接照常走 LINK）。
+        if (!this.tryStandaloneTweets(token)) this.handleParagraph(token);
         break;
       case 'blockquote':
         // 引用里通常是若干段落，每段输出一个 blockquote block。
@@ -252,6 +254,28 @@ class ContentStateBuilder {
         media_items: [{ local_media_id: key, media_id: mediaId, media_category: 'DraftTweetImage' }],
       },
     });
+    this.pushAtomic(key);
+  }
+
+  /**
+   * 若整段就是「一行或多行、每行都是一条 x/twitter 帖子链接」，把每行转成一个内嵌
+   * TWEET 块并返回 true；否则不动、返回 false（交回普通段落处理，链接照常成 LINK）。
+   * 段内混了正文的裸链接不算——保持「独占才内嵌」，与 X 粘贴即嵌入的体感一致。
+   */
+  private tryStandaloneTweets(token: MdToken): boolean {
+    const raw = (token.text ?? '').trim();
+    if (!raw) return false;
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    if (lines.length === 0) return false;
+    const ids = lines.map(parseTweetId);
+    if (ids.some((id) => id === undefined)) return false;
+    for (const id of ids) this.pushTweet(id as string);
+    return true;
+  }
+
+  /** 内嵌引用推文：TWEET 实体 + atomic 宿主块（与 DIVIDER 同构）。 */
+  private pushTweet(tweetId: string): void {
+    const key = this.addEntity({ type: 'TWEET', mutability: 'Immutable', data: { tweet_id: tweetId } });
     this.pushAtomic(key);
   }
 
@@ -374,6 +398,21 @@ function decodeEntities(s: string): string {
 // ---------------------------------------------------------------------------
 // 对外 API
 // ---------------------------------------------------------------------------
+
+/**
+ * 从一条 x.com / twitter.com 的帖子链接里取出数字 tweet_id；不是帖子链接返回 undefined。
+ *
+ * 整串锚定匹配（`^…$`）：只认「整行就是一条帖子链接」，段内混着正文的裸链接不会命中——
+ * 内嵌引用推文只在链接独占一行时触发（见 ContentStateBuilder.tryStandaloneTweets）。
+ * 容忍：http/https、子域（www./mobile. 等）、status 前任意路径段（如 i/web/status）、
+ * statuses 复数、结尾的 /photo/1、?query、#hash。
+ */
+export function parseTweetId(url: string): string | undefined {
+  const m = /^https?:\/\/(?:[a-z0-9-]+\.)*(?:twitter|x)\.com\/(?:[^/\s]+\/)*status(?:es)?\/(\d+)(?:[/?#]\S*)?$/i.exec(
+    url.trim(),
+  );
+  return m ? m[1] : undefined;
+}
 
 /**
  * 收集 markdown 里所有需要上传的图片 src（块级图片），供上传阶段先行处理。

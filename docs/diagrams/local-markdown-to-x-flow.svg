@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1360" viewBox="0 0 1800 1360" role="img" aria-labelledby="title desc">
+  <title id="title">Kaitox local Markdown to X Article draft flow</title>
+  <desc id="desc">An Excalidraw-style flowchart showing how local Markdown is pushed into the local relay, picked up by the Chrome extension on x.com, uploaded through the user's logged-in session, and turned into an X Article draft.</desc>
+  <defs>
+    <filter id="roughen" x="-3%" y="-3%" width="106%" height="106%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="12" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.35"/>
+    </filter>
+    <marker id="arrowhead" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M 1 2 L 11 7 L 1 12" fill="none" stroke="#242424" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowhead-blue" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M 1 2 L 11 7 L 1 12" fill="none" stroke="#2563eb" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .bg { fill: #fffdf6; }
+      .title { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 44px; font-weight: 700; fill: #202020; }
+      .subtitle { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 22px; fill: #525252; }
+      .lane { fill: #fffaf0; stroke: #d8cfbb; stroke-width: 2.5; stroke-dasharray: 10 10; filter: url(#roughen); }
+      .lane-title { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 28px; font-weight: 700; fill: #252525; }
+      .lane-note { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 17px; fill: #666; }
+      .node { stroke: #242424; stroke-width: 2.8; fill: #ffffff; filter: url(#roughen); }
+      .node-yellow { fill: #fff2bf; }
+      .node-blue { fill: #dceeff; }
+      .node-green { fill: #dff7df; }
+      .node-pink { fill: #ffe3e3; }
+      .node-purple { fill: #eee7ff; }
+      .note { fill: #fff7cc; stroke: #242424; stroke-width: 2.4; filter: url(#roughen); }
+      .note-blue { fill: #e6f1ff; }
+      .note-green { fill: #e5f8e6; }
+      .note-pink { fill: #ffe9ea; }
+      .text { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 23px; fill: #252525; }
+      .text-strong { font-weight: 700; }
+      .small { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 18px; fill: #3f3f3f; }
+      .tiny { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 15px; fill: #606060; }
+      .code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 18px; fill: #2b2b2b; }
+      .arrow { fill: none; stroke: #242424; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrowhead); filter: url(#roughen); }
+      .arrow-blue { fill: none; stroke: #2563eb; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrowhead-blue); filter: url(#roughen); }
+      .return { fill: none; stroke: #6b7280; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 8 9; marker-end: url(#arrowhead); filter: url(#roughen); }
+      .label-bg { fill: #fffdf6; stroke: none; }
+      .label { font-family: "Comic Sans MS", "LXGW WenKai", "Kaiti SC", "Noto Sans CJK SC", sans-serif; font-size: 17px; fill: #343434; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1800" height="1360"/>
+
+  <text class="title" x="70" y="72">Kaitox：本地 Markdown → X Article 草稿</text>
+  <text class="subtitle" x="72" y="112">核心原则：本地只收集与暂存内容；真正上传发生在用户已登录的 x.com 页面里，最后生成草稿，由用户自己继续编辑/发布。</text>
+
+  <rect class="lane" x="60" y="145" width="350" height="940" rx="24"/>
+  <rect class="lane" x="465" y="145" width="350" height="940" rx="24"/>
+  <rect class="lane" x="870" y="145" width="390" height="940" rx="24"/>
+  <rect class="lane" x="1315" y="145" width="405" height="940" rx="24"/>
+
+  <text class="lane-title" x="110" y="193">上传端 / Pusher</text>
+  <text class="lane-note" x="111" y="219">CLI、Obsidian、脚本</text>
+  <text class="lane-title" x="520" y="193">本地 Relay</text>
+  <text class="lane-note" x="520" y="219">127.0.0.1:8765，仅本机</text>
+  <text class="lane-title" x="920" y="193">Chrome 扩展</text>
+  <text class="lane-note" x="920" y="219">运行在 x.com/compose/articles</text>
+  <text class="lane-title" x="1370" y="193">X 页面内请求</text>
+  <text class="lane-note" x="1370" y="219">使用用户自己的登录态</text>
+
+  <!-- Pusher lane -->
+  <rect class="node node-yellow" x="95" y="260" width="280" height="112" rx="18"/>
+  <text class="text text-strong" x="235" y="300" text-anchor="middle">本地 Markdown</text>
+  <text class="small" x="235" y="331" text-anchor="middle">.md 正文 + 图片引用</text>
+  <text class="small" x="235" y="357" text-anchor="middle">可选 frontmatter / cover</text>
+
+  <rect class="node node-yellow" x="95" y="440" width="280" height="170" rx="18"/>
+  <text class="text text-strong" x="235" y="480" text-anchor="middle">构建草稿包</text>
+  <text class="small" x="122" y="515">1. 解析标题、正文、封面</text>
+  <text class="small" x="122" y="542">2. 扫描图片 src</text>
+  <text class="small" x="122" y="569">3. 读取图片字节 + 样式检查</text>
+  <text class="small" x="122" y="596">4. 保留原始 Markdown</text>
+
+  <rect class="node node-yellow" x="95" y="695" width="280" height="120" rx="18"/>
+  <text class="text text-strong" x="235" y="737" text-anchor="middle">投递到本机</text>
+  <text class="code" x="135" y="771">POST /x-article/drafts</text>
+  <text class="small" x="235" y="799" text-anchor="middle">JSON：bundle + base64 assets</text>
+
+  <!-- Relay lane -->
+  <rect class="node node-blue" x="500" y="260" width="280" height="112" rx="18"/>
+  <text class="text text-strong" x="640" y="300" text-anchor="middle">本地 relay 在线</text>
+  <text class="small" x="640" y="331" text-anchor="middle">自动启动或手动运行</text>
+  <text class="small" x="640" y="357" text-anchor="middle">只做存储与状态流转</text>
+
+  <rect class="node node-blue" x="500" y="440" width="280" height="170" rx="18"/>
+  <text class="text text-strong" x="640" y="480" text-anchor="middle">接收并落盘</text>
+  <text class="small" x="527" y="515">验证 wire body</text>
+  <text class="small" x="527" y="542">解码 base64 → 图片文件</text>
+  <text class="small" x="527" y="569">必要时重编码超大图片</text>
+  <text class="small" x="527" y="596">按 kind = x-article 存储</text>
+
+  <rect class="node node-blue" x="500" y="695" width="280" height="120" rx="18"/>
+  <text class="text text-strong" x="640" y="736" text-anchor="middle">Outbox 草稿</text>
+  <text class="code" x="555" y="770">~/.kaitox/x-article/</text>
+  <text class="small" x="640" y="799" text-anchor="middle">bundle.json + assets/</text>
+
+  <rect class="node node-blue" x="500" y="920" width="280" height="110" rx="18"/>
+  <text class="text text-strong" x="640" y="960" text-anchor="middle">记录结果</text>
+  <text class="small" x="640" y="992" text-anchor="middle">done + restId</text>
+  <text class="small" x="640" y="1017" text-anchor="middle">或 failed + error</text>
+
+  <!-- Extension lane -->
+  <rect class="node node-green" x="910" y="260" width="310" height="124" rx="18"/>
+  <text class="text text-strong" x="1065" y="301" text-anchor="middle">扩展面板轮询</text>
+  <text class="small" x="1065" y="334" text-anchor="middle">约每 5 秒查询一次</text>
+  <text class="code" x="960" y="362">GET /x-article/drafts</text>
+
+  <rect class="node node-green" x="910" y="440" width="310" height="120" rx="18"/>
+  <text class="text text-strong" x="1065" y="482" text-anchor="middle">用户点击上传</text>
+  <text class="small" x="1065" y="516" text-anchor="middle">状态改为 uploading</text>
+  <text class="code" x="952" y="543">PATCH /drafts/:id</text>
+
+  <rect class="node node-green" x="910" y="625" width="310" height="155" rx="18"/>
+  <text class="text text-strong" x="1065" y="665" text-anchor="middle">取完整内容</text>
+  <text class="small" x="940" y="700">GET bundle + asset bytes</text>
+  <text class="small" x="940" y="728">mermaid 围栏可渲染成 PNG</text>
+  <text class="small" x="940" y="756">读取 ct0 作为 CSRF token</text>
+
+  <rect class="node node-green" x="910" y="850" width="310" height="138" rx="18"/>
+  <text class="text text-strong" x="1065" y="890" text-anchor="middle">转换 X Article 内容</text>
+  <text class="small" x="1065" y="923" text-anchor="middle">Markdown + src → media_id</text>
+  <text class="small" x="1065" y="950" text-anchor="middle">生成 Draft.js content_state</text>
+  <text class="tiny" x="1065" y="975" text-anchor="middle">偏移量按 UTF-16 code units</text>
+
+  <!-- X lane -->
+  <rect class="node node-pink" x="1360" y="260" width="320" height="124" rx="18"/>
+  <text class="text text-strong" x="1520" y="301" text-anchor="middle">同源登录态</text>
+  <text class="small" x="1520" y="334" text-anchor="middle">credentials: include</text>
+  <text class="small" x="1520" y="361" text-anchor="middle">浏览器自动带 cookie</text>
+
+  <rect class="node node-pink" x="1360" y="625" width="320" height="155" rx="18"/>
+  <text class="text text-strong" x="1520" y="665" text-anchor="middle">逐张上传图片</text>
+  <text class="small" x="1520" y="700" text-anchor="middle">upload.x.com</text>
+  <text class="small" x="1520" y="729" text-anchor="middle">INIT → APPEND → FINALIZE</text>
+  <text class="small" x="1520" y="756" text-anchor="middle">返回 media_id_string</text>
+
+  <rect class="node node-pink" x="1360" y="850" width="320" height="138" rx="18"/>
+  <text class="text text-strong" x="1520" y="890" text-anchor="middle">创建 Article 草稿</text>
+  <text class="small" x="1520" y="923" text-anchor="middle">GraphQL ArticleEntityDraftCreate</text>
+  <text class="small" x="1520" y="950" text-anchor="middle">返回 rest_id</text>
+
+  <rect class="node node-pink" x="1360" y="1040" width="320" height="90" rx="18"/>
+  <text class="text text-strong" x="1520" y="1077" text-anchor="middle">可选设置封面</text>
+  <text class="small" x="1520" y="1107" text-anchor="middle">ArticleEntityUpdateCoverMedia</text>
+
+  <!-- Result -->
+  <rect class="node node-purple" x="900" y="1108" width="390" height="112" rx="18"/>
+  <text class="text text-strong" x="1095" y="1150" text-anchor="middle">打开 X 草稿编辑页</text>
+  <text class="code" x="950" y="1184">/compose/articles/edit/&lt;restId&gt;</text>
+  <text class="small" x="1095" y="1211" text-anchor="middle">用户继续编辑，确认后发布</text>
+
+  <!-- Sticky notes -->
+  <path class="note" d="M 78 1160 L 446 1160 L 446 1295 L 78 1295 Z"/>
+  <path d="M 408 1160 L 446 1198 L 408 1196 Z" fill="#f0df91" stroke="#242424" stroke-width="2" filter="url(#roughen)"/>
+  <text class="text text-strong" x="105" y="1202">关键不变量</text>
+  <text class="small" x="105" y="1235">assets[].src 必须逐字等于</text>
+  <text class="code" x="105" y="1263">collectImageSources(markdown)</text>
+  <text class="small" x="105" y="1290">否则图片会找不到并被跳过。</text>
+
+  <path class="note note-blue" d="M 494 1160 L 862 1160 L 862 1320 L 494 1320 Z"/>
+  <path d="M 824 1160 L 862 1198 L 824 1196 Z" fill="#b7d6fa" stroke="#242424" stroke-width="2" filter="url(#roughen)"/>
+  <text class="text text-strong" x="521" y="1195">为什么不提前生成</text>
+  <text class="code" x="521" y="1223">content_state？</text>
+  <text class="small" x="521" y="1250">图片的 media_id 只有在 x.com</text>
+  <text class="small" x="521" y="1277">登录页面里上传后才会出现。</text>
+  <text class="small" x="521" y="1304">所以 bundle 保留原始 Markdown。</text>
+
+  <path class="note note-green" d="M 1320 1160 L 1692 1160 L 1692 1295 L 1320 1295 Z"/>
+  <path d="M 1654 1160 L 1692 1198 L 1654 1196 Z" fill="#bfe8bf" stroke="#242424" stroke-width="2" filter="url(#roughen)"/>
+  <text class="text text-strong" x="1348" y="1202">边界说明</text>
+  <text class="small" x="1348" y="1235">Kaitox 创建的是 X Article 草稿，</text>
+  <text class="small" x="1348" y="1263">不会替用户自动发布。</text>
+  <text class="small" x="1348" y="1290">用户在 X 页面里最终确认。</text>
+
+  <!-- Arrows -->
+  <path class="arrow" d="M 235 372 C 235 394 235 415 235 438"/>
+  <path class="arrow" d="M 235 610 C 235 638 235 665 235 692"/>
+  <path class="arrow" d="M 375 755 C 415 755 452 755 497 755"/>
+  <rect class="label-bg" x="378" y="726" width="114" height="27" rx="8"/>
+  <text class="label" x="386" y="746">本机 HTTP</text>
+
+  <path class="arrow" d="M 640 372 C 640 396 640 415 640 438"/>
+  <path class="arrow" d="M 640 610 C 640 637 640 665 640 692"/>
+
+  <path class="arrow-blue" d="M 910 321 C 850 321 837 740 781 755"/>
+  <rect class="label-bg" x="790" y="525" width="114" height="48" rx="8"/>
+  <text class="label" x="801" y="545">扩展轮询</text>
+  <text class="label" x="801" y="566">看到 pending</text>
+
+  <path class="arrow" d="M 1065 384 C 1065 403 1065 420 1065 438"/>
+  <path class="arrow" d="M 1065 560 C 1065 584 1065 602 1065 623"/>
+
+  <path class="arrow-blue" d="M 1219 702 C 1265 702 1310 702 1357 702"/>
+  <rect class="label-bg" x="1245" y="654" width="96" height="50" rx="8"/>
+  <text class="label" x="1255" y="674">图片字节</text>
+  <text class="label" x="1255" y="695">→ media_id</text>
+
+  <path class="return" d="M 1360 758 C 1305 802 1260 835 1218 872"/>
+  <rect class="label-bg" x="1262" y="792" width="88" height="27" rx="8"/>
+  <text class="label" x="1272" y="812">返回映射</text>
+
+  <path class="arrow" d="M 1065 780 C 1065 804 1065 827 1065 848"/>
+  <path class="arrow-blue" d="M 1220 919 C 1263 919 1311 919 1357 919"/>
+  <rect class="label-bg" x="1248" y="890" width="88" height="27" rx="8"/>
+  <text class="label" x="1257" y="910">创建草稿</text>
+
+  <path class="return" d="M 1360 952 C 1305 1015 1250 1060 1190 1106"/>
+  <rect class="label-bg" x="1266" y="1010" width="70" height="27" rx="8"/>
+  <text class="label" x="1274" y="1030">rest_id</text>
+
+  <path class="arrow" d="M 1520 988 C 1520 1005 1520 1023 1520 1038"/>
+  <path class="arrow" d="M 1290 1164 C 1340 1164 1385 1142 1425 1128"/>
+  <path class="return" d="M 900 1164 C 790 1115 745 1055 697 1030"/>
+  <rect class="label-bg" x="736" y="1078" width="138" height="50" rx="8"/>
+  <text class="label" x="746" y="1098">成功/失败回写</text>
+  <text class="label" x="746" y="1119">PATCH relay</text>
+</svg>

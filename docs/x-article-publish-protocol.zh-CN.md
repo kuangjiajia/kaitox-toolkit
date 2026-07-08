@@ -186,7 +186,7 @@ X Article 正文用的是 **Draft.js 的 `RawDraftContentState`**，但 X 做了
 
 ### 4.2 entity_map（实体）
 
-四种类型：
+五种类型：
 
 ```jsonc
 // 图片：先上传拿 media_id 再引用
@@ -207,13 +207,19 @@ X Article 正文用的是 **Draft.js 的 `RawDraftContentState`**，但 X 做了
 // 链接：被普通/列表 block 的 entity_range 引用，覆盖显示文字
 { "key": 30, "value": { "type": "LINK", "mutability": "Mutable",
     "data": { "url": "https://x.com/AnatoliKopadze/status/2069475753184329889" } } }
+
+// 内嵌帖子（引用推文）：独占一行的 x.com/twitter.com 帖子链接。
+// data 只放 tweet_id（X input 强类型，多余字段会 GRAPHQL_VALIDATION_FAILED）；
+// 实测载荷里的 entity_key(UUID) 可省略，这里不带。
+{ "key": 1, "value": { "type": "TWEET", "mutability": "Immutable",
+    "data": { "tweet_id": "2074501266294903128" } } }
 ```
 
 **三条必须遵守的约定（否则 X 会拒或渲染错乱）：**
 
-1. **entity 的 `key` 从 0 开始、按文档从上到下的出现顺序递增。** block 级实体（MEDIA/DIVIDER/MARKDOWN）和 inline 实体（LINK）**共用同一个计数器**。
+1. **entity 的 `key` 从 0 开始、按文档从上到下的出现顺序递增。** block 级实体（MEDIA/DIVIDER/MARKDOWN/TWEET）和 inline 实体（LINK）**共用同一个计数器**。
 2. **MEDIA 的 `local_media_id` === 该实体自己的 `key`。**
-3. **atomic block 与它承载的实体**：atomic block 的唯一 `entity_range.key` 指向 entity_map 里的 MEDIA/DIVIDER/MARKDOWN。
+3. **atomic block 与它承载的实体**：atomic block 的唯一 `entity_range.key` 指向 entity_map 里的 MEDIA/DIVIDER/MARKDOWN/TWEET。
 
 ---
 
@@ -229,6 +235,7 @@ X Article 正文用的是 **Draft.js 的 `RawDraftContentState`**，但 X 做了
 | `**粗**` `*斜*` `~~删~~` | `inline_style_ranges`：`Bold` / `Italic` / `Strikethrough` |
 | `` `行内代码` `` | 普通文本（X 无行内代码样式，`Code` 枚举实测被拒） |
 | `[文字](url)` | 新建 `LINK` 实体 + `entity_range` 覆盖「文字」 |
+| 独占一行的 `x.com`/`twitter.com` 帖子链接 | 新建 `TWEET` 实体（`data.tweet_id`）+ 一个 `atomic` block —— 内嵌帖子。仅裸链接独占一行才触发；`[文字](url)` 与行内链接仍是 `LINK`。 |
 | `![alt](src)` | **先上传图片** → 新建 `MEDIA` 实体 + 一个 `atomic` block |
 | ` ```代码``` ` | 新建 `MARKDOWN` 实体（`data.markdown` = 完整围栏串，换行包裹）+ 一个 `atomic` block |
 | `---` | 新建 `DIVIDER` 实体 + 一个 `atomic` block |

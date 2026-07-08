@@ -126,6 +126,31 @@
   border-top: 1px solid var(--xp-border, var(--xp-border-default));
 }
 
+/* 内嵌帖子（TWEET 实体）：预览拿不到帖子正文，画一张近似 X 引用卡的占位卡片。 */
+.xp-tweet {
+  margin: 0 0 20px;
+  padding: 16px;
+  border: 1px solid var(--xp-border, var(--xp-border-default));
+  border-radius: 16px;
+  background: var(--xp-box, var(--xp-box-default));
+}
+
+.xp-tweet-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--xp-link, var(--xp-link-default));
+  font-size: 15px;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.xp-tweet-link::before {
+  content: '𝕏';
+  font-weight: 700;
+  color: var(--xp-text, var(--xp-text-default));
+}
+
 .xp-table-wrap {
   margin: 0 0 20px;
   overflow-x: auto;

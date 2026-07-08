@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaitox · Obsidian 发布预览面板原型</title>
+<style>
+  html,body{margin:0;background:#DED9CF;-webkit-font-smoothing:antialiased;}
+  body{padding:26px 18px;display:flex;justify-content:center;}
+</style>
+</head>
+<body>
+
+<style>
+  .kx{--kx:#2E6FE8;--bg:#EDECE8;--panel:#F7F6F2;--chrome:#E4E2DB;--bd:#D8D6CE;--bd2:#E2E0D8;
+      --tx:#1d1d1b;--tx2:#6b6a63;--tx3:#a09d90;
+      font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;color:var(--tx);width:100%;max-width:720px;}
+  .kx *{box-sizing:border-box;}
+  .kx button{font-family:inherit;cursor:pointer;}
+  .kx-pane{position:relative;height:600px;background:var(--panel);border:1px solid var(--bd);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 44px rgba(45,38,22,.16);}
+  .kx-scroll{overflow-y:auto;}
+  .kx-scroll::-webkit-scrollbar{width:10px;height:10px;}
+  .kx-scroll::-webkit-scrollbar-thumb{background:#cfcdc5;border-radius:6px;border:2px solid transparent;background-clip:content-box;}
+  .kx-logo img{width:66%;height:66%;display:block;}
+  .kx-logo{width:30px;height:30px;border-radius:9px;background:var(--kx);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:500;font-size:15px;box-shadow:0 1px 2px rgba(0,0,0,.18);}
+  .kx-seg{display:flex;background:#E7E5DD;border-radius:9px;padding:3px;gap:2px;}
+  .kx-seg button{height:28px;padding:0 14px;border:none;border-radius:7px;font-size:12.5px;font-weight:500;background:transparent;color:var(--tx2);transition:all .14s;}
+  .kx-seg button.on{background:#1d1d1b;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.16);}
+  .kx-soon{display:flex;align-items:center;gap:5px;color:#b3b1a6 !important;cursor:not-allowed;}
+  .kx-soontag{font-size:9px;background:#e0ddd3;color:#8b897f;border-radius:4px;padding:1px 4px;letter-spacing:.3px;}
+  .kx-primary{display:flex;align-items:center;gap:7px;height:34px;padding:0 18px;border:none;border-radius:9px;background:var(--kx);color:#fff;font-size:13.5px;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.12);transition:filter .14s;}
+  .kx-primary:hover{filter:brightness(1.06);}
+  .kx-primary:active{transform:translateY(1px);}
+  .kx-ghost{height:34px;padding:0 15px;border:1px solid var(--bd);border-radius:9px;background:#fff;color:var(--tx2);font-size:13px;font-weight:500;transition:background .14s;}
+  .kx-ghost:hover{background:#f0eee7;}
+  .kx-dot{width:9px;height:9px;border-radius:50%;background:#22b07d;box-shadow:0 0 0 3px #22b07d22;flex:none;}
+  .kx-icon{width:32px;height:32px;border:1px solid var(--bd);border-radius:9px;background:#fff;color:var(--tx2);display:flex;align-items:center;justify-content:center;transition:background .14s;}
+  .kx-icon:hover{background:#f0eee7;color:var(--tx);}
+  .kx-lint{display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid var(--bd);border-radius:9px;background:#fff;color:var(--tx2);font-size:13px;font-weight:500;transition:all .14s;}
+  .kx-lint:hover{background:#f0eee7;}
+  .kx-lint.on{background:#FBF1DC;border-color:#E8C778;color:#854F0B;}
+  .kx-badge{min-width:17px;height:17px;border-radius:9px;background:#EF9F27;color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+  .kx-anim{animation:kxf .25s ease;}
+  @keyframes kxf{from{opacity:0}to{opacity:1}}
+  @keyframes kxp{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+  @keyframes kxr{0%{transform:scale(.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}
+  .kx-chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:6px;font-size:11.5px;font-weight:500;}
+  .kx-sw{width:40px;height:23px;border-radius:99px;border:none;position:relative;flex:none;transition:background .16s;}
+  .kx-sw .k{position:absolute;top:2.5px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);}
+  .kx-ov{position:absolute;inset:0;background:rgba(28,26,22,.42);display:flex;align-items:center;justify-content:center;z-index:20;animation:kxf .16s ease;}
+  .kx-card{background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(20,18,12,.32);animation:kxp .22s cubic-bezier(.2,.8,.3,1);}
+  .kx-x{width:30px;height:30px;border:none;border-radius:8px;background:#f0eee7;color:#6b6a63;font-size:17px;}
+  .kx-x:hover{background:#e5e2da;}
+  .kx-swatch{width:28px;height:28px;border-radius:50%;border:2px solid #fff;cursor:pointer;}
+  .kx-fld{width:100%;height:38px;padding:0 12px;border:1px solid var(--bd);border-radius:9px;font-size:13.5px;color:#33322c;font-family:inherit;background:#fff;}
+  .kx-tab{display:block;width:100%;text-align:left;padding:9px 11px;border:none;border-radius:8px;margin-bottom:2px;font-size:13px;font-weight:500;background:transparent;color:var(--tx2);}
+  .kx-tab.on{background:#DEDCD3;color:#1a1a17;}
+</style>
+
+<div class="kx" id="kxRoot">
+<div class="kx-pane">
+
+  <!-- toolbar -->
+  <div style="height:56px;flex:none;background:var(--panel);border-bottom:1px solid var(--bd2);display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:10px;">
+    <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+      <div class="kx-logo" style="width:28px;height:28px;font-size:14px;border-radius:8px;"><img class="kx-logo-img" src="data:image/png;base64,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" alt="Kaitox"></div>
+      <div class="kx-seg" title="发布渠道">
+        <button class="on">X 文章</button>
+        <button class="kx-soon" disabled title="即将支持">微信公众号<span class="kx-soontag">soon</span></button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex:none;">
+      <button id="lintBtn" class="kx-lint" onclick="kxLint()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        样式检查<span class="kx-badge">2</span>
+      </button>
+      <button class="kx-icon" title="设置" onclick="kxSet(1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <span class="kx-dot" title="relay 已连接"></span>
+      <button class="kx-primary" onclick="kxPush(1)">推送到草稿箱</button>
+    </div>
+  </div>
+
+  <!-- context strip -->
+  <div style="height:28px;flex:none;background:var(--panel);border-bottom:1px solid var(--bd2);display:flex;align-items:center;gap:7px;padding:0 18px;font-size:11.5px;color:var(--tx3);">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a09d90" stroke-width="1.8"><path d="M6 2h8l4 4v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/></svg>
+    正在预览 · everything-claude-code.md
+    <span style="color:#cbc9c0;">·</span> 约 1,240 字
+  </div>
+
+  <!-- body -->
+  <div class="kx-scroll" style="flex:1;min-height:0;background:#F0F1F2;">
+
+    <!-- article preview -->
+    <div id="viewPrev" style="padding:24px 20px 70px;display:flex;justify-content:center;">
+      <div style="width:100%;max-width:600px;background:#fff;border:1px solid #eff3f4;border-radius:16px;box-shadow:0 2px 12px rgba(15,20,25,.06);overflow:hidden;" class="kx-anim">
+        <div id="coverBox" style="position:relative;width:100%;aspect-ratio:2/1;background:linear-gradient(135deg,#3c4750,#28313a);display:flex;align-items:center;justify-content:center;">
+          <button id="coverAdd" onclick="kxCover(1)" style="display:flex;align-items:center;gap:9px;height:48px;padding:0 22px;border:1.5px dashed rgba(255,255,255,.55);border-radius:99px;background:rgba(255,255,255,.06);color:#eef1f4;font-size:14px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>上传封面
+          </button>
+          <div id="coverImg" style="display:none;position:absolute;inset:0;background:linear-gradient(120deg,#1d3b8f,#2E6FE8 55%,#4f8cff);align-items:center;justify-content:center;color:#dbe6ff;font-size:13px;letter-spacing:.4px;">cover.png · 900×383</div>
+          <button id="coverEdit" onclick="kxCover(0)" style="display:none;position:absolute;bottom:12px;right:12px;height:30px;padding:0 14px;border:none;border-radius:99px;background:rgba(15,20,25,.72);color:#fff;font-size:12px;">移除封面</button>
+        </div>
+        <div style="padding:22px 28px 40px;font-family:-apple-system,'Segoe UI','PingFang SC',sans-serif;">
+          <div style="display:flex;align-items:center;gap:11px;margin-bottom:18px;">
+            <div style="width:42px;height:42px;border-radius:50%;background:#0f1419;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:17px;flex:none;">c</div>
+            <div style="min-width:0;flex:1;"><div style="font-weight:500;color:#0f1419;font-size:15px;">cogsec</div><div style="color:#536471;font-size:13.5px;">@affaanmustafa · 文章</div></div>
+          </div>
+          <h1 style="margin:0 0 6px;font-size:30px;line-height:1.22;font-weight:500;color:#0f1419;letter-spacing:-.6px;">【翻译】Everything Claude Code 指南</h1>
+          <div style="margin:0 0 22px;font-size:13.5px;color:#536471;">原帖 · <span style="color:#1d9bf0;">x.com/affaanmustafa</span></div>
+          <p style="margin:0 0 20px;font-size:18px;line-height:1.65;color:#0f1419;">在 <strong>《Claude Code 简明指南》</strong> 中，我涵盖了基础设置：skills、hooks、子代理、MCPs、插件，以及构成有效工作流骨干的配置模式。</p>
+          <div style="margin:0 0 20px;border:1px solid #cfd9de;border-radius:16px;padding:13px 15px;">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;"><div style="width:20px;height:20px;border-radius:50%;background:#0f1419;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:10px;">c</div><span style="font-weight:500;color:#0f1419;font-size:13.5px;">cogsec</span><span style="color:#536471;font-size:13.5px;">@affaanmustafa</span></div>
+            <div style="font-size:14px;line-height:1.5;color:#0f1419;">这是我经过 10 个月每日使用后的完整设置：skills、hooks、子代理、MCPs、插件……</div>
+          </div>
+          <h2 style="margin:26px 0 10px;font-size:22px;font-weight:500;color:#0f1419;line-height:1.35;letter-spacing:-.3px;">Token Economics</h2>
+          <p style="margin:0;font-size:18px;line-height:1.65;color:#0f1419;">把每一次会话都当作有预算的项目来经营。上下文窗口是你最稀缺的资源。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- style check -->
+    <div id="viewLint" style="display:none;padding:22px 22px 60px;">
+      <div style="max-width:600px;margin:0 auto;" class="kx-anim">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;"><div style="font-size:16px;font-weight:500;color:#1a1a17;">样式检查</div><span style="font-size:12.5px;color:var(--tx3);">推送前，按 X 文章规则检查这篇笔记</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <span class="kx-chip" style="background:#FAEEDA;color:#854F0B;">2 处提示</span>
+          <span class="kx-chip" style="background:#E6F1FB;color:#0C447C;">1 条信息</span>
+          <span class="kx-chip" style="background:#E1F5EE;color:#0F6E56;">2 项通过</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <div style="display:flex;gap:11px;padding:13px 14px;background:#fff;border:1px solid #F0DFBE;border-left:3px solid #EF9F27;border-radius:0 10px 10px 0;">
+            <svg width="17" height="17" style="flex:none;margin-top:1px" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+            <div><div style="font-size:13.5px;font-weight:500;color:#33322c;margin-bottom:2px;">检测到 Markdown 表格</div><div style="font-size:12.5px;color:var(--tx2);line-height:1.5;">X 文章不支持表格，推送时会转为纯文本列表 · 第 14 行</div></div>
+          </div>
+          <div style="display:flex;gap:11px;padding:13px 14px;background:#fff;border:1px solid #F0DFBE;border-left:3px solid #EF9F27;border-radius:0 10px 10px 0;">
+            <svg width="17" height="17" style="flex:none;margin-top:1px" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+            <div><div style="font-size:13.5px;font-weight:500;color:#33322c;margin-bottom:2px;">arch.png 体积 6.1 MB</div><div style="font-size:12.5px;color:var(--tx2);line-height:1.5;">超过 5 MB，relay 会在入库时自动重新编码压缩 · 第 20 行</div></div>
+          </div>
+          <div style="display:flex;gap:11px;padding:13px 14px;background:#fff;border:1px solid #CFE0F2;border-left:3px solid #378ADD;border-radius:0 10px 10px 0;">
+            <svg width="17" height="17" style="flex:none;margin-top:1px" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="8"/></svg>
+            <div><div style="font-size:13.5px;font-weight:500;color:#33322c;margin-bottom:2px;">正文含 3 个外部链接</div><div style="font-size:12.5px;color:var(--tx2);line-height:1.5;">X 文章正文链接以纯文本展示，不会内联成卡片</div></div>
+          </div>
+          <div style="display:flex;gap:11px;padding:13px 14px;background:#fff;border:1px solid #C9E7D9;border-left:3px solid #1D9E75;border-radius:0 10px 10px 0;">
+            <svg width="17" height="17" style="flex:none;margin-top:1px" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+            <div><div style="font-size:13.5px;font-weight:500;color:#33322c;margin-bottom:2px;">图片 alt 文本齐全（2/2）</div><div style="font-size:12.5px;color:var(--tx2);line-height:1.5;">封面与配图都有替代文本</div></div>
+          </div>
+          <div style="display:flex;gap:11px;padding:13px 14px;background:#fff;border:1px solid #C9E7D9;border-left:3px solid #1D9E75;border-radius:0 10px 10px 0;">
+            <svg width="17" height="17" style="flex:none;margin-top:1px" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+            <div><div style="font-size:13.5px;font-weight:500;color:#33322c;margin-bottom:2px;">标题层级正确（H1 → H2）</div><div style="font-size:12.5px;color:var(--tx2);line-height:1.5;">符合 X 文章的单 H1 结构</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== PUSH MODAL ===== -->
+  <div id="pushOv" class="kx-ov" style="display:none;" onclick="kxPush(0)">
+    <div class="kx-card" style="width:420px;max-width:calc(100% - 32px);overflow:hidden;" onclick="event.stopPropagation()">
+      <div id="pushForm">
+        <div style="padding:20px 22px 6px;display:flex;align-items:center;justify-content:space-between;"><div style="font-size:16.5px;font-weight:700;color:#1a1a17;">推送到草稿箱</div><button class="kx-x" onclick="kxPush(0)">×</button></div>
+        <div style="padding:10px 22px 4px;">
+          <div style="display:flex;align-items:center;gap:12px;padding:11px;border:1px solid #ece9e1;border-radius:11px;margin-bottom:14px;background:#faf9f5;">
+            <div style="width:58px;height:32px;border-radius:6px;background:linear-gradient(120deg,#1d3b8f,#2E6FE8);flex:none;"></div>
+            <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#33322c;">封面 · <span id="pushCoverStat">未上传</span></div><div style="font-size:11.5px;color:var(--tx3);">建议尺寸 900 × 383</div></div>
+            <button class="kx-ghost" style="height:30px;font-size:12px;" onclick="kxCover(1)">上传</button>
+          </div>
+          <div style="font-size:12.5px;font-weight:600;color:var(--tx2);margin-bottom:8px;">推送目标</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #e6e3da;border-radius:11px;margin-bottom:16px;">
+            <span class="kx-dot"></span>
+            <div style="flex:1;"><div style="font-size:13.5px;color:#33322c;font-weight:500;">本地 relay · 127.0.0.1:8765</div><div style="font-size:11.5px;color:var(--tx3);">草稿类型 kind = x-article</div></div>
+            <span style="font-size:12px;color:#0F6E56;font-weight:500;">已连接</span>
+          </div>
+          <div style="font-size:12.5px;font-weight:600;color:var(--tx2);margin-bottom:9px;">接下来</div>
+          <div style="display:flex;flex-direction:column;margin-bottom:6px;">
+            <div style="display:flex;gap:11px;"><div style="display:flex;flex-direction:column;align-items:center;"><div style="width:22px;height:22px;border-radius:50%;background:var(--kx);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none;">1</div><div style="width:2px;flex:1;background:#e4e0d5;"></div></div><div style="padding-bottom:12px;font-size:12.5px;color:var(--tx2);line-height:1.5;">草稿（含封面与图片字节）推送到本地 relay 队列</div></div>
+            <div style="display:flex;gap:11px;"><div style="display:flex;flex-direction:column;align-items:center;"><div style="width:22px;height:22px;border-radius:50%;background:#e7e5dd;color:#7c7a70;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none;">2</div><div style="width:2px;flex:1;background:#e4e0d5;"></div></div><div style="padding-bottom:12px;font-size:12.5px;color:var(--tx2);line-height:1.5;">打开 x.com 文章编辑器，Kaitox 扩展自动识别这篇草稿</div></div>
+            <div style="display:flex;gap:11px;"><div style="display:flex;flex-direction:column;align-items:center;"><div style="width:22px;height:22px;border-radius:50%;background:#e7e5dd;color:#7c7a70;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none;">3</div></div><div style="font-size:12.5px;color:var(--tx2);line-height:1.5;">点扩展里的「创建草稿」，在你已登录的账号下生成文章</div></div>
+          </div>
+        </div>
+        <div style="padding:14px 22px 20px;display:flex;gap:10px;"><button class="kx-ghost" style="flex:none;height:42px;padding:0 20px;" onclick="kxPush(0)">取消</button><button class="kx-primary" style="flex:1;height:42px;justify-content:center;font-size:14px;" onclick="kxPushDone()">推送到草稿箱</button></div>
+      </div>
+      <div id="pushOk" style="display:none;padding:40px 30px 30px;text-align:center;">
+        <div style="width:62px;height:62px;border-radius:50%;background:var(--kx);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;animation:kxr .4s cubic-bezier(.2,.8,.3,1);"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <div style="font-size:18px;font-weight:700;color:#1a1a17;margin-bottom:6px;">已推送到草稿箱</div>
+        <div style="font-size:13px;color:var(--tx3);line-height:1.6;margin-bottom:8px;">打开 X 文章编辑器，Kaitox 扩展会自动识别<br>并帮你在已登录的账号下创建草稿</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:#f0eee7;border-radius:99px;font-size:12px;color:var(--tx2);margin-bottom:22px;"><span class="kx-dot"></span>队列中 · 1 篇待发布</div>
+        <div style="display:flex;gap:10px;"><button class="kx-ghost" style="flex:none;height:42px;padding:0 20px;" onclick="kxPush(0)">完成</button><button class="kx-primary" style="flex:1;height:42px;justify-content:center;font-size:14px;" onclick="kxOpen('https://x.com/compose/articles')">打开 X 编辑器<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg></button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS MODAL ===== -->
+  <div id="setOv" class="kx-ov" style="display:none;" onclick="kxSet(0)">
+    <div class="kx-card" style="width:600px;max-width:calc(100% - 32px);height:440px;display:flex;overflow:hidden;" onclick="event.stopPropagation()">
+      <div style="width:150px;flex:none;background:#F2F0E9;border-right:1px solid var(--bd2);padding:16px 10px;">
+        <div style="font-size:11px;font-weight:600;color:var(--tx3);padding:0 8px 8px;letter-spacing:.4px;">KAITOX 设置</div>
+        <button class="kx-tab on" id="tGeneral" onclick="kxTab('General')">常规</button>
+        <button class="kx-tab" id="tAppear" onclick="kxTab('Appear')">预览外观</button>
+        <button class="kx-tab" id="tPush" onclick="kxTab('Push')">推送与扩展</button>
+        <button class="kx-tab" id="tAbout" onclick="kxTab('About')">关于</button>
+      </div>
+      <div class="kx-scroll" style="flex:1;padding:20px 24px;">
+        <div id="paneGeneral">
+          <div style="font-size:15px;font-weight:600;margin-bottom:16px;">常规</div>
+          <div style="margin-bottom:16px;"><div style="font-size:13px;font-weight:500;margin-bottom:6px;">relay 端口</div><input class="kx-fld" value="8765"></div>
+          <div style="margin-bottom:16px;"><div style="font-size:13px;font-weight:500;margin-bottom:6px;">默认草稿类型 (kind)</div><input class="kx-fld" value="x-article" readonly style="background:#f4f2ec;color:#8b897f;"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid #ece9e1;"><div><div style="font-size:13.5px;font-weight:500;">推送后自动复制草稿链接</div><div style="font-size:12px;color:var(--tx3);margin-top:2px;">方便直接粘贴到浏览器</div></div><button class="kx-sw sw" data-on="1" onclick="kxToggle(this)"></button></div>
+        </div>
+        <div id="paneAppear" style="display:none;">
+          <div style="font-size:15px;font-weight:600;margin-bottom:6px;">预览外观</div>
+          <div style="font-size:12px;color:var(--tx3);margin-bottom:16px;line-height:1.5;">仅影响 Obsidian 内的预览。X 文章的实际排版由平台控制。</div>
+          <div style="font-size:13px;font-weight:500;margin-bottom:9px;">主题色</div>
+          <div style="display:flex;gap:11px;margin-bottom:20px;" id="swatches"></div>
+          <div style="font-size:13px;font-weight:500;margin-bottom:9px;">预览字体</div>
+          <div style="display:flex;gap:8px;">
+            <button class="kx-ghost fontb on" style="height:34px;" onclick="kxFont(this)">系统</button>
+            <button class="kx-ghost fontb" style="height:34px;" onclick="kxFont(this)">宋体</button>
+            <button class="kx-ghost fontb" style="height:34px;" onclick="kxFont(this)">等宽</button>
+          </div>
+        </div>
+        <div id="panePush" style="display:none;">
+          <div style="font-size:15px;font-weight:600;margin-bottom:16px;">推送与扩展</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #e6e3da;border-radius:11px;margin-bottom:16px;">
+            <span class="kx-dot"></span><div style="flex:1;"><div style="font-size:13.5px;font-weight:500;">Chrome 扩展已连接</div><div style="font-size:12px;color:var(--tx3);">正在 x.com/compose/articles 轮询队列</div></div>
+            <button class="kx-ghost" style="height:30px;font-size:12px;" onclick="kxOpen('https://x.com/compose/articles')">打开 x.com</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid #ece9e1;"><div><div style="font-size:13.5px;font-weight:500;">大图自动重新编码</div><div style="font-size:12px;color:var(--tx3);margin-top:2px;">超过 5 MB 的图片在 relay 入库时压缩</div></div><button class="kx-sw sw" data-on="1" onclick="kxToggle(this)"></button></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid #ece9e1;"><div><div style="font-size:13.5px;font-weight:500;">保留已推送草稿</div><div style="font-size:12px;color:var(--tx3);margin-top:2px;">创建成功后仍保留在 relay 磁盘</div></div><button class="kx-sw sw" data-on="0" onclick="kxToggle(this)"></button></div>
+        </div>
+        <div id="paneAbout" style="display:none;">
+          <div style="font-size:15px;font-weight:600;margin-bottom:16px;">关于</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;"><div class="kx-logo" style="width:44px;height:44px;font-size:22px;border-radius:12px;"><img class="kx-logo-img" src="data:image/png;base64,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" alt="Kaitox"></div><div><div style="font-size:15px;font-weight:600;">Kaitox for Obsidian</div><div style="font-size:12.5px;color:var(--tx3);">把本地 Markdown 发布为 X 文章草稿</div></div></div>
+          <div style="font-size:13px;color:var(--tx2);line-height:2;">
+            版本 &nbsp;<span style="color:var(--tx3);">0.4.0 · 原型</span><br>
+            GitHub &nbsp;<span style="color:var(--kx);">github.com/kaitox/kaitox</span><br>
+            文档 &nbsp;<span style="color:var(--kx);">docs/ARCHITECTURE.md</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+(function(){
+  var root=document.getElementById('kxRoot');
+  var lintOn=false;
+  window.kxLint=function(){
+    lintOn=!lintOn;
+    document.getElementById('viewPrev').style.display=lintOn?'none':'flex';
+    document.getElementById('viewLint').style.display=lintOn?'block':'none';
+    document.getElementById('lintBtn').classList.toggle('on',lintOn);
+  };
+  window.kxCover=function(on){
+    document.getElementById('coverAdd').style.display=on?'none':'flex';
+    document.getElementById('coverImg').style.display=on?'flex':'none';
+    document.getElementById('coverEdit').style.display=on?'block':'none';
+    document.getElementById('pushCoverStat').textContent=on?'已上传':'未上传';
+  };
+  window.kxPush=function(on){
+    document.getElementById('pushOv').style.display=on?'flex':'none';
+    if(on){document.getElementById('pushForm').style.display='block';document.getElementById('pushOk').style.display='none';}
+  };
+  window.kxPushDone=function(){document.getElementById('pushForm').style.display='none';document.getElementById('pushOk').style.display='block';};
+  window.kxSet=function(on){document.getElementById('setOv').style.display=on?'flex':'none';};
+  window.kxTab=function(t){
+    ['General','Appear','Push','About'].forEach(function(k){
+      document.getElementById('pane'+k).style.display=k===t?'block':'none';
+      var m={General:'tGeneral',Appear:'tAppear',Push:'tPush',About:'tAbout'};
+      document.getElementById(m[k]).classList.toggle('on',k===t);
+    });
+  };
+  window.kxToggle=function(b){b.dataset.on=b.dataset.on==='1'?'0':'1';paint(b);};
+  window.kxFont=function(b){root.querySelectorAll('.fontb').forEach(function(x){x.classList.remove('on');});b.classList.add('on');};
+  window.kxOpen=function(u){if(window.openLink){openLink(u);}else{window.open(u,'_blank');}};
+  function paint(b){var on=b.dataset.on==='1';b.style.background=on?(getComputedStyle(root).getPropertyValue('--kx')||'#2E6FE8'):'#d6d3cb';b.innerHTML='<span class="k" style="left:'+(on?'19px':'2.5px')+'"></span>';}
+  root.querySelectorAll('.sw').forEach(paint);
+  var colors=['#2E6FE8','#1d9bf0','#7F77DD','#0F6E56','#1a1a17'];var wrap=document.getElementById('swatches');
+  colors.forEach(function(c){var b=document.createElement('button');b.className='kx-swatch';b.style.background=c;b.style.boxShadow=(c==='#2E6FE8')?('0 0 0 2px '+c):'0 0 0 1px #e0ddd3';b.onclick=function(){root.style.setProperty('--kx',c);wrap.querySelectorAll('.kx-swatch').forEach(function(x){x.style.boxShadow='0 0 0 1px #e0ddd3';});b.style.boxShadow='0 0 0 2px '+c;root.querySelectorAll('.sw').forEach(paint);};wrap.appendChild(b);});
+})();
+</script>
+
+</body>
+</html>

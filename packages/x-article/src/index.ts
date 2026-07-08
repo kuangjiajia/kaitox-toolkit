@@ -18,6 +18,7 @@ export * from './types.js';
 export {
   markdownToContentState,
   collectImageSources,
+  parseTweetId,
 } from './contentState.js';
 export {
   XArticleClient,
@@ -58,12 +59,21 @@ export {
   makeCoverAsset,
 } from './pushHelpers.js';
 
-// --- mermaid 围栏 → 图片引用变换（渲染由消费方在浏览器里完成）---
+// --- mermaid 围栏 → 图片引用变换（纯文本，Node 可测）---
 export {
   extractMermaidBlocks,
   MERMAID_SRC_PREFIX,
 } from './mermaid.js';
 export type { MermaidBlock, ExtractMermaidResult } from './mermaid.js';
+
+// --- mermaid 图片渲染（浏览器端，mermaid 实例由消费方注入，扩展与 Obsidian 共用）---
+export {
+  MERMAID_INIT_CONFIG,
+  renderMermaidSvg,
+  renderMermaidSvgUrl,
+  renderMermaidPng,
+} from './mermaidRender.js';
+export type { MermaidRenderer } from './mermaidRender.js';
 
 // --- preview（框架无关的渲染层，样式见包根 preview.css）---
 export {

@@ -284,6 +284,21 @@ The rules:
 - **The relay stores any version blindly** — refusing is the consumer's job;
   the relay stays content-agnostic.
 
+### 3.8 Embedded posts (`TWEET` entity)
+
+A **standalone** `x.com`/`twitter.com` status URL — a bare URL that is the entire
+paragraph / its own line — converts to an embedded post: a `TWEET` entity
+(`data: { tweet_id }` only) hosted by an `atomic` block, exactly like `DIVIDER`.
+Two load-bearing details:
+
+- **Bare-standalone only.** `[text](url)` links and URLs mixed inline with sentence
+  text stay `LINK` entities. `parseTweetId` is anchored (`^…$`), so it never fires on
+  inline URLs; the paragraph is only rewritten when *every* line is a status URL.
+- **`data` holds `tweet_id` and nothing else.** X's input is strongly typed —
+  any extra field (e.g. the optional `entity_key` UUID X's own editor sometimes
+  sends) risks `GRAPHQL_VALIDATION_FAILED`. No upload/`media_id` is involved, so this
+  runs purely in `contentState.ts` and in the framework-free preview.
+
 ## 4. Adding a feature (worked example: `linkedin`)
 
 The toolkit is designed so a new feature touches almost nothing that

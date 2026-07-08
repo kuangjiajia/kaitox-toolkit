@@ -130,6 +130,16 @@ function renderAtomic(
       }
       return `<figure class="xp-fig"><img class="xp-img" src="${escapeHtml(resolved)}" alt=""></figure>`;
     }
+    case 'TWEET': {
+      // 预览拿不到帖子正文，渲染一张占位卡片 + 指向该帖的安全链接。
+      // 用规范形式 https://x.com/i/status/<id>（X 会重定向到原帖）。
+      const id = entity.data.tweet_id;
+      const url = `https://x.com/i/status/${encodeURIComponent(id)}`;
+      return (
+        `<figure class="xp-tweet"><a class="xp-tweet-link" href="${escapeHtml(url)}" ` +
+        `target="_blank" rel="noopener noreferrer">View post on X · ${escapeHtml(id)}</a></figure>`
+      );
+    }
     // LINK 是行内实体，不会出现在 atomic 块里（行内渲染见 renderSegment）。
     case 'LINK':
       return '';

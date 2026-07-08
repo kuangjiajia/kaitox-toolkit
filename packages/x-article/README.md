@@ -18,9 +18,9 @@ Dependencies: [`marked`](https://www.npmjs.com/package/marked) (Markdown lexing)
 
 ## How it works
 
-X Articles are edited in a Draft.js-style editor. Under the hood a draft is a `content_state` — an array of `blocks` (paragraphs, headings, list items, quotes, atomic blocks) plus an `entity_map` (links, images, dividers, embedded Markdown). This package:
+X Articles are edited in a Draft.js-style editor. Under the hood a draft is a `content_state` — an array of `blocks` (paragraphs, headings, list items, quotes, atomic blocks) plus an `entity_map` (links, images, dividers, embedded Markdown, embedded posts). This package:
 
-1. **Converts** Markdown into that `content_state` (`markdownToContentState`). Images become `MEDIA` entities that reference `media_id`s, so images must be uploaded *first*.
+1. **Converts** Markdown into that `content_state` (`markdownToContentState`). Images become `MEDIA` entities that reference `media_id`s, so images must be uploaded *first*; a standalone `x.com`/`twitter.com` status URL on its own line becomes an embedded post (`TWEET` entity).
 2. **Talks to X** (`XArticleClient`): chunked media upload (`INIT`/`APPEND`/`FINALIZE`), then a GraphQL `ArticleEntityDraftCreate` mutation, optionally followed by `ArticleEntityUpdateCoverMedia` for a cover image.
 3. **Orchestrates** the whole pipeline (`publishXArticle`): collect image sources → upload each → convert → create draft → set cover.
 
@@ -113,7 +113,8 @@ A runnable version lives at [`examples/publish.ts`](examples/publish.ts).
 | `sanitizeContentState(cs)` | Whitelist-rebuild a `content_state` so X accepts it: strips unknown fields, drops invalid inline styles, downgrades unsupported block types (`header-three` → `header-two`, `code-block` → `unstyled`). Applied automatically by `createArticleDraft`. |
 | `checkMarkdownStyle(markdown, opts?)` | Lint Markdown for X-friendliness; returns a `StyleReport`. See [Style checker](#style-checker). |
 | `toPlaintextMarkdown(markdown)` | Degrade constructs the converter would lose (HTML blocks, nested lists) into plain Markdown; tables and code fences are kept — X renders them natively. |
-| `extractMermaidBlocks(markdown)` | Replace top-level ```` ```mermaid ```` fences with `![...](mermaid://diagram-N)` image references, returning the transformed markdown plus the extracted blocks — render each block to an image yourself (needs a browser; the Kaitox extension uses mermaid.js) and serve the bytes through `fetchImage`. |
+| `extractMermaidBlocks(markdown)` | Replace top-level ```` ```mermaid ```` fences with `![...](mermaid://diagram-N)` image references, returning the transformed markdown plus the extracted blocks. Render each block with the helpers below and serve the bytes through `fetchImage`. |
+| `renderMermaidSvgUrl(mermaid, code)` / `renderMermaidPng(mermaid, code)` / `MERMAID_INIT_CONFIG` | Browser-only mermaid → image renderers (SVG blob URL for preview, PNG bytes for upload). Load mermaid.js yourself (it's ~8MB), `mermaid.initialize(MERMAID_INIT_CONFIG)` once, and pass the instance in — so every consumer's diagrams match pixel-for-pixel. Both the extension and the Obsidian plugin use these. |
 | `renderPreviewHtml(markdown, opts?)` | Render an approximation of the published article as an escaped HTML string. See [Preview renderer](#preview-renderer). |
 | `renderModelHtml(model, opts?)` / `buildPreviewModel(markdown)` | The two halves of `renderPreviewHtml`: build a render-ready model, then render it. |
 | `segmentText(text, styles, entityRanges)` / `groupBlocks(blocks)` | Low-level preview helpers: split a block's text into uniformly-styled segments; group consecutive list items for `<ul>`/`<ol>`. Use these to write your own renderer (e.g. native DOM or React) instead of the HTML one. |
@@ -137,6 +138,7 @@ Exported types: `ContentState`, `ContentBlock`, `BlockType`, `EntityMapEntry`, `
 | `**b**` `*i*` `~~s~~` | `inline_style_ranges` (`Bold` / `Italic` / `Strikethrough` — the only styles X accepts) |
 | `` `inline code` `` | Plain text (X has no inline code style) |
 | `[text](url)` | `LINK` entity |
+| A standalone `x.com`/`twitter.com` status URL on its own line | `atomic` block + `TWEET` entity (embedded post; bare-standalone only) |
 | `![alt](src)` | `atomic` block + `MEDIA` entity (needs an uploaded `media_id`) |
 | Fenced code | `atomic` block + `MARKDOWN` entity (rendered as a plaintext code box) |
 | Tables | `atomic` block + `MARKDOWN` entity — X renders them natively as tables |

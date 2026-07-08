@@ -186,7 +186,7 @@ Structure:
 
 ### 4.2 entity_map (entities)
 
-Four types:
+Five types:
 
 ```jsonc
 // Image: upload first to get media_id, then reference it
@@ -207,13 +207,19 @@ Four types:
 // Link: referenced by a normal/list block's entity_range, overriding the displayed text
 { "key": 30, "value": { "type": "LINK", "mutability": "Mutable",
     "data": { "url": "https://x.com/AnatoliKopadze/status/2069475753184329889" } } }
+
+// Embedded post (quote tweet): a standalone x.com/twitter.com status URL on its own line.
+// data holds ONLY tweet_id (X's input is strongly typed; extra fields → GRAPHQL_VALIDATION_FAILED).
+// The captured payload's entity_key (a UUID) is optional, so it is omitted.
+{ "key": 1, "value": { "type": "TWEET", "mutability": "Immutable",
+    "data": { "tweet_id": "2074501266294903128" } } }
 ```
 
 **Three conventions you must follow (otherwise X rejects it or renders it wrong):**
 
-1. **Entity `key`s start at 0 and increment in the top-to-bottom order they appear in the document.** Block-level entities (MEDIA/DIVIDER/MARKDOWN) and inline entities (LINK) **share the same counter**.
+1. **Entity `key`s start at 0 and increment in the top-to-bottom order they appear in the document.** Block-level entities (MEDIA/DIVIDER/MARKDOWN/TWEET) and inline entities (LINK) **share the same counter**.
 2. **MEDIA's `local_media_id` === that entity's own `key`.**
-3. **The atomic block and the entity it carries**: the atomic block's sole `entity_range.key` points at the MEDIA/DIVIDER/MARKDOWN in entity_map.
+3. **The atomic block and the entity it carries**: the atomic block's sole `entity_range.key` points at the MEDIA/DIVIDER/MARKDOWN/TWEET in entity_map.
 
 ---
 
@@ -229,6 +235,7 @@ Four types:
 | `**bold**` `*italic*` `~~strike~~` | `inline_style_ranges`: `Bold` / `Italic` / `Strikethrough` |
 | `` `inline code` `` | Plain text (X has no inline-code style; the `Code` enum is verified rejected) |
 | `[text](url)` | New `LINK` entity + `entity_range` covering the "text" |
+| A standalone `x.com`/`twitter.com` status URL on its own line | New `TWEET` entity (`data.tweet_id`) + one `atomic` block — an embedded post. Only bare, standalone URLs trigger this; `[text](url)` and inline URLs stay `LINK`s. |
 | `![alt](src)` | **Upload the image first** → new `MEDIA` entity + one `atomic` block |
 | ` ```code``` ` | New `MARKDOWN` entity (`data.markdown` = the full fenced string, wrapped in newlines) + one `atomic` block |
 | `---` | New `DIVIDER` entity + one `atomic` block |

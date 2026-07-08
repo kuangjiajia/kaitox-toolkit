@@ -4,7 +4,7 @@
  *
  * 用法：npm test （会先 build 再跑）
  */
-import { markdownToContentState, collectImageSources } from '../dist/contentState.js';
+import { markdownToContentState, collectImageSources, parseTweetId } from '../dist/contentState.js';
 import { sanitizeContentState } from '../dist/xArticleClient.js';
 import { deriveTitle } from '../dist/publishArticle.js';
 
@@ -32,6 +32,8 @@ Harness Engineering 关心的是 Agent 怎么安全地行动。
 ---
 
 ![diagram](https://cdn.example.com/a.png)
+
+https://x.com/arena/status/2074591193783320851
 
 参考 [Anatoli Kopadze: Loops explained](https://x.com/AnatoliKopadze/status/2068328135611822149)
 `;
@@ -78,7 +80,7 @@ check('deriveTitle 优先 H1', deriveTitle('## 二级在前\n\n# 一级在后\n'
 check('deriveTitle 无 H1 时退到首个标题', deriveTitle('### 只有三级\n') === '只有三级');
 check('blockquote ×1', byType('blockquote').length === 1);
 check('unordered-list-item ×2', byType('unordered-list-item').length === 2);
-check('atomic ×3 (code+hr+media)', byType('atomic').length === 3, `(got ${byType('atomic').length})`);
+check('atomic ×4 (code+hr+media+tweet)', byType('atomic').length === 4, `(got ${byType('atomic').length})`);
 
 // atomic 不变量
 check(
@@ -90,7 +92,7 @@ check(
 
 // 实体顺序 & key 连续
 const types = ents.map((e) => e.value.type);
-check('实体顺序 MARKDOWN,DIVIDER,MEDIA,LINK', JSON.stringify(types) === JSON.stringify(['MARKDOWN', 'DIVIDER', 'MEDIA', 'LINK']), `(got ${types})`);
+check('实体顺序 MARKDOWN,DIVIDER,MEDIA,TWEET,LINK', JSON.stringify(types) === JSON.stringify(['MARKDOWN', 'DIVIDER', 'MEDIA', 'TWEET', 'LINK']), `(got ${types})`);
 check('实体 key 从 0 连续', ents.every((e, i) => e.key === i));
 
 // MEDIA
@@ -105,6 +107,19 @@ check('MARKDOWN = ```plaintext 围栏（换行包裹）', mdEnt.value.data.markd
 check('MARKDOWN mutable（Immutable 会被 X 渲染端丢内容）', mdEnt.value.mutability === 'Mutable');
 check('DIVIDER.data = {}', JSON.stringify(ents.find((e) => e.value.type === 'DIVIDER').value.data) === '{}');
 
+// TWEET（独占一行的帖子链接 → 内嵌引用推文）
+const tweetEnt = ents.find((e) => e.value.type === 'TWEET');
+check('TWEET Immutable', tweetEnt.value.mutability === 'Immutable');
+check('TWEET.data 只含 tweet_id', JSON.stringify(Object.keys(tweetEnt.value.data)) === JSON.stringify(['tweet_id']));
+check('TWEET.tweet_id 取自链接', tweetEnt.value.data.tweet_id === '2074591193783320851', `(got ${tweetEnt.value.data.tweet_id})`);
+const tweetBlock = blocks.find((b) => b.entity_ranges.some((r) => ents[r.key]?.value.type === 'TWEET'));
+check(
+  'TWEET 宿主是 atomic 且满足不变量',
+  tweetBlock.type === 'atomic' && tweetBlock.text === ' ' && tweetBlock.entity_ranges.length === 1 &&
+    tweetBlock.entity_ranges[0].offset === 0 && tweetBlock.entity_ranges[0].length === 1,
+);
+check('独占帖子链接不额外产生 LINK', ents.filter((e) => e.value.type === 'LINK').length === 1);
+
 // LINK
 const linkBlock = blocks.find((b) => b.entity_ranges.some((r) => ents[r.key]?.value.type === 'LINK'));
 const linkRange = linkBlock.entity_ranges.find((r) => ents[r.key].value.type === 'LINK');
@@ -113,6 +128,17 @@ check('LINK url 正确', ents[linkRange.key].value.data.url === 'https://x.com/A
 check('LINK range 覆盖显示文字', linkBlock.text.slice(linkRange.offset, linkRange.offset + linkRange.length) === 'Anatoli Kopadze: Loops explained');
 
 check('无跳过图片', skippedImages.length === 0);
+
+// parseTweetId：帖子链接 → 数字 id；非帖子/带文字的形式 → undefined
+check('parseTweetId x.com', parseTweetId('https://x.com/arena/status/2074591193783320851') === '2074591193783320851');
+check('parseTweetId twitter.com + ?query', parseTweetId('https://twitter.com/user/status/123?s=20') === '123');
+check('parseTweetId 子域 mobile.', parseTweetId('https://mobile.twitter.com/user/status/456') === '456');
+check('parseTweetId i/web/status', parseTweetId('https://x.com/i/web/status/789') === '789');
+check('parseTweetId 结尾 /photo/1', parseTweetId('https://x.com/u/status/321/photo/1') === '321');
+check('parseTweetId 主页/资料页 → undefined', parseTweetId('https://x.com/arena') === undefined);
+check('parseTweetId 非 X 域名 → undefined', parseTweetId('https://example.com/u/status/1') === undefined);
+check('parseTweetId 带前后文字 → undefined', parseTweetId('see https://x.com/u/status/1 here') === undefined);
+check('parseTweetId markdown 链接语法 → undefined', parseTweetId('[t](https://x.com/u/status/1)') === undefined);
 
 // depth 回归 —— X 的 GraphQL input 强类型，带 depth 会 GRAPHQL_VALIDATION_FAILED
 check('转换产物 blocks 不含 depth', blocks.every((b) => !('depth' in b)));
