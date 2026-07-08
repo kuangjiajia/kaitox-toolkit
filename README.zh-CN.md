@@ -39,24 +39,36 @@ kaitox x push post.md
 
 **环境要求：** Node.js ≥ 18、一个你保持登录的 X 账号，上传那一步还需要 Chrome（或任意 Chromium 内核浏览器）。
 
-从 npm 安装 CLI——它会带上本地 relay，并提供 `kaitox` 命令：
+**1. 安装 CLI**（npm）——它会带上本地 relay，并提供 `kaitox` 命令：
 
 ```bash
 npm i -g @kaitox/cli
 kaitox --version
 ```
 
-从 [最新 release](https://github.com/kuangjiajia/kaitox-toolkit/releases) 安装 Chrome 插件：下载 `kaitox-extension-<版本>.zip` 并解压，然后打开 `chrome://extensions`，开启**开发者模式**，点**加载已解压的扩展程序**，选解压出来的文件夹。
+**2. 启动本地 relay** —— 插件要轮询 `127.0.0.1` 上的它，所以它必须在跑：
+
+```bash
+kaitox relay --daemon      # 后台运行
+```
+
+`kaitox x push` 也会自动拉起 relay，所以先推送的话可以跳过这步；可用 `kaitox relay status` / `kaitox relay stop` 管理。
+
+**3. 安装 Chrome 插件** —— 到 Releases 页下载：
+
+<https://github.com/kuangjiajia/kaitox-toolkit/releases>
+
+打开 **Kaitox Chrome extension** 那个 release，下载 `kaitox-extension-<版本>.zip` 解压，然后打开 `chrome://extensions`，开启**开发者模式**，点**加载已解压的扩展程序**，选解压出来的文件夹。
 
 > 🖼️ _教程图 —— 在 `chrome://extensions` 加载已解压的扩展程序。_ —— `docs/images/01-load-extension.png`
 <!-- ![加载已解压的扩展程序](docs/images/01-load-extension.png) -->
 
-在登录状态下打开 <https://x.com/compose/articles>，页面角落应出现 Kaitox 面板。
+在登录状态下打开 <https://x.com/compose/articles> —— relay 在跑时，页面角落会出现 Kaitox 面板。
 
 > 🖼️ _教程图 —— X 草稿页上的 Kaitox 面板。_ —— `docs/images/02-panel.png`
 <!-- ![x.com/compose/articles 上的 Kaitox 面板](docs/images/02-panel.png) -->
 
-（可选）[Obsidian 插件](apps/obsidian/README.zh-CN.md)可直接从 vault 推送草稿：从同一个 [release](https://github.com/kuangjiajia/kaitox-toolkit/releases) 下载 `main.js` 和 `manifest.json` 放进 `.obsidian/plugins/kaitox/`，在设置里启用。[agent skill](skills/README.zh-CN.md) 则能让 coding agent 替你跑完整个流程。
+（可选）[Obsidian 插件](apps/obsidian/README.zh-CN.md)可直接从 vault 推送草稿：到同一个 [Releases 页](https://github.com/kuangjiajia/kaitox-toolkit/releases)，打开 **Kaitox Obsidian plugin** 那个 release，把它的 `main.js` 和 `manifest.json` 放进 `.obsidian/plugins/kaitox/`，在设置里启用。[agent skill](skills/README.zh-CN.md) 则能让 coding agent 替你跑完整个流程。
 
 > 上面的占位是注释掉的图片标签。把截图放到对应的 `docs/images/…` 路径，再取消每条说明下面那行的注释即可。见 [`docs/images/README.md`](docs/images/README.md)。
 

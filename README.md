@@ -39,24 +39,36 @@ Under the hood, three npm packages (ESM-only, Node >= 18):
 
 **Requirements:** Node.js ≥ 18, an X account you stay logged into, and Chrome (or any Chromium browser) for the upload step.
 
-Install the CLI from npm — it pulls in the local relay and gives you the `kaitox` command:
+**1. Install the CLI** from npm — it brings the local relay with it and gives you the `kaitox` command:
 
 ```bash
 npm i -g @kaitox/cli
 kaitox --version
 ```
 
-Install the Chrome extension from the [latest release](https://github.com/kuangjiajia/kaitox-toolkit/releases): download `kaitox-extension-<version>.zip` and unzip it, then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the unzipped folder.
+**2. Start the local relay** — the extension polls it on `127.0.0.1`, so it has to be running:
+
+```bash
+kaitox relay --daemon      # runs in the background
+```
+
+`kaitox x push` also starts the relay automatically, so you can skip this if you push first; manage it with `kaitox relay status` / `kaitox relay stop`.
+
+**3. Install the Chrome extension** — download it from the Releases page:
+
+<https://github.com/kuangjiajia/kaitox-toolkit/releases>
+
+Open the **Kaitox Chrome extension** release, download `kaitox-extension-<version>.zip`, and unzip it. Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the unzipped folder.
 
 > 🖼️ _Tutorial image — loading the unpacked extension in `chrome://extensions`._ — `docs/images/01-load-extension.png`
 <!-- ![Load the unpacked extension](docs/images/01-load-extension.png) -->
 
-Open <https://x.com/compose/articles> while logged in; the Kaitox panel should appear in the corner.
+Open <https://x.com/compose/articles> while logged in — with the relay running, the Kaitox panel appears in the corner.
 
 > 🖼️ _Tutorial image — the Kaitox panel on the X drafts page._ — `docs/images/02-panel.png`
 <!-- ![Kaitox panel on x.com/compose/articles](docs/images/02-panel.png) -->
 
-(Optional) the [Obsidian plugin](apps/obsidian/README.md) pushes drafts straight from your vault: from the same [release](https://github.com/kuangjiajia/kaitox-toolkit/releases), drop `main.js` and `manifest.json` into `.obsidian/plugins/kaitox/` and enable it in Settings. The [agent skill](skills/README.md) lets a coding agent run the whole loop for you.
+(Optional) the [Obsidian plugin](apps/obsidian/README.md) pushes drafts straight from your vault: from the same [Releases page](https://github.com/kuangjiajia/kaitox-toolkit/releases), open the **Kaitox Obsidian plugin** release and drop its `main.js` and `manifest.json` into `.obsidian/plugins/kaitox/`, then enable it in Settings. The [agent skill](skills/README.md) lets a coding agent run the whole loop for you.
 
 > Placeholders above are commented-out image tags. Drop the screenshot at the given `docs/images/…` path and uncomment the line right below each caption. See [`docs/images/README.md`](docs/images/README.md).
 
