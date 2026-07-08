@@ -7,6 +7,7 @@
  */
 import { Plugin, Notice, WorkspaceLeaf, requestUrl } from 'obsidian';
 import { HttpRelayClient } from '@kaitox/relay-protocol';
+import { checkMarkdownStyle } from '@kaitox/x-article';
 import { KaitoxView, VIEW_TYPE_KAITOX } from './view.js';
 import { PushModal } from './pushModal.js';
 import { resolveActiveNote, type Resolved } from './resolve.js';
@@ -20,7 +21,7 @@ export default class KaitoxPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE_KAITOX, (leaf) => new KaitoxView(leaf, this));
 
-    this.addRibbonIcon('send', 'Kaitox：发布预览', () => void this.activateView());
+    this.addRibbonIcon('drum', 'Kaitox：发布预览', () => void this.activateView());
 
     this.addCommand({
       id: 'kaitox-open-panel',
@@ -77,6 +78,7 @@ export default class KaitoxPlugin extends Plugin {
       body: resolved.body,
       assets: resolved.assets,
       cover: resolved.cover,
+      report: checkMarkdownStyle(resolved.body, { assetMap: resolved.assetMap }),
       unresolved: resolved.unresolved,
       notePath: file.path,
       vault: this.app.vault.getName(),

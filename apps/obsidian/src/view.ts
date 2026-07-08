@@ -92,7 +92,7 @@ export class KaitoxView extends ItemView {
     return 'Kaitox 发布预览';
   }
   getIcon(): string {
-    return 'send';
+    return 'drum';
   }
 
   async onOpen(): Promise<void> {
@@ -172,7 +172,7 @@ export class KaitoxView extends ItemView {
     this.lintBadgeEl.hide();
     this.lintBtnEl.onclick = () => this.toggleLint();
 
-    const push = right.createEl('button', { cls: 'kx-primary' });
+    const push = right.createEl('button', { cls: 'kx-primary kx-push' });
     const pushIcon = push.createSpan({ cls: 'kx-ic' });
     setIcon(pushIcon, 'send');
     push.createSpan({ text: '推送到草稿箱' });
