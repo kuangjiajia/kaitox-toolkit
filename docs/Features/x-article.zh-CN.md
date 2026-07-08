@@ -14,6 +14,8 @@
 
 不走官方 API、不需要 API key：插件驱动的是你浏览器里已登录 x.com 会话的网页端接口，正常的浏览器登录态就是全部所需。
 
+想知道哪些 Markdown 元素能过转换这一关？看 [Markdown → X 文章格式支持一览](x-article-markdown-mapping.zh-CN.md)。
+
 ## 使用入口
 
 | 入口 | 做什么 | 详情 |
@@ -61,7 +63,9 @@ cp skills/kaitox-x-article/SKILL.md ~/.codex/prompts/kaitox-x-article.md
 
 ![x.com/compose/articles 上的 Kaitox 面板](../images/02-panel.png)
 
-（可选）[Obsidian 插件](../../apps/obsidian/README.zh-CN.md)可直接从 vault 推送草稿：到同一个 [Releases 页](https://github.com/kuangjiajia/kaitox-toolkit/releases)，打开 **Kaitox Obsidian plugin** 那个 release，把它的 `main.js` 和 `manifest.json` 放进 `.obsidian/plugins/kaitox/`，在设置里启用。
+（可选）[Obsidian 插件](../../apps/obsidian/README.zh-CN.md)可直接从 vault 推送草稿：到同一个 [Releases 页](https://github.com/kuangjiajia/kaitox-toolkit/releases)，打开 **Kaitox Obsidian plugin** 那个 release，把它的 `main.js` 和 `manifest.json` 放进 `.obsidian/plugins/kaitox/`，在设置里启用。装好后，在笔记旁打开 X 文章面板，就能预览渲染后的草稿、做样式检查，并推送到 X 草稿箱。
+
+![Obsidian 里的 Kaitox X 文章面板，在编辑器旁预览笔记](../images/05-obsidian-panel.png)
 
 ## 使用
 

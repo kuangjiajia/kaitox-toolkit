@@ -14,6 +14,8 @@ The easiest way to use it: install the agent skill, then just ask your coding ag
 
 No official API, no API keys: the extension drives the web endpoints of your own logged-in x.com session, so your normal browser login is all it needs.
 
+Wondering which Markdown elements survive the conversion? See the [Markdown → X Article format-support reference](x-article-markdown-mapping.md).
+
 ## Surfaces
 
 | Surface | What it does | Details |
@@ -61,7 +63,9 @@ Open <https://x.com/compose/articles> while logged in — with the relay running
 
 ![Kaitox panel on x.com/compose/articles](../images/02-panel.png)
 
-(Optional) the [Obsidian plugin](../../apps/obsidian/README.md) pushes drafts straight from your vault: from the same [Releases page](https://github.com/kuangjiajia/kaitox-toolkit/releases), open the **Kaitox Obsidian plugin** release and drop its `main.js` and `manifest.json` into `.obsidian/plugins/kaitox/`, then enable it in Settings.
+(Optional) the [Obsidian plugin](../../apps/obsidian/README.md) pushes drafts straight from your vault: from the same [Releases page](https://github.com/kuangjiajia/kaitox-toolkit/releases), open the **Kaitox Obsidian plugin** release and drop its `main.js` and `manifest.json` into `.obsidian/plugins/kaitox/`, then enable it in Settings. Once installed, open the X Article panel next to your note to preview the rendered draft, run the style check, and push to your X drafts.
+
+![The Kaitox X Article panel in Obsidian, previewing a note next to the editor](../images/05-obsidian-panel.png)
 
 ## Usage
 

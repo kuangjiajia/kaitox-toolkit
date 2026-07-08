@@ -12,5 +12,6 @@ All four are in place and shown live in the READMEs. To replace one, overwrite t
 | `02-panel.png` | The Kaitox panel in the corner of `x.com/compose/articles`. |
 | `03-push.png` | The agent (Claude Code / Codex) syncing a Markdown file — running the `kaitox-x-article` skill and the local `kaitox` CLI. |
 | `04-upload-result.png` | The Kaitox draft box (草稿箱) on `x.com` with a draft selected and the **上传草稿** button. |
+| `05-obsidian-panel.png` | The Kaitox X Article panel in Obsidian: a note in the editor with the live preview, style-check, and push-to-drafts controls alongside. |
 
 Suggested: ~1600px wide, light background. Keep the file names stable so the README links don't drift.
