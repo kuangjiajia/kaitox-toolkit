@@ -1,5 +1,5 @@
 /* kaitox 样式。作用域限定在注入的按钮 #kaitox-hdr-btn 和弹窗 .kx-overlay/#kaitox-modal 下，避免污染 x.com。
-   弹窗配色参照「草稿箱」设计稿：白卡片两栏布局 + 黑色主按钮；设置面板沿用 YouMind 米白风格。 */
+   弹窗配色参照「草稿箱」设计稿：白卡片两栏布局 + 黑色主按钮； */
 
 /* --- 注入到 Articles 标题行的按钮 --- */
 #kaitox-hdr-btn {

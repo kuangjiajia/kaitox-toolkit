@@ -1,6 +1,5 @@
 /**
  * 设置浮窗：点插件工具栏图标（或草稿弹窗底部「设置」）后，
- * 在页面右侧浮出的整高圆角面板（YouMind 式），不遮罩、不打断页面。
  * React 渲染；root 懒创建、全页单例。开关走三态：open → closing（播滑出动画）→ closed。
  */
 import { useState } from 'react';
