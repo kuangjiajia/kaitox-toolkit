@@ -1,0 +1,82 @@
+# Publishes the Obsidian plugin to its dedicated distribution repo
+# (kuangjiajia/kaitox-obsidian), which is the repo submitted to the Obsidian
+# community-plugins directory.
+#
+# Trigger: push a tag like `obsidian-v0.6.1` from this monorepo. The workflow
+# builds apps/obsidian, then in the distribution repo it (1) syncs the root
+# manifest.json + versions.json and (2) creates a GitHub Release whose tag is the
+# BARE version (`0.6.1`, no prefix — Obsidian requires tag == manifest.version)
+# with main.js / manifest.json / styles.css attached as binary assets.
+#
+# Requires repo secret OBSIDIAN_RELEASE_TOKEN: a PAT with contents:write on the
+# distribution repo (fine-grained token scoped to kaitox-obsidian, or a classic
+# token with `repo`).
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      - 'obsidian-v*'
+
+env:
+  RELEASE_REPO: kuangjiajia/kaitox-obsidian
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build:obsidian
+
+      - name: Resolve version and sanity-check tag
+        id: v
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./apps/obsidian/dist/manifest.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#obsidian-v}"
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::tag ($TAG_VERSION) does not match manifest version ($VERSION)"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Sync manifest + versions into the distribution repo
+        env:
+          GH_TOKEN: ${{ secrets.OBSIDIAN_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${RELEASE_REPO}.git" release-repo
+          cp apps/obsidian/dist/manifest.json release-repo/manifest.json
+          cp apps/obsidian/versions.json       release-repo/versions.json
+          cd release-repo
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json versions.json
+          if git diff --cached --quiet; then
+            echo "manifest/versions unchanged — nothing to commit"
+          else
+            git commit -m "chore: sync manifest for ${{ steps.v.outputs.version }}"
+            git push
+          fi
+
+      - name: Create release with plugin assets
+        env:
+          GH_TOKEN: ${{ secrets.OBSIDIAN_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.v.outputs.version }}"
+          gh release create "$VERSION" \
+            apps/obsidian/dist/main.js \
+            apps/obsidian/dist/manifest.json \
+            apps/obsidian/dist/styles.css \
+            --repo "$RELEASE_REPO" \
+            --title "$VERSION" \
+            --notes "Kaitox Obsidian plugin $VERSION"

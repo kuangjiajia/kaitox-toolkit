@@ -47,15 +47,17 @@ cp skills/kaitox-x-article/SKILL.md ~/.codex/prompts/kaitox-x-article.md
 
 > 想不借助 agent、自己在终端里跑？用 `npm i -g @kaitox/cli` 装上 CLI——命令与参数说明、以及 relay 管理都在 [CLI README](../../packages/cli/README.zh-CN.md) 里。
 
-> **注意：** Chrome 插件和 Obsidian 插件正在 Chrome 应用商店和 Obsidian 社区插件目录审核中。审核通过前，请按下面的步骤手动安装。
+> **注意：** Obsidian 插件正在 Obsidian 社区插件目录审核中，审核通过前请按下面的步骤手动安装。下面的 Chrome 插件已经上架 Chrome 应用商店。
 
 ### 2. 安装 Chrome 插件
 
-到 Releases 页下载：
+**推荐——从 Chrome 应用商店安装：**
 
-<https://github.com/kuangjiajia/kaitox-toolkit/releases>
+<https://chromewebstore.google.com/detail/kaitox/ljefnciiojdefgpnphihcijfdmbdomll>
 
-打开 **Kaitox Chrome extension** 那个 release，下载 `kaitox-extension-<版本>.zip` 解压，然后打开 `chrome://extensions`，开启**开发者模式**，点**加载已解压的扩展程序**，选解压出来的文件夹。
+点**添加至 Chrome** 就好——不用解压，还会自动更新。
+
+想用已解压的版本？到 [Releases 页](https://github.com/kuangjiajia/kaitox-toolkit/releases)下载：打开 **Kaitox Chrome extension** 那个 release，下载 `kaitox-extension-<版本>.zip` 解压，然后打开 `chrome://extensions`，开启**开发者模式**，点**加载已解压的扩展程序**，选解压出来的文件夹。
 
 ![加载已解压的扩展程序](../images/01-load-extension.png)
 

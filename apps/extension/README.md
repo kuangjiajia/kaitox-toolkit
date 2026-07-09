@@ -18,7 +18,9 @@ Drafts can also be deleted from the dropdown (with an in-place confirmation).
 
 ## Install
 
-Grab the latest build from [Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases): download `kaitox-extension-<version>.zip`, unzip it, then `chrome://extensions` → **Developer mode** → **Load unpacked** → select the unzipped folder. Open <https://x.com/compose/articles>; the Kaitox button appears in the page header.
+**Recommended — [install from the Chrome Web Store](https://chromewebstore.google.com/detail/kaitox/ljefnciiojdefgpnphihcijfdmbdomll)** and click **Add to Chrome**; it stays up to date automatically. Then open <https://x.com/compose/articles> — the Kaitox button appears in the page header.
+
+Prefer the unpacked build? Grab the latest from [Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases): download `kaitox-extension-<version>.zip`, unzip it, then `chrome://extensions` → **Developer mode** → **Load unpacked** → select the unzipped folder.
 
 ### Build from source
 

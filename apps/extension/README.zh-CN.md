@@ -18,7 +18,9 @@
 
 ## 安装
 
-从 [Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases) 拿最新构建：下载 `kaitox-extension-<版本>.zip` 解压，然后 `chrome://extensions` → 打开「开发者模式」→「加载已解压的扩展程序」→ 选解压出来的文件夹。打开 <https://x.com/compose/articles>，Kaitox 按钮出现在页面标题行。
+**推荐——[从 Chrome 应用商店安装](https://chromewebstore.google.com/detail/kaitox/ljefnciiojdefgpnphihcijfdmbdomll)**，点「添加至 Chrome」即可，自动更新。然后打开 <https://x.com/compose/articles>，Kaitox 按钮出现在页面标题行。
+
+想用已解压的版本？从 [Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases) 拿最新构建：下载 `kaitox-extension-<版本>.zip` 解压，然后 `chrome://extensions` → 打开「开发者模式」→「加载已解压的扩展程序」→ 选解压出来的文件夹。
 
 ### 从源码构建
 

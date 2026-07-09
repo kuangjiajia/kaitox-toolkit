@@ -8,7 +8,7 @@
  * 真正的发布仍由 Chrome 扩展在已登录的 x.com 会话里完成；本面板只负责「推送到草稿箱」
  * （POST 到本地 relay 队列）。
  */
-import { FileSystemAdapter, ItemView, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
+import { ItemView, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
 import { checkMarkdownStyle, renderPreviewHtml, extractMermaidBlocks, MERMAID_SRC_PREFIX } from '@kaitox/x-article';
 import type { MermaidBlock } from '@kaitox/x-article';
 import type { DraftKind, StyleReport } from '@kaitox/relay-protocol';
@@ -361,13 +361,11 @@ export class KaitoxView extends ItemView {
   private async renderMermaids(gen: number): Promise<void> {
     this.mermaidRenderingGen = gen;
     try {
-      const base = this.pluginBaseDir();
-      const relDir = this.plugin.manifest.dir ?? '';
       for (const b of this.mermaidBlocks) {
         if (b.src in this.mermaidUrls) continue;
         let url: string | null;
         try {
-          url = await renderMermaidSvgUrl(base, relDir, b.code);
+          url = await renderMermaidSvgUrl(b.code);
         } catch {
           url = null; // 渲染失败：与扩展一致，落成「上传时将被跳过」占位
         }
@@ -383,12 +381,6 @@ export class KaitoxView extends ItemView {
       // 仅清自己这一代；换代时新循环已接管，别把它的标记抹掉。
       if (this.mermaidRenderingGen === gen) this.mermaidRenderingGen = null;
     }
-  }
-
-  /** vault 绝对路径（desktop-only，一定是 FileSystemAdapter）。 */
-  private pluginBaseDir(): string {
-    const adapter = this.app.vault.adapter;
-    return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : '';
   }
 
   private renderEmpty(): void {

@@ -4,6 +4,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 await mkdir('dist', { recursive: true });
 
+// mermaid 本体（约 8MB）直接内联进 main.js：社区版安装时 Obsidian 只从 Release 下发
+// main.js/manifest.json/styles.css，额外文件不会被下发，所以不能单独出包（见 src/mermaid.ts）。
 await esbuild.build({
   entryPoints: ['src/main.ts'],
   outfile: 'dist/main.js',
@@ -13,19 +15,6 @@ await esbuild.build({
   target: 'es2018',
   // Obsidian / Electron 内建模块由宿主提供，标 external 不打进包。
   external: ['obsidian', 'electron', '@codemirror/*', '@lezer/*', 'node:*'],
-  logLevel: 'info',
-  legalComments: 'none',
-});
-
-// mermaid 本体（约 8MB）单独出 CJS 包，不进 main.js（每次启动都要解析）；
-// 插件运行时用 Node require 从插件目录懒加载（见 src/mermaid.ts）。
-await esbuild.build({
-  entryPoints: ['src/mermaid-lib.ts'],
-  outfile: 'dist/mermaid.js',
-  bundle: true,
-  format: 'cjs',
-  platform: 'browser',
-  target: 'es2018',
   logLevel: 'info',
   legalComments: 'none',
 });

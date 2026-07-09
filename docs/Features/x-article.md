@@ -47,15 +47,17 @@ That's the whole push-side setup: the skill **installs the `kaitox` CLI for you*
 
 > Rather drive it from the terminal without an agent? Install the CLI with `npm i -g @kaitox/cli` — command and flag reference, plus relay management, live in the [CLI README](../../packages/cli/README.md).
 
-> **Heads up:** the Chrome extension and Obsidian plugin are still under review in the Chrome Web Store and the Obsidian community directory. Until they're approved, install them manually as below.
+> **Heads up:** the Obsidian plugin is still under review in the Obsidian community directory — until it's approved, install it manually. The Chrome extension below is already on the Chrome Web Store.
 
 ### 2. Install the Chrome extension
 
-Download it from the Releases page:
+**Recommended — install from the Chrome Web Store:**
 
-<https://github.com/kuangjiajia/kaitox-toolkit/releases>
+<https://chromewebstore.google.com/detail/kaitox/ljefnciiojdefgpnphihcijfdmbdomll>
 
-Open the **Kaitox Chrome extension** release, download `kaitox-extension-<version>.zip`, and unzip it. Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the unzipped folder.
+Click **Add to Chrome** and it's ready — no unpacking, and it stays up to date automatically.
+
+Prefer the unpacked build? Grab it from the [Releases page](https://github.com/kuangjiajia/kaitox-toolkit/releases): open the **Kaitox Chrome extension** release, download `kaitox-extension-<version>.zip`, and unzip it. Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the unzipped folder.
 
 ![Load the unpacked extension](../images/01-load-extension.png)
 

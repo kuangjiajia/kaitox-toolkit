@@ -13,7 +13,7 @@ Kaitox is my personal toolkit — a growing set of small efficiency tools that s
 
 ## Install
 
-Each piece comes from where it fits best: **agent skills** live in this repo, the **Chrome extension** and **Obsidian plugin** ship as [GitHub Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases), and the `kaitox` CLI is on npm. Install only the pieces a feature calls for.
+Each piece comes from where it fits best: **agent skills** live in this repo, the **Chrome extension** is on the [Chrome Web Store](https://chromewebstore.google.com/detail/kaitox/ljefnciiojdefgpnphihcijfdmbdomll), the **Obsidian plugin** ships as a [GitHub Release](https://github.com/kuangjiajia/kaitox-toolkit/releases), and the `kaitox` CLI is on npm. Install only the pieces a feature calls for.
 
 **Requirements:** Node.js ≥ 18. The X Article feature also needs an X account you stay logged into and a Chromium browser (Chrome / Edge / Brave) for the upload step.
 
@@ -34,11 +34,13 @@ for d in skills/*/; do cp "$d/SKILL.md" ~/.codex/prompts/"$(basename "$d")".md; 
 
 Other hosts that discover `SKILL.md` files can be pointed straight at this repo's `skills/` directory. More: [`skills/README.md`](skills/README.md).
 
-> **Heads up:** the Chrome extension and Obsidian plugin are still under review in the Chrome Web Store and the Obsidian community directory. Until they're approved, install both manually from GitHub Releases as below.
+> **Heads up:** the Obsidian plugin is still under review in the Obsidian community directory — until it's approved, install it manually from GitHub Releases as below. The Chrome extension is already on the Chrome Web Store.
 
 ### Chrome extension
 
-From the [Releases page](https://github.com/kuangjiajia/kaitox-toolkit/releases), open the **Kaitox Chrome extension** release, download `kaitox-extension-<version>.zip`, and unzip it. Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the unzipped folder.
+**Recommended — [install from the Chrome Web Store](https://chromewebstore.google.com/detail/kaitox/ljefnciiojdefgpnphihcijfdmbdomll)** and click **Add to Chrome**. One click, and it stays up to date automatically.
+
+Prefer the unpacked build? From the [Releases page](https://github.com/kuangjiajia/kaitox-toolkit/releases), open the **Kaitox Chrome extension** release, download `kaitox-extension-<version>.zip`, and unzip it. Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the unzipped folder.
 
 ### Obsidian plugin
 
@@ -80,7 +82,7 @@ Any program that can POST JSON to `127.0.0.1` can push drafts, and new features 
 
 ## Status & caveats
 
-The `@kaitox/*` packages are on npm; the Chrome extension and Obsidian plugin are still under review for the Chrome Web Store and the Obsidian community directory, so for now they're installed manually from [GitHub Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases). Building from source and contributing: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+The `@kaitox/*` packages are on npm and the Chrome extension is on the [Chrome Web Store](https://chromewebstore.google.com/detail/kaitox/ljefnciiojdefgpnphihcijfdmbdomll); the Obsidian plugin is still under review for the Obsidian community directory, so for now it's installed manually from [GitHub Releases](https://github.com/kuangjiajia/kaitox-toolkit/releases). Building from source and contributing: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## License
 
