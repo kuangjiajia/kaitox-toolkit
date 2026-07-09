@@ -1,6 +1,6 @@
 {
   "name": "@kaitox/cli",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "The kaitox command line — CLI product of the Kaitox personal toolkit. Current feature: style-check, bundle and deliver local Markdown to the local relay as X (Twitter) Article drafts (kaitox x push).",
   "license": "MIT",
   "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",
@@ -40,6 +40,6 @@
   "dependencies": {
     "@kaitox/relay": "^0.6.0",
     "@kaitox/relay-protocol": "^0.5.1",
-    "@kaitox/x-article": "^0.5.1"
+    "@kaitox/x-article": "^0.6.0"
   }
 }

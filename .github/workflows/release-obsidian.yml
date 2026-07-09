@@ -2,11 +2,18 @@
 # (kuangjiajia/kaitox-obsidian), which is the repo submitted to the Obsidian
 # community-plugins directory.
 #
-# Trigger: push a tag like `obsidian-v0.6.1` from this monorepo. The workflow
-# builds apps/obsidian, then in the distribution repo it (1) syncs the root
-# manifest.json + versions.json and (2) creates a GitHub Release whose tag is the
-# BARE version (`0.6.1`, no prefix — Obsidian requires tag == manifest.version)
-# with main.js / manifest.json / styles.css attached as binary assets.
+# Trigger: push a tag like `obsidian-v0.6.2` from this monorepo. The workflow
+# builds apps/obsidian, then in the distribution repo it (1) projects a standalone,
+# buildable snapshot of the plugin — its TypeScript source plus a self-contained
+# package.json / tsconfig / manifest / versions / README / LICENSE (Obsidian rejects
+# closed-source plugins, so the submitted repo must carry buildable source, not just a
+# manifest) and (2) creates a GitHub Release whose tag is the BARE version (`0.6.2`, no
+# prefix — Obsidian requires tag == manifest.version) with main.js / manifest.json /
+# styles.css attached as binary assets.
+#
+# IMPORTANT: publish @kaitox/x-article to npm FIRST (`npm run release`). The projected
+# repo pins the plugin's dependency ranges, and reviewers build it against npm — an
+# unpublished dependency version would make the distribution repo un-buildable.
 #
 # Requires repo secret OBSIDIAN_RELEASE_TOKEN: a PAT with contents:write on the
 # distribution repo (fine-grained token scoped to kaitox-obsidian, or a classic
@@ -48,22 +55,24 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Sync manifest + versions into the distribution repo
+      - name: Sync plugin source into the distribution repo
         env:
           GH_TOKEN: ${{ secrets.OBSIDIAN_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           git clone "https://x-access-token:${GH_TOKEN}@github.com/${RELEASE_REPO}.git" release-repo
-          cp apps/obsidian/dist/manifest.json release-repo/manifest.json
-          cp apps/obsidian/versions.json       release-repo/versions.json
+          # Project a standalone, buildable snapshot of apps/obsidian into the repo.
+          # This is what makes the submitted repo genuine open source: source files +
+          # a self-contained package.json/tsconfig, not just a manifest + release asset.
+          node apps/obsidian/scripts/make-release-repo.mjs "$PWD/release-repo"
           cd release-repo
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add manifest.json versions.json
+          git add -A
           if git diff --cached --quiet; then
-            echo "manifest/versions unchanged — nothing to commit"
+            echo "distribution repo already up to date — nothing to commit"
           else
-            git commit -m "chore: sync manifest for ${{ steps.v.outputs.version }}"
+            git commit -m "chore: sync plugin ${{ steps.v.outputs.version }} from monorepo"
             git push
           fi
 

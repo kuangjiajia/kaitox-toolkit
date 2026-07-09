@@ -1,5 +1,11 @@
 # @kaitox/x-article
 
+## 0.6.0
+
+### Minor Changes
+
+- Publish the shared mermaid rendering module (`MERMAID_INIT_CONFIG`, `renderMermaidSvg`, `renderMermaidSvgUrl`, `renderMermaidPng`, and the `MermaidRenderer` type). These were added for the Chrome extension and Obsidian plugin to render diagrams pixel-identically to the published article, but were never released — so consumers building against npm couldn't resolve them. This makes the Obsidian plugin's distribution repo buildable from published packages.
+
 ## 0.5.1
 
 ### Patch Changes

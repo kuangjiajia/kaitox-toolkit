@@ -1,6 +1,12 @@
 /** 把插件打成 Obsidian 需要的 CommonJS main.js，并拷贝 manifest。 */
 import * as esbuild from 'esbuild';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+
+// 通过 node 模块解析定位 @kaitox/x-article 的 preview.css，而非写死相对路径。
+// 这样同一份 esbuild.mjs 在两处都能跑：monorepo（node_modules 里的 workspace 软链）
+// 与独立分发仓 kaitox-obsidian（从 npm 装的正式包，见其 package.json 的 exports）。
+const require = createRequire(import.meta.url);
 
 await mkdir('dist', { recursive: true });
 
@@ -28,7 +34,7 @@ await writeFile('dist/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
 // styles.css = 面板 chrome 样式 + X 文章预览样式（.xp-*，来自 @kaitox/x-article，
 // 单一真相源，构建时拼接，避免复制粘贴分叉）。Obsidian 自动加载插件目录下的 styles.css。
 const panelCss = await readFile('src/styles.css', 'utf8');
-const previewCss = await readFile('../../packages/x-article/preview.css', 'utf8');
+const previewCss = await readFile(require.resolve('@kaitox/x-article/preview.css'), 'utf8');
 await writeFile(
   'dist/styles.css',
   `${panelCss}\n/* --- @kaitox/x-article preview.css (bundled) --- */\n${previewCss}`,

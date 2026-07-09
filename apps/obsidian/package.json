@@ -1,7 +1,7 @@
 {
   "name": "@kaitox/obsidian",
-  "version": "0.6.1",
-  "description": "Kaitox Obsidian plugin — Obsidian product of the Kaitox toolkit. Current feature: sync the active note as an X (Twitter) Article draft via the local relay and browser extension.",
+  "version": "0.6.2",
+  "description": "Kaitox plugin for Obsidian (Kaitox toolkit). Current feature: sync the active note as an X (Twitter) Article draft via the local relay and browser extension.",
   "type": "module",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@kaitox/relay-protocol": "^0.5.1",
-    "@kaitox/x-article": "^0.5.1",
+    "@kaitox/x-article": "^0.6.0",
     "mermaid": "^11.16.0"
   },
   "devDependencies": {

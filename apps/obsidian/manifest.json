@@ -1,10 +1,10 @@
 {
   "id": "kaitox",
   "name": "Kaitox",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "minAppVersion": "1.4.0",
-  "description": "Kaitox companion for Obsidian — part of the Kaitox personal toolkit. Current feature: sync the active note as an X (Twitter) Article draft via the local relay and browser extension.",
+  "description": "Sync the active note as an X (Twitter) Article draft through a local relay and browser extension.",
   "author": "kaitox",
-  "authorUrl": "https://kaitox.ai",
+  "authorUrl": "https://github.com/kuangjiajia",
   "isDesktopOnly": true
 }
