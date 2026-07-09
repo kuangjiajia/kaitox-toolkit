@@ -324,7 +324,19 @@ export class KaitoxView extends ItemView {
     // article (WYSIWYG X preview)
     const host = card.createDiv({ cls: 'kx-article-host' });
     this.articleHostEl = host;
-    host.innerHTML = this.buildArticleHtml();
+    this.setArticleHtml(host);
+  }
+
+  /**
+   * 把预览 HTML 灌进 host——不走 innerHTML（Obsidian 社区插件规范禁用 innerHTML/
+   * outerHTML/insertAdjacentHTML）。renderPreviewHtml 的输出文本与属性已全部转义，
+   * 这里解析成节点后原样接管。用 DOMParser 而非 sanitizeHTMLToDom，是为了保住图片的
+   * blob: URL——sanitizer 会把它当不安全协议剥掉，预览图就全白了。
+   */
+  private setArticleHtml(host: HTMLElement): void {
+    const doc = new DOMParser().parseFromString(this.buildArticleHtml(), 'text/html');
+    host.empty();
+    host.append(...Array.from(doc.body.childNodes));
   }
 
   /** 正文 HTML：mermaid 提取后的 markdown + 图片/mermaid src 解析（与扩展预览一致）。 */
@@ -342,8 +354,9 @@ export class KaitoxView extends ItemView {
 
   /** mermaid 就绪后就地重渲染正文（容器仍在文档里才动）。 */
   private refreshArticleHtml(): void {
-    if (!this.articleHostEl?.isConnected) return;
-    this.articleHostEl.innerHTML = this.buildArticleHtml();
+    const host = this.articleHostEl;
+    if (!host?.isConnected) return;
+    this.setArticleHtml(host);
   }
 
   /** 有未渲染的 mermaid 块时，异步渲染成图。 */

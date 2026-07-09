@@ -23,19 +23,24 @@ export default class KaitoxPlugin extends Plugin {
 
     this.addRibbonIcon('drum', 'Kaitox：发布预览', () => void this.activateView());
 
+    // Command IDs must not repeat the plugin ID — Obsidian namespaces them to
+    // `kaitox:<id>` itself (obsidianmd/commands/no-plugin-id-in-command-id).
     this.addCommand({
-      id: 'kaitox-open-panel',
+      id: 'open-panel',
       name: '打开发布预览面板',
       callback: () => void this.activateView(),
     });
 
     this.addCommand({
-      id: 'kaitox-push-active-note',
+      id: 'push-active-note',
       name: '推送当前笔记到草稿箱',
       callback: () => void this.pushActiveNote(),
     });
 
     this.addSettingTab(new KaitoxSettingTab(this.app, this));
+
+    // relay 没在跑时提示用户手动启动（不自动拉起）。
+    void this.promptIfRelayDown();
   }
 
   async loadSettings(): Promise<void> {
@@ -113,5 +118,26 @@ export default class KaitoxPlugin extends Plugin {
       fetchImpl: relayFetch as any,
       token: this.settings.relayToken || undefined,
     });
+  }
+
+  /** relay 是否在跑：GET /health（走 requestUrl 绕过 CORS，health 不需要 token）。 */
+  async isRelayUp(): Promise<boolean> {
+    try {
+      const base = this.settings.relayBase.replace(/\/+$/, '');
+      const res = await requestUrl({ url: `${base}/health`, method: 'GET', throw: false });
+      return res.status === 200 && res.json?.ok === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** relay 没在运行时，提示用户安装并在终端手动启动（不自动拉起）。 */
+  private async promptIfRelayDown(): Promise<void> {
+    if (await this.isRelayUp()) return;
+    new Notice(
+      'Kaitox：本地 relay 未运行。若尚未安装，先 `npm i -g @kaitox/cli`，' +
+        '再在终端执行 `kaitox relay --daemon`，然后回来推送。',
+      10000,
+    );
   }
 }

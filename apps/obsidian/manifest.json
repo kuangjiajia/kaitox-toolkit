@@ -1,8 +1,8 @@
 {
   "id": "kaitox",
   "name": "Kaitox",
-  "version": "0.6.2",
-  "minAppVersion": "1.4.0",
+  "version": "0.6.3",
+  "minAppVersion": "1.7.2",
   "description": "Sync the active note as an X (Twitter) Article draft through a local relay and browser extension.",
   "author": "kaitox",
   "authorUrl": "https://github.com/kuangjiajia",

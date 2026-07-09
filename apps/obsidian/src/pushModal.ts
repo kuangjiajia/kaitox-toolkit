@@ -175,7 +175,10 @@ export class PushModal extends Modal {
     const check = box.createDiv({ cls: 'kx-success-check kx-success-check-error' });
     setIcon(check, 'alert-triangle');
     box.createDiv({ cls: 'kx-success-title', text: '推送失败' });
-    box.createDiv({ cls: 'kx-success-sub', text: `${msg}。确认本地已运行 kaitox relay。` });
+    box.createDiv({
+      cls: 'kx-success-sub',
+      text: `${msg}。若未安装，先 npm i -g @kaitox/cli，再执行 kaitox relay --daemon 后重试。`,
+    });
 
     const actions = box.createDiv({ cls: 'kx-modal-actions' });
     const cancel = actions.createEl('button', { cls: 'kx-ghost', text: '取消' });
