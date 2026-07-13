@@ -17,14 +17,46 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve release automation mode
+        id: release-mode
+        shell: bash
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          has_changesets=false
+          for file in .changeset/*.md; do
+            [ -e "$file" ] || continue
+            [ "$(basename "$file")" = "README.md" ] && continue
+            has_changesets=true
+            break
+          done
+          has_npm_token=false
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            has_npm_token=true
+          fi
+          should_run=false
+          if [ "$has_changesets" = true ] || [ "$has_npm_token" = true ]; then
+            should_run=true
+          fi
+          echo "has_changesets=$has_changesets" >> "$GITHUB_OUTPUT"
+          echo "has_npm_token=$has_npm_token" >> "$GITHUB_OUTPUT"
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+      - name: Skip release automation
+        if: steps.release-mode.outputs.should_run != 'true'
+        run: echo "No changesets and NPM_TOKEN is not configured; skipping npm release automation."
       - uses: actions/setup-node@v4
+        if: steps.release-mode.outputs.should_run == 'true'
         with:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
       - run: npm ci
+        if: steps.release-mode.outputs.should_run == 'true'
       - run: npm run build
+        if: steps.release-mode.outputs.should_run == 'true'
       - name: Create release PR or publish
+        if: steps.release-mode.outputs.should_run == 'true'
         uses: changesets/action@v1
         with:
           publish: npm run release
