@@ -356,14 +356,30 @@ node packages/cli/dist/kaitox.js relay stop
 3. 发布：`npm run release` —— 构建、运行 `test:all`，然后以 `access: public` 执行
    `changeset publish`。
 
+如果维护者已经在准备好的 `main` checkout 上，可以用一个命令走完整本地发布：
+
+```bash
+npm run release:direct
+```
+
+它要求干净的 `main` 且与 `origin/main` 一致、`gh` 已登录、存在 `zip` 命令，并且默认要求 npm
+已登录（除非传 `--skip-npm`）。默认流程会：运行 typecheck，通过 `npm run release` 发布 npm
+包，构建两个 app，在 toolkit 仓库创建 GitHub Release（`extension-v<version>` 与
+`obsidian-v<version>`），同步 `kuangjiajia/kaitox-obsidian`，并在那里创建 Obsidian
+要求的裸版本号 release。常用参数：
+
+```bash
+npm run release:direct -- --dry-run
+npm run release:direct -- --skip-npm
+npm run release:direct -- --replace-assets
+```
+
 在 CI 中，[`.github/workflows/release.yml`](../.github/workflows/release.yml)
 通过 `changesets/action` 自动化第 2–3 步：推送到 `main` 时它会打开（或更新）一个
-"Version Packages" PR，并在该 PR 合并时发布。这个 workflow **目前是不生效的** —— 它需要：
-
-- GitHub 仓库存在于 `https://github.com/kuangjiajia/kaitox-toolkit`（尚待创建），以及
-- 一个具有发布权限的 `NPM_TOKEN` 仓库 secret，以及
-- npm 组织 **`kaitox`** 存在，因为所有包都位于
-  `@kaitox` scope 下（每个包还设置了 `publishConfig.access: public`）。
+"Version Packages" PR，并在该 PR 合并时发布。这个 workflow 需要一个具有发布权限的
+`NPM_TOKEN` 仓库 secret，以及 npm 组织 **`kaitox`** 存在，因为所有包都位于
+`@kaitox` scope 下（每个包还设置了 `publishConfig.access: public`）。如果没有待处理的
+changeset，且 `NPM_TOKEN` 不存在，workflow 会成功退出，不会尝试 npm 发布。
 
 ## 7. 语言与命名规范
 

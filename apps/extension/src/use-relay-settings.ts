@@ -39,7 +39,7 @@ export function useRelaySettings(active = true): RelaySettings {
   const [ready, setReady] = useState(false);
   const [relayBase, setRelayBase] = useState(DEFAULT_RELAY_BASE);
   const [showButton, setShowButton] = useState(true);
-  const [autoUploadAfterOpen, setAutoUploadAfterOpen] = useState(false);
+  const [autoUploadAfterOpen, setAutoUploadAfterOpen] = useState(true);
   const [pill, setPill] = useState<{ state: PillState; text: string }>({ state: 'off', text: '检测中…' });
 
   const ping = useCallback(async (base: string) => {
@@ -58,7 +58,7 @@ export function useRelaySettings(active = true): RelaySettings {
     void (async () => {
       let base = DEFAULT_RELAY_BASE;
       let show = true;
-      let autoUpload = false;
+      let autoUpload = true;
       try {
         const stored = (await chrome.storage.sync.get(['relayBase', 'showUploadButton', 'autoUploadAfterOpen'])) as {
           relayBase?: string;
@@ -67,7 +67,7 @@ export function useRelaySettings(active = true): RelaySettings {
         };
         base = stored.relayBase || DEFAULT_RELAY_BASE;
         show = stored.showUploadButton !== false;
-        autoUpload = stored.autoUploadAfterOpen === true;
+        autoUpload = stored.autoUploadAfterOpen !== false;
       } catch {
         /* storage 不可用时用默认 */
       }

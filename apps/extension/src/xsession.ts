@@ -15,7 +15,7 @@ export interface Settings {
   token?: string;
   /** 是否在 X 文章草稿页显示「上传草稿」按钮（设置页开关，默认开）。 */
   showUploadButton: boolean;
-  /** 是否消费自动上传跳转 URL。默认关，避免普通打开文章页时误触发。 */
+  /** 是否消费自动上传跳转 URL。默认开；只有带一次性参数的 URL 会触发。 */
   autoUploadAfterOpen: boolean;
 }
 
@@ -41,7 +41,7 @@ export async function getSettings(): Promise<Settings> {
     coverQueryId: stored.coverQueryId || ARTICLE_UPDATE_COVER_MEDIA_QUERY_ID,
     token: stored.relayToken || undefined,
     showUploadButton: stored.showUploadButton !== false,
-    autoUploadAfterOpen: stored.autoUploadAfterOpen === true,
+    autoUploadAfterOpen: stored.autoUploadAfterOpen !== false,
   };
 }
 

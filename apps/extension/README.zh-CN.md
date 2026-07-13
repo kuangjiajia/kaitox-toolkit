@@ -41,7 +41,7 @@ npm run build:extension   # 打包插件 → apps/extension/dist/
 | `relayBase` | `http://127.0.0.1:8765` | 本地 Kaitox relay 的地址。 |
 | `relayToken` | 未设置 | 如果你的 relay 启用了 token（`~/.kaitox/config.json`），在这里设成相同的值；以 `x-kaitox-token` 请求头发送。 |
 | `showUploadButton` | `true` | 是否在 X Articles 页面显示 Kaitox 上传按钮。 |
-| `autoUploadAfterOpen` | `false` | 是否启用「跳转到页面立即自动上传」。只有带 `kaitoxAutoUpload=1&kaitoxDraftId=<id>` 的 URL 会自动开始。 |
+| `autoUploadAfterOpen` | `true` | 是否启用「跳转到页面立即自动上传」。只有带 `kaitoxAutoUpload=1&kaitoxDraftId=<id>` 的 URL 会自动开始。 |
 | `queryId` | 内置常量 | 覆盖 `ArticleEntityDraftCreate` 的 GraphQL queryId。X 会轮换这些 id——建草稿开始失败时，在这里设一个新的。 |
 | `coverQueryId` | 内置常量 | 覆盖 `ArticleEntityUpdateCoverMedia` 的 queryId。 |
 

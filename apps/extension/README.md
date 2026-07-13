@@ -41,7 +41,7 @@ The toolbar popup and in-page settings panel write to `chrome.storage.sync` with
 | `relayBase` | `http://127.0.0.1:8765` | Base URL of the local Kaitox relay. |
 | `relayToken` | unset | If your relay enforces a token (`~/.kaitox/config.json`), set the same value; sent as the `x-kaitox-token` header. |
 | `showUploadButton` | `true` | Show the Kaitox upload button on the X Articles page. |
-| `autoUploadAfterOpen` | `false` | Enable the `跳转到页面立即自动上传` flow. Only URLs with `kaitoxAutoUpload=1&kaitoxDraftId=<id>` auto-start. |
+| `autoUploadAfterOpen` | `true` | Enable the `跳转到页面立即自动上传` flow. Only URLs with `kaitoxAutoUpload=1&kaitoxDraftId=<id>` auto-start. |
 | `queryId` | built-in constant | Override for the `ArticleEntityDraftCreate` GraphQL queryId. X rotates these — when draft creation starts failing, set a fresh one here. |
 | `coverQueryId` | built-in constant | Override for the `ArticleEntityUpdateCoverMedia` queryId. |
 

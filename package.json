@@ -19,7 +19,8 @@
     "test:all": "npm run build && npm test -w @kaitox/relay-protocol && npm test -w @kaitox/x-article && node test/integration.mjs && node test/relay-protocol.smoke.mjs",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "npm run build && npm run test:all && changeset publish"
+    "release": "npm run build && npm run test:all && changeset publish",
+    "release:direct": "node scripts/release-direct.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.0",

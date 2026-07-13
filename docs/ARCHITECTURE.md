@@ -418,16 +418,34 @@ Flow:
 3. Publish: `npm run release` — builds, runs `test:all`, then
    `changeset publish` with `access: public`.
 
+For a direct maintainer release from a prepared `main` checkout, use the
+one-command script:
+
+```bash
+npm run release:direct
+```
+
+It requires a clean `main` that matches `origin/main`, `gh` authentication,
+`zip`, and npm authentication unless `--skip-npm` is passed. By default it:
+runs typechecks, publishes npm packages via `npm run release`, builds both
+apps, creates toolkit GitHub Releases (`extension-v<version>` and
+`obsidian-v<version>`), syncs `kuangjiajia/kaitox-obsidian`, and creates the
+bare-version Obsidian release there. Useful flags:
+
+```bash
+npm run release:direct -- --dry-run
+npm run release:direct -- --skip-npm
+npm run release:direct -- --replace-assets
+```
+
 In CI, [`.github/workflows/release.yml`](../.github/workflows/release.yml)
 automates steps 2–3 via `changesets/action`: on push to `main` it opens (or
 updates) a "Version Packages" PR, and publishes when that PR merges. The
-workflow is **inert today** — it requires:
-
-- the GitHub repo to exist at `https://github.com/kuangjiajia/kaitox-toolkit` (pending
-  creation), and
-- an `NPM_TOKEN` repository secret with publish rights, and
-- the npm org **`kaitox`** to exist, since all packages live under the
-  `@kaitox` scope (each package also sets `publishConfig.access: public`).
+workflow needs an `NPM_TOKEN` repository secret with publish rights and the npm
+org **`kaitox`** to exist, since all packages live under the `@kaitox` scope
+(each package also sets `publishConfig.access: public`). If there are no
+pending changesets and `NPM_TOKEN` is absent, the workflow exits successfully
+without attempting an npm publish.
 
 ## 7. Language & naming policy
 
