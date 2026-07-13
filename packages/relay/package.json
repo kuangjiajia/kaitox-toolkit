@@ -1,6 +1,6 @@
 {
   "name": "@kaitox/relay",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Local draft relay for the Kaitox toolkit: stores draft bundles on 127.0.0.1 — upload clients POST, browser extensions poll. Images over X's upload limit are transparently re-encoded at ingest. Ships the kaitox-relay CLI (start/dev/stop/status/restart).",
   "license": "MIT",
   "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",
@@ -50,7 +50,7 @@
     "stop": "node dist/cli.js stop"
   },
   "dependencies": {
-    "@kaitox/relay-protocol": "^0.5.1",
+    "@kaitox/relay-protocol": "^0.5.2",
     "sharp": "^0.35.3"
   }
 }
