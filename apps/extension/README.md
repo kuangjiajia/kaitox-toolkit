@@ -10,7 +10,7 @@ The extension is the publishing end of the Kaitox pipeline — upload clients (t
 
 1. A content script runs on `x.com/compose/articles*` and injects an "上传草稿" (upload draft) button into the Articles page header, next to the compose button. X redraws its header constantly, so a `MutationObserver` plus a low-frequency timer re-insert the button whenever it gets wiped.
 2. The button's dropdown polls the local relay every 5 seconds and lists pending drafts (title, source, rich/plaintext mode, style-issue counts). It only shows bundles of kind `'x-article'` — other kinds are left for other consumers.
-3. On click, it reads `ct0` from `document.cookie` (the page is logged in, so same-origin requests carry cookies automatically), fetches the draft's image bytes from the relay, and runs `publishXArticle` from [`@kaitox/x-article`](../../packages/x-article/README.md): upload each image (`INIT`/`APPEND`/`FINALIZE`) → `markdownToContentState` → `ArticleEntityDraftCreate` → optionally set the cover via `ArticleEntityUpdateCoverMedia`.
+3. When the user clicks upload, or when an auto-upload URL with `kaitoxAutoUpload=1&kaitoxDraftId=<id>` is opened while `跳转到页面立即自动上传` is enabled, it reads `ct0` from `document.cookie` (the page is logged in, so same-origin requests carry cookies automatically), fetches the draft's image bytes from the relay, and runs `publishXArticle` from [`@kaitox/x-article`](../../packages/x-article/README.md): upload each image (`INIT`/`APPEND`/`FINALIZE`) → `markdownToContentState` → `ArticleEntityDraftCreate` → optionally set the cover via `ArticleEntityUpdateCoverMedia`.
 4. On success it acks the draft as `done` on the relay and navigates to `x.com/compose/articles/edit/<rest_id>`. If the `rest_id` cannot be extracted from X's response, the draft is still created — check your article list. Failures are acked as `failed` and can be retried from the panel.
 5. A service worker separately polls the relay once a minute and shows the pending-draft count on the extension's toolbar badge.
 
@@ -34,12 +34,14 @@ Then load `apps/extension/dist/` unpacked as above. The button's tooltip shows t
 
 ## Settings
 
-There is no options page yet. Settings are read from `chrome.storage.sync` with these keys and defaults:
+The toolbar popup and in-page settings panel write to `chrome.storage.sync` with these keys and defaults:
 
 | Key | Default | Purpose |
 |---|---|---|
 | `relayBase` | `http://127.0.0.1:8765` | Base URL of the local Kaitox relay. |
 | `relayToken` | unset | If your relay enforces a token (`~/.kaitox/config.json`), set the same value; sent as the `x-kaitox-token` header. |
+| `showUploadButton` | `true` | Show the Kaitox upload button on the X Articles page. |
+| `autoUploadAfterOpen` | `false` | Enable the `跳转到页面立即自动上传` flow. Only URLs with `kaitoxAutoUpload=1&kaitoxDraftId=<id>` auto-start. |
 | `queryId` | built-in constant | Override for the `ArticleEntityDraftCreate` GraphQL queryId. X rotates these — when draft creation starts failing, set a fresh one here. |
 | `coverQueryId` | built-in constant | Override for the `ArticleEntityUpdateCoverMedia` queryId. |
 

@@ -19,7 +19,7 @@ import { LOGO_WHITE } from './brand.js';
 import { makeCoverAsset } from '@kaitox/x-article';
 import type { DraftAssetInput } from '@kaitox/relay-protocol';
 import { PushModal } from './pushModal.js';
-import { X_ARTICLE_COMPOSE_URL } from './settings.js';
+import { xArticleComposeUrl } from './settings.js';
 
 export const VIEW_TYPE_KAITOX = 'kaitox-publish-view';
 
@@ -496,9 +496,9 @@ export class KaitoxView extends ItemView {
   }
 }
 
-/** 打开 x.com 文章编辑器。 */
-export function openXComposer(): void {
-  window.open(X_ARTICLE_COMPOSE_URL, '_blank');
+/** 打开 x.com 文章编辑器；传入 draftId 时带一次性自动上传参数。 */
+export function openXComposer(draftId?: string): void {
+  window.open(xArticleComposeUrl(draftId), '_blank');
 }
 
 function errMsg(e: unknown): string {

@@ -684,6 +684,159 @@
   font-size: 15px;
 }
 
+/* --- 自动上传进度弹窗（由跳转 URL 触发，独立于草稿箱） --- */
+.kx-auto-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 20, 20, 0.46);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1a1a1a;
+  animation: kx-fade-in 0.18s ease both;
+}
+.kx-auto-card {
+  position: relative;
+  width: min(420px, 100%);
+  min-height: 290px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 28px 26px;
+  background: #ffffff;
+  border: 1px solid #ececea;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 16px 48px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+  animation: kx-pop-in 0.24s cubic-bezier(0.32, 0.72, 0.33, 1) both;
+}
+.kx-auto-card * { box-sizing: border-box; }
+.kx-auto-card .kx-svg { display: inline-flex; align-items: center; }
+.kx-auto-card .kx-svg svg { display: block; }
+.kx-auto-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #8f8f8b;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.kx-auto-close:hover { background: #f4f4f2; color: #1a1a1a; }
+.kx-auto-close:active { transform: scale(0.9); }
+.kx-auto-close:disabled { opacity: 0.35; cursor: default; }
+.kx-auto-close:disabled:hover { background: transparent; color: #8f8f8b; }
+.kx-auto-mark {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.kx-auto-mark .kx-logo { display: block; border-radius: 50%; }
+.kx-auto-mark-uploading {
+  background: #f4f4f2;
+  color: #1a1a1a;
+}
+.kx-auto-mark-uploading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #dededb;
+  border-top-color: #1a1a1a;
+  animation: kx-auto-spin 0.85s linear infinite;
+}
+.kx-auto-mark-success {
+  background: #eef5ef;
+  color: #2f7a45;
+}
+.kx-auto-mark-error {
+  background: #fbf0ef;
+  color: #d0463f;
+}
+.kx-auto-title {
+  margin-top: 2px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.kx-auto-draft {
+  width: 100%;
+  color: #3a3a37;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.kx-auto-message {
+  width: 100%;
+  min-height: 22px;
+  color: #6b6b68;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.kx-auto-id {
+  max-width: 100%;
+  color: #9a9a97;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.kx-auto-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+.kx-auto-primary,
+.kx-auto-secondary {
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.kx-auto-primary {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+.kx-auto-primary:hover { background: #333331; }
+.kx-auto-secondary {
+  background: #f1f1ef;
+  color: #3a3a37;
+}
+.kx-auto-secondary:hover { background: #eaeae7; }
+.kx-auto-primary:active,
+.kx-auto-secondary:active { transform: scale(0.98); }
+
 /* --- 右侧设置浮窗（点工具栏图标弹出，整高、圆角、悬浮，不带遮罩） --- */
 #kaitox-settings {
   position: fixed;
@@ -1031,6 +1184,9 @@
 @keyframes kx-help-in {
   from { opacity: 0; transform: translateY(-4px); }
 }
+@keyframes kx-auto-spin {
+  to { transform: rotate(360deg); }
+}
 
 /* 系统开启「减弱动态效果」时全部动画即时完成（JS 卸载定时器不受影响） */
 @media (prefers-reduced-motion: reduce) {
@@ -1038,6 +1194,8 @@
   .kx-overlay,
   #kaitox-modal,
   #kaitox-modal *,
+  .kx-auto-overlay,
+  .kx-auto-overlay *,
   #kaitox-settings,
   #kaitox-settings * {
     animation-duration: 0.01ms !important;
@@ -1051,6 +1209,25 @@
   #kaitox-hdr-btn .kx-hdr-count { background: #1a1a1a; color: #fff; }
 
   .kx-overlay { background: rgba(0, 0, 0, 0.6); }
+  .kx-auto-overlay { background: rgba(0, 0, 0, 0.6); color: #e8e8e6; }
+  .kx-auto-card {
+    background: #1e1e1d;
+    border-color: #343432;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 16px 48px rgba(0, 0, 0, 0.55);
+  }
+  .kx-auto-close { color: #8a8a87; }
+  .kx-auto-close:hover { background: #2c2c2a; color: #e8e8e6; }
+  .kx-auto-mark-uploading { background: #2c2c2a; color: #e8e8e6; }
+  .kx-auto-mark-uploading::after { border-color: #4a4a47; border-top-color: #eff3f4; }
+  .kx-auto-mark-success { background: rgba(55, 163, 90, 0.15); color: #6fbf8a; }
+  .kx-auto-mark-error { background: rgba(208, 70, 63, 0.16); color: #f08a84; }
+  .kx-auto-draft { color: #e8e8e6; }
+  .kx-auto-message { color: #a5a5a2; }
+  .kx-auto-id { color: #6f6f6c; }
+  .kx-auto-primary { background: #eff3f4; color: #1a1a1a; }
+  .kx-auto-primary:hover { background: #d7dbdc; }
+  .kx-auto-secondary { background: #2c2c2a; color: #d4d4d1; }
+  .kx-auto-secondary:hover { background: #383836; }
   /* 弹窗组件一律读 token，暗色只需整套重声明变量 + 少量非 token 细节 */
   #kaitox-modal {
     --kx-text: #e8e8e6;

@@ -12,6 +12,8 @@ import { printReport, promptDecision } from '../report.js';
 import { ensureRelay, makeClient, isRelayUp } from '../relayControl.js';
 
 export const ARTICLES_URL = 'https://x.com/compose/articles';
+const AUTO_UPLOAD_PARAM = 'kaitoxAutoUpload';
+const DRAFT_ID_PARAM = 'kaitoxDraftId';
 
 export async function runX(args: string[]): Promise<void> {
   const sub = args[0];
@@ -101,6 +103,8 @@ async function cmdPush(args: string[]): Promise<void> {
   console.log(`  模式：${built.input.mode}   图片：${built.input.assets.length} 张`);
   if (built.input.cover) console.log(`  封面：${built.input.cover.fileName}（上传时设为文章封面）`);
   console.log(`\n下一步：在浏览器打开 ${ARTICLES_URL} ，在 kaitox 插件面板里点「上传草稿」。`);
+  console.log(`  如果已在插件设置打开「跳转到页面立即自动上传」，也可以打开：`);
+  console.log(`  ${autoUploadUrl(id)}`);
 }
 
 // --- list / status ----------------------------------------------------------
@@ -187,5 +191,13 @@ Usage:
   kaitox x status <id>        show the status of one draft
 
 After pushing: open ${ARTICLES_URL} and click "上传草稿" in the kaitox
-extension panel.`);
+extension panel. If the extension setting "跳转到页面立即自动上传" is enabled,
+open the auto-upload URL printed by the push command instead.`);
+}
+
+function autoUploadUrl(id: string): string {
+  const url = new URL(ARTICLES_URL);
+  url.searchParams.set(AUTO_UPLOAD_PARAM, '1');
+  url.searchParams.set(DRAFT_ID_PARAM, id);
+  return url.toString();
 }

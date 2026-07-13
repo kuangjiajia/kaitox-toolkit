@@ -2,6 +2,7 @@
  * 仅在 Articles 列表页的标题行注入 kaitox 按钮，并在 SPA 重绘后保活。 */
 import { Panel } from './panel.js';
 import { toggleSettingsPanel } from './settings-panel.js';
+import { maybeStartAutoUploadFromUrl } from './auto-upload.js';
 
 // esbuild define 注入的构建时间戳。页面控制台可看到当前生效的构建版本；
 // 若与最近一次 npm run build:extension 的时间不符，说明插件/页面没重新加载。
@@ -17,7 +18,9 @@ function isArticlesPage(): boolean {
 
 /** 幂等：开关关闭或不在文章页则拆掉；否则确保 panel 存在并把按钮插进 header（缺了会补）。 */
 function ensurePanel(): void {
-  if (!showButton || !isArticlesPage()) {
+  const articlesPage = isArticlesPage();
+  if (articlesPage) maybeStartAutoUploadFromUrl();
+  if (!showButton || !articlesPage) {
     panel?.destroy();
     panel = null;
     return;

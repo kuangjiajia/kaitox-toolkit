@@ -1,5 +1,5 @@
 /**
- * 设置 UI 的共享状态 hook：读取/保存 relay 地址与「显示上传按钮」开关，
+ * 设置 UI 的共享状态 hook：读取/保存 relay 地址、上传按钮和自动上传开关，
  * 维护连接状态胶囊。设置 popup 与页内设置浮窗共用。
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -18,6 +18,8 @@ export interface RelaySettings {
   pill: { state: PillState; text: string };
   showButton: boolean;
   flipShowButton: () => Promise<void>;
+  autoUploadAfterOpen: boolean;
+  flipAutoUploadAfterOpen: () => Promise<void>;
 }
 
 function normalize(v: string): string {
@@ -37,6 +39,7 @@ export function useRelaySettings(active = true): RelaySettings {
   const [ready, setReady] = useState(false);
   const [relayBase, setRelayBase] = useState(DEFAULT_RELAY_BASE);
   const [showButton, setShowButton] = useState(true);
+  const [autoUploadAfterOpen, setAutoUploadAfterOpen] = useState(false);
   const [pill, setPill] = useState<{ state: PillState; text: string }>({ state: 'off', text: '检测中…' });
 
   const ping = useCallback(async (base: string) => {
@@ -55,19 +58,23 @@ export function useRelaySettings(active = true): RelaySettings {
     void (async () => {
       let base = DEFAULT_RELAY_BASE;
       let show = true;
+      let autoUpload = false;
       try {
-        const stored = (await chrome.storage.sync.get(['relayBase', 'showUploadButton'])) as {
+        const stored = (await chrome.storage.sync.get(['relayBase', 'showUploadButton', 'autoUploadAfterOpen'])) as {
           relayBase?: string;
           showUploadButton?: boolean;
+          autoUploadAfterOpen?: boolean;
         };
         base = stored.relayBase || DEFAULT_RELAY_BASE;
         show = stored.showUploadButton !== false;
+        autoUpload = stored.autoUploadAfterOpen === true;
       } catch {
         /* storage 不可用时用默认 */
       }
       if (cancelled) return;
       setRelayBase(base);
       setShowButton(show);
+      setAutoUploadAfterOpen(autoUpload);
       setReady(true);
       void ping(normalize(base));
     })();
@@ -88,6 +95,12 @@ export function useRelaySettings(active = true): RelaySettings {
     await chrome.storage.sync.set({ showUploadButton: next });
   }, [showButton]);
 
+  const flipAutoUploadAfterOpen = useCallback(async () => {
+    const next = !autoUploadAfterOpen;
+    setAutoUploadAfterOpen(next);
+    await chrome.storage.sync.set({ autoUploadAfterOpen: next });
+  }, [autoUploadAfterOpen]);
+
   return {
     ready,
     relayBase,
@@ -96,5 +109,7 @@ export function useRelaySettings(active = true): RelaySettings {
     pill,
     showButton,
     flipShowButton,
+    autoUploadAfterOpen,
+    flipAutoUploadAfterOpen,
   };
 }

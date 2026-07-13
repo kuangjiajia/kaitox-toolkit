@@ -143,7 +143,7 @@ export class PushModal extends Modal {
     try {
       const client = this.plugin.makeClient();
       await client.health();
-      await client.postDraft({
+      const { id } = await client.postDraft({
         kind: this.ctx.kind,
         title: this.ctx.title,
         markdown,
@@ -161,8 +161,8 @@ export class PushModal extends Modal {
       } catch {
         /* 列表失败不影响成功态 */
       }
-      this.renderSuccess(pending);
-      if (this.plugin.settings.openXAfterPush) openXComposer();
+      this.renderSuccess(pending, id);
+      if (this.plugin.settings.openXAfterPush) openXComposer(id);
     } catch (e) {
       this.renderError(errMsg(e));
     }
@@ -187,7 +187,7 @@ export class PushModal extends Modal {
     retry.onclick = () => void this.doPush();
   }
 
-  private renderSuccess(pending: number): void {
+  private renderSuccess(pending: number, draftId: string): void {
     const { contentEl } = this;
     contentEl.empty();
     const box = contentEl.createDiv({ cls: 'kx-success' });
@@ -196,7 +196,7 @@ export class PushModal extends Modal {
     box.createDiv({ cls: 'kx-success-title', text: '已推送到草稿箱' });
     box.createDiv({
       cls: 'kx-success-sub',
-      text: '打开 X 文章编辑器，Kaitox 扩展会自动识别并在你已登录的账号下创建草稿',
+      text: '打开 X 文章编辑器，Kaitox 扩展会在你已登录的账号下创建草稿；若已开启自动上传，会立即开始。',
     });
     if (this.ctx.unresolved.length) {
       box.createDiv({ cls: 'kx-success-warn', text: `⚠ ${this.ctx.unresolved.length} 个引用未解析，已跳过` });
@@ -210,7 +210,7 @@ export class PushModal extends Modal {
     const ic = open.createSpan({ cls: 'kx-ic' });
     setIcon(ic, 'external-link');
     open.onclick = () => {
-      openXComposer();
+      openXComposer(draftId);
       this.close();
     };
   }

@@ -111,8 +111,9 @@ Agent skills are their own product of the Kaitox toolkit, living at the repo roo
 
 1. Open <https://x.com/compose/articles> in a browser where the Kaitox Chrome extension is installed and you are logged in to X.
 2. The extension polls the local relay every 5 seconds and shows pending drafts in its panel.
-3. Click upload. The extension uploads the images and creates the Article draft using the page's own logged-in session — the raw Markdown is converted to X's content format only at this point, because image `media_id`s exist only after upload from the logged-in page.
-4. `kaitox x status <id>` reflects the result, including the article `rest_id`.
+3. Click upload. If the extension setting `跳转到页面立即自动上传` is enabled, you can instead open the auto-upload URL printed by `kaitox x push`; it includes the draft id and starts this step immediately.
+4. The extension uploads the images and creates the Article draft using the page's own logged-in session — the raw Markdown is converted to X's content format only at this point, because image `media_id`s exist only after upload from the logged-in page.
+5. `kaitox x status <id>` reflects the result, including the article `rest_id`.
 
 > **Compliance note:** this drives your own logged-in browser session against X's private web endpoints. It is unofficial, may break whenever X rotates its internal query ids, and is for publishing your own content at human pace — use at your own risk and do not mass-automate.
 

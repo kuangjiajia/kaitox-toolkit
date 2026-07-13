@@ -1,6 +1,6 @@
 {
   "name": "@kaitox/obsidian",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Kaitox plugin for Obsidian (Kaitox toolkit). Current feature: sync the active note as an X (Twitter) Article draft via the local relay and browser extension.",
   "type": "module",
   "private": true,

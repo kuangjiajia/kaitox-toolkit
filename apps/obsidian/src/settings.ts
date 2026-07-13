@@ -13,11 +13,21 @@ export interface KaitoxSettings {
 export const DEFAULT_SETTINGS: KaitoxSettings = {
   relayBase: DEFAULT_RELAY_BASE,
   relayToken: '',
-  openXAfterPush: false,
+  openXAfterPush: true,
 };
 
 /** x.com 文章编辑器地址——扩展在这里轮询本地队列并创建草稿。 */
 export const X_ARTICLE_COMPOSE_URL = 'https://x.com/compose/articles';
+export const X_ARTICLE_AUTO_UPLOAD_PARAM = 'kaitoxAutoUpload';
+export const X_ARTICLE_DRAFT_ID_PARAM = 'kaitoxDraftId';
+
+export function xArticleComposeUrl(draftId?: string): string {
+  if (!draftId) return X_ARTICLE_COMPOSE_URL;
+  const url = new URL(X_ARTICLE_COMPOSE_URL);
+  url.searchParams.set(X_ARTICLE_AUTO_UPLOAD_PARAM, '1');
+  url.searchParams.set(X_ARTICLE_DRAFT_ID_PARAM, draftId);
+  return url.toString();
+}
 
 export class KaitoxSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: KaitoxPlugin) {

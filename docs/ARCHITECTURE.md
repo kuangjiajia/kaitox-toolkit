@@ -28,7 +28,7 @@ CLI / Obsidian / your service          local relay              Chrome extension
         │                                  │◀──── polls every 5s ──────┤
         │                                  │  GET /x-article/drafts     │
         │                                  │  GET assets (bytes)        │
-        │                                  │                            │ on click: uploads images +
+        │                                  │                            │ click or auto URL: uploads images +
         │                                  │◀─ PATCH /x-article/… ─────┤ creates the Article draft
         │                                  │      done/failed           │ with the page's own session
 ```
@@ -57,7 +57,7 @@ kaitox/
 │   └── cli/                 # @kaitox/cli — bin: kaitox (kaitox x push|list|status, kaitox relay ...)
 ├── apps/
 │   ├── extension/           # Chrome extension (MV3), private — polls the relay on
-│   │                        #   x.com/compose/articles and uploads drafts on click
+│   │                        #   x.com/compose/articles and uploads drafts on click or explicit auto-upload URL
 │   └── obsidian/            # Obsidian plugin, private — pushes the current note to the relay
 ├── skills/
 │   └── kaitox-x-article/SKILL.md   # agent skill: teaches coding agents to drive kaitox x push

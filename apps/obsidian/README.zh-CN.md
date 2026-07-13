@@ -55,7 +55,7 @@ cover: "[[cover.png]]"       # 可选；wikilink、vault 相对路径或 http(s)
 - `![alt](relative/path.png)` —— 按 vault 解析（URL 编码的路径会被解码）。
 - `![alt](https://...)` —— 下载后作为字节打包。
 
-推送成功后，打开 <https://x.com/compose/articles>（成功弹窗有入口），让 Kaitox 扩展创建草稿。推送失败时，先确认本地 relay 在运行（`kaitox relay --daemon`，或跑一次 `kaitox x push`，它会自动拉起）——relay 可达时工具栏状态点会变绿。
+推送成功后，打开 <https://x.com/compose/articles>（成功弹窗会带上 draft id）。如果 Chrome 插件里开启了「跳转到页面立即自动上传」，这个链接会立刻开始上传并显示进度；否则打开 Kaitox 面板手动点上传。推送失败时，先确认本地 relay 在运行（`kaitox relay --daemon`，或跑一次 `kaitox x push`，它会自动拉起）——relay 可达时工具栏状态点会变绿。
 
 ## 设置
 
@@ -63,7 +63,7 @@ cover: "[[cover.png]]"       # 可选；wikilink、vault 相对路径或 http(s)
 |---|---|---|
 | relay 地址 | `http://127.0.0.1:8765` | 本地 kaitox relay 的地址。 |
 | relay token（可选） | 空 | 如果你的 relay 启用了 token（`~/.kaitox/config.json`），在这里设成相同的值；以 `x-kaitox-token` 请求头发送。 |
-| 推送后打开 X 文章编辑器 | 关 | 推送成功后自动打开 `x.com/compose/articles`。 |
+| 推送后打开 X 文章编辑器 | 开 | 推送成功后自动打开 `x.com/compose/articles`，并把新草稿 id 带到 URL 里。 |
 
 ## 合规
 

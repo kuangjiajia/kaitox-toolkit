@@ -62,7 +62,7 @@ Only run the chosen command after the user decides — that is the actual push.
 Tell the user:
 
 - the draft id, title, mode (rich / plaintext), image count, and whether a cover was set;
-- **Next step**: open `https://x.com/compose/articles` in the browser and click "Upload draft" in the kaitox extension panel (bottom-right). The images and formatting are written into the X draft only at that step.
+- **Next step**: open `https://x.com/compose/articles` in the browser and click "Upload draft" in the kaitox extension panel. If the Chrome extension setting `跳转到页面立即自动上传` is enabled, open the auto-upload URL printed by `kaitox x push` instead; it includes the draft id and starts the upload immediately. The images and formatting are written into the X draft only at that browser step.
 
 ## Other commands
 

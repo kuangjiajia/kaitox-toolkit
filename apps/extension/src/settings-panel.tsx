@@ -44,7 +44,7 @@ function SettingsPanelApp({ state, onClose }: { state: PanelState; onClose: () =
 
       {helpOpen && (
         <div className="kx-set-help">
-          在终端运行 kaitox relay 启动本地中继，用 kaitox x push 或 Obsidian 推送草稿，然后在本页点「上传草稿」。
+          在终端运行 kaitox relay 启动本地中继，用 kaitox x push 或 Obsidian 推送草稿，然后手动上传；开启自动上传后可直接打开带草稿 ID 的跳转链接。
         </div>
       )}
 
@@ -78,6 +78,19 @@ function SettingsPanelApp({ state, onClose }: { state: PanelState; onClose: () =
             aria-checked={s.showButton}
             aria-label="在文章草稿页显示上传按钮"
             onClick={() => void s.flipShowButton()}
+          >
+            <span className="kx-set-knob" />
+          </button>
+        </div>
+        <div className="kx-set-row kx-set-row-toggle">
+          <span className="kx-set-label">跳转到页面立即自动上传</span>
+          <button
+            className="kx-set-toggle"
+            type="button"
+            role="switch"
+            aria-checked={s.autoUploadAfterOpen}
+            aria-label="跳转到页面立即自动上传"
+            onClick={() => void s.flipAutoUploadAfterOpen()}
           >
             <span className="kx-set-knob" />
           </button>

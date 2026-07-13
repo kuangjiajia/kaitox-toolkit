@@ -10,7 +10,7 @@
 
 1. content script 跑在 `x.com/compose/articles*` 上，在 Articles 页标题行（挨着「新建文章」按钮）注入一个「上传草稿」按钮。X 会频繁重绘 header，所以用 `MutationObserver` 加低频定时器兜底，按钮被冲掉后自动补回。
 2. 按钮的下拉面板每 5 秒轮询本地 relay，列出待上传草稿（标题、来源、富文本/纯文本模式、风格问题计数）。只显示 `kind` 为 `'x-article'` 的草稿包——其他 kind 留给别的消费者。
-3. 点击上传时，从 `document.cookie` 读 `ct0`（页面已登录，同源请求自动带 cookie），从 relay 拉取草稿的图片字节，然后调用 [`@kaitox/x-article`](../../packages/x-article/README.zh-CN.md) 的 `publishXArticle`：逐图上传（`INIT`/`APPEND`/`FINALIZE`）→ `markdownToContentState` → `ArticleEntityDraftCreate` → 有封面则再走 `ArticleEntityUpdateCoverMedia` 设置封面。
+3. 点击上传时，或在开启「跳转到页面立即自动上传」后打开带 `kaitoxAutoUpload=1&kaitoxDraftId=<id>` 的自动上传 URL 时，从 `document.cookie` 读 `ct0`（页面已登录，同源请求自动带 cookie），从 relay 拉取草稿的图片字节，然后调用 [`@kaitox/x-article`](../../packages/x-article/README.zh-CN.md) 的 `publishXArticle`：逐图上传（`INIT`/`APPEND`/`FINALIZE`）→ `markdownToContentState` → `ArticleEntityDraftCreate` → 有封面则再走 `ArticleEntityUpdateCoverMedia` 设置封面。
 4. 成功后把草稿在 relay 上确认为 `done`，并跳转到 `x.com/compose/articles/edit/<rest_id>`。若从 X 的响应里解析不到 `rest_id`，草稿其实已经建好——去文章列表里找。失败会记为 `failed`，可在面板里重试。
 5. service worker 另外每分钟轮询一次 relay，把待上传数量显示在插件工具栏图标的角标上。
 
@@ -34,12 +34,14 @@ npm run build:extension   # 打包插件 → apps/extension/dist/
 
 ## 设置
 
-目前没有设置页面。设置从 `chrome.storage.sync` 读取，键与默认值如下：
+工具栏 popup 和页内设置浮窗会写入 `chrome.storage.sync`，键与默认值如下：
 
 | 键 | 默认值 | 用途 |
 |---|---|---|
 | `relayBase` | `http://127.0.0.1:8765` | 本地 Kaitox relay 的地址。 |
 | `relayToken` | 未设置 | 如果你的 relay 启用了 token（`~/.kaitox/config.json`），在这里设成相同的值；以 `x-kaitox-token` 请求头发送。 |
+| `showUploadButton` | `true` | 是否在 X Articles 页面显示 Kaitox 上传按钮。 |
+| `autoUploadAfterOpen` | `false` | 是否启用「跳转到页面立即自动上传」。只有带 `kaitoxAutoUpload=1&kaitoxDraftId=<id>` 的 URL 会自动开始。 |
 | `queryId` | 内置常量 | 覆盖 `ArticleEntityDraftCreate` 的 GraphQL queryId。X 会轮换这些 id——建草稿开始失败时，在这里设一个新的。 |
 | `coverQueryId` | 内置常量 | 覆盖 `ArticleEntityUpdateCoverMedia` 的 queryId。 |
 

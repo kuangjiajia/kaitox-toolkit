@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import type { DraftListItem, DraftStatus, HttpRelayClient, StyleReport } from '@kaitox/relay-protocol';
 import { getRelayClient, getSettings } from './xsession.js';
-import { uploadDraft } from './uploader.js';
+import { runRelayUploadFlow, uploadErrorMessage } from './upload-flow.js';
 import { LOGO_SVG } from './logo.js';
 import {
   CheckIcon,
@@ -283,7 +283,7 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
   const selected = items.find((d) => d.id === selectedId) ?? null;
   const actionableCount = conn === 'ok' ? items.filter((d) => d.status !== 'done').length : 0;
 
-  /** 上传流程与旧版完全一致：ack(uploading) → getDraft → uploadDraft → ack(done) → 跳编辑页。 */
+  /** 上传流程：共享 relay 生命周期 → 成功后跳编辑页。 */
   const doUpload = useCallback(
     async (id: string) => {
       const client = clientRef.current;
@@ -293,13 +293,14 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
       setTab('uploading');
       setPage(1);
       try {
-        await client.ack(id, { status: 'uploading' });
-        const bundle = await client.getDraft(id);
-        bundles.seed(bundle);
-        const result = await uploadDraft(bundle, client, (message) => {
-          setUploads((u) => ({ ...u, [id]: { phase: 'uploading', message } }));
+        const result = await runRelayUploadFlow({
+          id,
+          client,
+          onBundle: (bundle) => bundles.seed(bundle),
+          onProgress: (message) => {
+            setUploads((u) => ({ ...u, [id]: { phase: 'uploading', message } }));
+          },
         });
-        await client.ack(id, { status: 'done', restId: result.restId });
 
         const skipped = result.skippedImages.length ? `（跳过 ${result.skippedImages.length} 张图）` : '';
         if (result.restId) {
@@ -313,8 +314,7 @@ function PanelApp({ btnHost }: { btnHost: HTMLElement }) {
           void refresh();
         }
       } catch (err: any) {
-        const msg = err?.message ?? String(err);
-        await client.ack(id, { status: 'failed', error: msg }).catch(() => {});
+        const msg = uploadErrorMessage(err);
         setUploads((u) => ({ ...u, [id]: { phase: 'error', message: `上传失败：${msg}` } }));
         void refresh();
       }

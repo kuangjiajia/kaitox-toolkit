@@ -55,7 +55,7 @@ Image resolution rules:
 - `![alt](relative/path.png)` — resolved against the vault (URL-encoded paths are decoded).
 - `![alt](https://...)` — fetched and bundled as bytes.
 
-After a successful push, open <https://x.com/compose/articles> (the success dialog links there) and let the Kaitox extension create the draft. If the push fails, make sure the local relay is running (`kaitox relay --daemon` or just `kaitox x push` once, which auto-starts it) — the toolbar's status dot goes green when it's reachable.
+After a successful push, open <https://x.com/compose/articles> (the success dialog links there with the draft id). If the Chrome extension setting `跳转到页面立即自动上传` is enabled, that link starts the upload immediately and shows progress; otherwise, open the Kaitox panel and click upload. If the push fails, make sure the local relay is running (`kaitox relay --daemon` or just `kaitox x push` once, which auto-starts it) — the toolbar's status dot goes green when it's reachable.
 
 ## Settings
 
@@ -63,7 +63,7 @@ After a successful push, open <https://x.com/compose/articles> (the success dial
 |---|---|---|
 | relay 地址 (relay base URL) | `http://127.0.0.1:8765` | Address of the local kaitox relay. |
 | relay token (optional) | empty | If your relay enforces a token (`~/.kaitox/config.json`), set the same value here; it is sent as the `x-kaitox-token` header. |
-| 推送后打开 X 文章编辑器 (open X composer after push) | off | After a successful push, open `x.com/compose/articles` automatically. |
+| 推送后打开 X 文章编辑器 (open X composer after push) | on | After a successful push, open `x.com/compose/articles` automatically with the new draft id in the URL. |
 
 ## Compliance
 

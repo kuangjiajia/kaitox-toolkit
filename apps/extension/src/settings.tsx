@@ -1,6 +1,6 @@
 /**
  * 设置 popup（点工具栏图标弹出，也注册为 options 页），React 渲染。
- * 只暴露两项：relay 地址、是否在 X 文章页显示上传按钮；其余（token/queryId）走内置默认。
+ * 暴露常用项：relay 地址、上传按钮和自动上传；其余（token/queryId）走内置默认。
  */
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -38,7 +38,7 @@ function SettingsPage() {
       {helpOpen && (
         <div className="kx-help-box">
           在终端运行 <code>kaitox relay</code> 启动本地中继，用 <code>kaitox x push</code> 或 Obsidian
-          推送草稿，然后打开 x.com/compose/articles 点「上传草稿」。
+          推送草稿，然后打开 x.com/compose/articles 手动上传；开启自动上传后可直接打开带草稿 ID 的跳转链接。
         </div>
       )}
 
@@ -72,6 +72,19 @@ function SettingsPage() {
             aria-checked={s.showButton}
             aria-label="在文章草稿页显示上传按钮"
             onClick={() => void s.flipShowButton()}
+          >
+            <span className="kx-knob" />
+          </button>
+        </div>
+        <div className="kx-row-between kx-row-toggle">
+          <span className="kx-label">跳转到页面立即自动上传</span>
+          <button
+            className="kx-toggle"
+            type="button"
+            role="switch"
+            aria-checked={s.autoUploadAfterOpen}
+            aria-label="跳转到页面立即自动上传"
+            onClick={() => void s.flipAutoUploadAfterOpen()}
           >
             <span className="kx-knob" />
           </button>

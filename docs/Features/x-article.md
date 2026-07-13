@@ -85,7 +85,7 @@ With the skill installed, tell your agent what to publish — for example:
 
 ### 2. Upload from the browser
 
-Open <https://x.com/compose/articles>, find your draft in the Kaitox panel, and click **上传草稿** (upload draft). The extension uploads the images and creates the Article draft inside your own logged-in session, then opens it in the editor. Images and formatting land together — review and publish from X when you're ready.
+Open <https://x.com/compose/articles>, find your draft in the Kaitox panel, and click **上传草稿** (upload draft). If you enable the Chrome extension setting `跳转到页面立即自动上传`, the auto-upload URL printed by `kaitox x push` or opened from Obsidian starts this step immediately for the matching draft id. The extension uploads the images and creates the Article draft inside your own logged-in session, then opens it in the editor. Images and formatting land together — review and publish from X when you're ready.
 
 ![Clicking 上传草稿 in the Kaitox draft panel on x.com](../images/04-upload-result.png)
 
