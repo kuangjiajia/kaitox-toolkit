@@ -1,6 +1,6 @@
 {
   "name": "@kaitox/relay-protocol",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Wire contract and portable HTTP client for the Kaitox draft relay: DraftBundle types, RelayClient interface, HttpRelayClient (Node & browser), base64 helpers. Zero dependencies.",
   "license": "MIT",
   "author": "kaitox <me@kaitox.ai> (https://kaitox.ai)",

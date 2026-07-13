@@ -1,5 +1,11 @@
 # @kaitox/relay-protocol
 
+## 0.5.2
+
+### Patch Changes
+
+- 3ba09ce: Add X Article auto-upload handoff URL messaging and keep package versions aligned.
+
 ## 0.5.1
 
 ### Patch Changes

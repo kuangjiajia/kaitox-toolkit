@@ -1,5 +1,13 @@
 # @kaitox/x-article
 
+## 0.6.1
+
+### Patch Changes
+
+- 3ba09ce: Add X Article auto-upload handoff URL messaging and keep package versions aligned.
+- Updated dependencies [3ba09ce]
+  - @kaitox/relay-protocol@0.5.2
+
 ## 0.6.0
 
 ### Minor Changes
