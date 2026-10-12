@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { DraftBundle, DraftListItem } from '@kaitox/relay-protocol';
-import { renderPreviewHtml, extractMermaidBlocks, MERMAID_SRC_PREFIX } from '@kaitox/x-article';
+import { renderPreviewHtml, extractMermaidBlocks, mediaKindFromMime, MERMAID_SRC_PREFIX } from '@kaitox/x-article';
 import { renderMermaidSvgUrl } from './mermaid-render.js';
 import { CloseIcon } from './icons.js';
 import type { AssetUrls } from './bundle-cache.js';
@@ -92,6 +92,10 @@ export function PreviewModal({ draft, bundle, assetUrls, onClose }: PreviewModal
       const asset = bundle.assets.find((a) => a.src === src);
       // 找不到资源 = 未随草稿包提供字节，上传时也会被跳过；undefined = 字节加载中。
       return asset ? assetUrls.get(draft.id, asset.fileName, asset.mime) : null;
+    },
+    isVideo: (src) => {
+      const asset = bundle.assets.find((a) => a.src === src);
+      return !!asset && mediaKindFromMime(asset.mime) === 'video';
     },
   });
 

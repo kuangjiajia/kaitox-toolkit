@@ -6,9 +6,10 @@
  *
  * 用法：npm run test:integration（需先 npm run build）
  */
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 // 必须在 import relay 之前设好，config 每次读 env。
 const home = await mkdtemp(join(tmpdir(), 'kaitox-itest-'));
@@ -195,6 +196,67 @@ try {
   const idxCover = calls.findIndex((c) => c.url.includes('/ArticleEntityUpdateCoverMedia'));
   check('先建草稿再设封面', idxCreate >= 0 && idxCover > idxCreate);
 
+  // GIF / video: upload category, video-only INIT/FINALIZE params, async processing, entity category.
+  console.log('\n[2b] GIF / 视频上传');
+  const mediaCalls = [];
+  let mediaInitN = 0;
+  let statusPolls = 0;
+  const mediaFetch = async (url, init = {}) => {
+    mediaCalls.push({ url, body: init.body });
+    if (url.includes('command=INIT')) return ok({ media_id_string: `MV_${++mediaInitN}`, expires_after_secs: 60 });
+    if (url.includes('command=APPEND')) return ok({});
+    if (url.includes('command=FINALIZE')) {
+      return ok(url.includes('allow_async=true') ? { processing_info: { state: 'pending', check_after_secs: 0 } } : {});
+    }
+    if (url.includes('command=STATUS')) {
+      statusPolls++;
+      return ok({ processing_info: { state: statusPolls < 2 ? 'in_progress' : 'succeeded', check_after_secs: 0 } });
+    }
+    if (url.includes('/ArticleEntityDraftCreate')) return ok({ data: {} });
+    throw new Error('unexpected ' + url);
+  };
+  const mediaMimes = { 'anim.gif': 'image/gif', 'clip.mp4': 'video/mp4' };
+  const mediaResult = await publishXArticle({
+    markdown: '![](anim.gif)\n\n![](clip.mp4)\n',
+    title: 'media',
+    credentials: { bearerToken: '', csrfToken: 'CT0' },
+    clientOptions: { fetchImpl: mediaFetch },
+    imageConcurrency: 1, // keep INIT order deterministic
+    fetchImage: async (src) => ({
+      bytes: pngBytes,
+      mimeType: mediaMimes[src],
+      videoDurationMs: src === 'clip.mp4' ? 10450 : undefined,
+    }),
+  });
+  const params = (cmd) => mediaCalls.filter((c) => c.url.includes(`command=${cmd}`)).map((c) => new URL(c.url).searchParams);
+  const [gifInit, videoInit] = params('INIT');
+  check('GIF INIT media_category=tweet_gif', gifInit.get('media_category') === 'tweet_gif' && gifInit.get('media_type') === 'image/gif');
+  // Article videos must be tweet_video: an amplify_video upload never resolves under DraftTweetVideo.
+  check(
+    '视频 INIT media_category=tweet_video',
+    videoInit.get('media_category') === 'tweet_video' && videoInit.get('media_type') === 'video/mp4',
+  );
+  check('视频 INIT 带 video_duration_ms，GIF 不带', videoInit.get('video_duration_ms') === '10450' && !gifInit.has('video_duration_ms'));
+  const [gifFinalize, videoFinalize] = params('FINALIZE');
+  check('只有视频 FINALIZE 带 allow_async=true', !gifFinalize.has('allow_async') && videoFinalize.get('allow_async') === 'true');
+  check('视频处理中轮询 STATUS 直到 succeeded', statusPolls === 2);
+  check('GIF / 视频都没被跳过', mediaResult.skippedImages.length === 0);
+  const mediaCreate = mediaCalls.find((c) => c.url.includes('/ArticleEntityDraftCreate'));
+  const mediaCats = JSON.parse(mediaCreate.body).variables.content_state.entity_map.map(
+    (e) => e.value.data.media_items[0].media_category,
+  );
+  check(
+    '正文实体 media_category = DraftTweetGif / DraftTweetVideo',
+    JSON.stringify(mediaCats) === JSON.stringify(['DraftTweetGif', 'DraftTweetVideo']),
+    `(got ${mediaCats})`,
+  );
+  check(
+    'GIF / 视频的所有上传命令都走 upload.json',
+    mediaCalls
+      .filter((c) => c.url.includes('upload.x.com'))
+      .every((c) => c.url.startsWith('https://upload.x.com/i/media/upload.json?')),
+  );
+
   // done → sent（迁移目录归档，但列表仍要能看到——草稿箱「已上传」Tab 依赖）
   await client.ack(id, { status: 'done', restId: 'ART_777' });
   const doneItem = (await client.listDrafts()).find((d) => d.id === id);
@@ -213,6 +275,54 @@ try {
   check('纯文本降级保留表格（不再打平）', /\| a \| b \|/.test(pt));
   check('纯文本降级拍平嵌套列表', !/ {2}- nested/.test(pt) && /- nested/.test(pt));
   check('纯文本保留远程图片 src', collectImageSources(pt).includes('https://cdn.x/y.png'));
+
+  // ---- 4. Relay video fitting at ingest (needs ffmpeg; skipped without it) ----
+  console.log('\n[4] relay 视频入库转码');
+  const videoDir = await mkdtemp(join(tmpdir(), 'kaitox-itest-video-'));
+  try {
+    // 1s test clips: H.264 MP4 (X-ready), H.264 in MKV (remux), MPEG-4 Part 2 in AVI (transcode).
+    const make = (name, args) => {
+      const out = join(videoDir, name);
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=duration=1:size=64x48:rate=10', ...args, out]);
+      return readFile(out);
+    };
+    let clips;
+    try {
+      clips = {
+        mp4: await make('a.mp4', ['-c:v', 'libx264', '-pix_fmt', 'yuv420p']),
+        mkv: await make('b.mkv', ['-c:v', 'libx264', '-pix_fmt', 'yuv420p']),
+        avi: await make('c.avi', ['-c:v', 'mpeg4']),
+      };
+    } catch {
+      console.log('⏭  未找到可用的 ffmpeg（含 libx264），跳过');
+    }
+    if (clips) {
+      const videoAssets = [
+        ['a.mp4', 'video/mp4', clips.mp4],
+        ['b.mkv', 'video/x-matroska', clips.mkv],
+        ['c.avi', 'video/x-msvideo', clips.avi],
+      ];
+      const { id: videoDraftId } = await client.postDraft({
+        title: 'video', mode: 'rich', source: 'cli',
+        markdown: videoAssets.map(([n]) => `![](${n})`).join('\n\n'),
+        assets: videoAssets.map(([n, mime, bytes], i) => ({ key: `v${i}`, src: n, fileName: n, mime, bytes: new Uint8Array(bytes) })),
+      });
+      const stored = (await client.getDraft(videoDraftId)).assets;
+      const metaOf = (n) => stored.find((a) => a.fileName === n);
+      const codecOf = async (n) => {
+        const p = join(videoDir, `stored-${n}`);
+        await writeFile(p, await client.getAsset(videoDraftId, n));
+        return execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', p]).toString().trim();
+      };
+      const storedMp4 = await client.getAsset(videoDraftId, 'a.mp4');
+      check('H.264 MP4 原样入库', metaOf('a.mp4').mime === 'video/mp4' && storedMp4.length === clips.mp4.length);
+      check('H.264 MKV 转封装成 MP4', metaOf('b.mkv').mime === 'video/mp4' && (await codecOf('b.mkv')) === 'h264');
+      check('MPEG-4 AVI 转码成 H.264 MP4', metaOf('c.avi').mime === 'video/mp4' && (await codecOf('c.avi')) === 'h264');
+      check('转码后 bytesLen 跟随实际字节', metaOf('c.avi').bytesLen === (await client.getAsset(videoDraftId, 'c.avi')).length);
+    }
+  } finally {
+    await rm(videoDir, { recursive: true, force: true });
+  }
 } finally {
   await handle.close();
   await rm(home, { recursive: true, force: true });

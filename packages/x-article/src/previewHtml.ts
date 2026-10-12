@@ -29,6 +29,8 @@ export interface RenderPreviewOptions {
    * 不提供时默认原样使用 src（适合 markdown 里就是可访问 URL 的 Web 场景）。
    */
   resolveImage?: (src: string) => string | null | undefined;
+  /** Whether a media src is a video (rendered as <video> instead of <img>). Hosts answer from the asset MIME. */
+  isVideo?: (src: string) => boolean;
 }
 
 /** 便捷入口：markdown 一步到 HTML。 */
@@ -127,6 +129,9 @@ function renderAtomic(
       }
       if (resolved === undefined) {
         return `<figure class="xp-fig"><div class="xp-img-loading">图片加载中…</div></figure>`;
+      }
+      if (opts.isVideo?.(src)) {
+        return `<figure class="xp-fig"><video class="xp-img" src="${escapeHtml(resolved)}" controls muted playsinline preload="metadata"></video></figure>`;
       }
       return `<figure class="xp-fig"><img class="xp-img" src="${escapeHtml(resolved)}" alt=""></figure>`;
     }

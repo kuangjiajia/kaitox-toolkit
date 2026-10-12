@@ -19,6 +19,7 @@ import type {
   ArticleDraftCreateBody,
   ArticleUpdateCoverMediaBody,
   MediaUploadInitResponse,
+  MediaProcessingInfo,
   UploadMediaCategory,
 } from './types';
 import { INLINE_STYLES } from './types.js';
@@ -66,6 +67,17 @@ export const DEFAULT_ARTICLE_FIELD_TOGGLES: ArticleFieldToggles = {
 
 /** 单个 APPEND 分片上限。X 官方约 5MB，这里留点余量。 */
 const APPEND_CHUNK_SIZE = 4 * 1024 * 1024;
+
+/**
+ * How long to wait for async media processing when X omits expires_after_secs.
+ * X's web client waits until the media slot expires and defaults to the same hour.
+ */
+const DEFAULT_PROCESSING_TIMEOUT_MS = 60 * 60_000;
+
+export interface UploadMediaOptions {
+  /** Video duration in ms, sent as INIT video_duration_ms like X's web client. Omitted when unknown. */
+  videoDurationMs?: number;
+}
 
 export type FetchLike = (
   input: string,
@@ -144,23 +156,29 @@ export class XArticleClient {
   // --- 媒体上传：INIT / APPEND / FINALIZE -----------------------------------
 
   /**
-   * 分片上传一张图片，返回 media_id_string。
-   * @param bytes    图片二进制
-   * @param mimeType 如 image/webp、image/png、image/jpeg、image/gif
-   * @param category 上传分类，图片用 tweet_image（注意与正文里的 DraftTweetImage 不同）
+   * 分片上传一个媒体（图片 / GIF / 视频），返回 media_id_string。
+   * @param bytes    媒体二进制
+   * @param mimeType 如 image/webp、image/png、image/jpeg、image/gif、video/mp4
+   * @param category 上传分类：图片 tweet_image、GIF tweet_gif、视频 tweet_video
+   *                 （注意与正文里的 DraftTweet* 不同；按 MIME 取值用 media.ts 的 UPLOAD_CATEGORY_BY_KIND）
    */
   async uploadMedia(
     bytes: Uint8Array | Blob,
     mimeType: string,
     category: UploadMediaCategory = 'tweet_image',
+    options: UploadMediaOptions = {},
   ): Promise<string> {
     const blob = bytes instanceof Blob ? bytes : new Blob([bytes as BlobPart], { type: mimeType });
     const totalBytes = blob.size;
+    const isVideo = category === 'amplify_video' || category === 'tweet_video';
 
     // 1) INIT
-    const initUrl =
+    let initUrl =
       `${UPLOAD_URL}?command=INIT&total_bytes=${totalBytes}` +
       `&media_type=${encodeURIComponent(mimeType)}&media_category=${category}`;
+    if (isVideo && options.videoDurationMs !== undefined && options.videoDurationMs > 0) {
+      initUrl += `&video_duration_ms=${Math.round(options.videoDurationMs)}`;
+    }
     const init = (await this.postJson(initUrl, null)) as MediaUploadInitResponse;
     const mediaId = init.media_id_string;
     if (!mediaId) throw new Error(`INIT 未返回 media_id_string：${JSON.stringify(init)}`);
@@ -177,33 +195,39 @@ export class XArticleClient {
       segmentIndex++;
     }
 
-    // 3) FINALIZE
-    const finalizeUrl = `${UPLOAD_URL}?command=FINALIZE&media_id=${mediaId}`;
+    // 3) FINALIZE（视频带 allow_async=true，与 X 网页端一致）
+    const finalizeUrl = `${UPLOAD_URL}?command=FINALIZE&media_id=${mediaId}${isVideo ? '&allow_async=true' : ''}`;
     const finalize = await this.postJson(finalizeUrl, null);
     // 视频/GIF 会返回 processing_info 需要轮询 STATUS；图片一般即时完成。
-    if (finalize?.processing_info?.state && finalize.processing_info.state !== 'succeeded') {
-      await this.waitForProcessing(mediaId);
+    const info = finalize?.processing_info as MediaProcessingInfo | undefined;
+    if (info?.state && info.state !== 'succeeded') {
+      const expiresSecs = finalize.expires_after_secs ?? init.expires_after_secs;
+      await this.waitForProcessing(mediaId, info, expiresSecs ? expiresSecs * 1000 : DEFAULT_PROCESSING_TIMEOUT_MS);
     }
     return mediaId;
   }
 
-  /** 媒体处理异步完成时轮询 STATUS（图片一般用不到，留给视频/GIF）。 */
-  private async waitForProcessing(mediaId: string, maxWaitMs = 60_000): Promise<void> {
-    const start = Date.now();
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+  /**
+   * 媒体处理异步完成时轮询 STATUS（图片一般用不到，留给视频/GIF）。
+   * Like X's web client, waits check_after_secs before each poll and gives up only
+   * when the media slot expires; video transcoding easily takes longer than a minute.
+   */
+  private async waitForProcessing(mediaId: string, initial: MediaProcessingInfo, maxWaitMs: number): Promise<void> {
+    const deadline = Date.now() + maxWaitMs;
+    let info: MediaProcessingInfo | undefined = initial;
+    while (info && info.state !== 'succeeded') {
+      if (info.state === 'failed') throw new Error(`媒体处理失败：${JSON.stringify(info)}`);
+      if (Date.now() >= deadline) throw new Error('媒体处理超时。');
+      await sleep(Math.max(250, (info.check_after_secs ?? 1) * 1000));
       const statusUrl = `${UPLOAD_URL}?command=STATUS&media_id=${mediaId}`;
       const res = await this.fetchImpl(statusUrl, {
         method: 'GET',
         headers: this.authHeaders(),
         credentials: this.credentialsMode,
       });
-      const body = await res.json();
-      const info = body?.processing_info;
-      if (!info || info.state === 'succeeded') return;
-      if (info.state === 'failed') throw new Error(`媒体处理失败：${JSON.stringify(info)}`);
-      if (Date.now() - start > maxWaitMs) throw new Error('媒体处理超时。');
-      await sleep((info.check_after_secs ?? 1) * 1000);
+      const text = await res.text();
+      if (!res.ok) throw new Error(`STATUS 失败 ${res.status} ${statusUrl}\n${text}`);
+      info = (text ? JSON.parse(text) : {})?.processing_info;
     }
   }
 

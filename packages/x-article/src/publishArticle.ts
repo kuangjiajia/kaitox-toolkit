@@ -4,6 +4,7 @@
  * 完整流水线（调用顺序）：
  *   1. 从 markdown 收集所有图片 src
  *   2. 逐张：下载图片二进制 → 上传到 X（INIT/APPEND/FINALIZE）→ 得到 media_id
+ *      （GIF / 视频按 MIME 换上传分类，见 media.ts）
  *   3. markdown + {src→media_id} → content_state
  *   4. POST ArticleEntityDraftCreate 创建草稿
  *
@@ -13,10 +14,18 @@
 
 import { XArticleClient, XArticleClientOptions } from './xArticleClient.js';
 import { collectImageSources, markdownToContentState } from './contentState.js';
-import type { ContentState, XCredentials } from './types.js';
+import { mediaKindFromMime, UPLOAD_CATEGORY_BY_KIND } from './media.js';
+import { guessMimeFromName } from './pushHelpers.js';
+import type { ContentState, MediaKind, XCredentials } from './types.js';
 
-/** 给定图片 src，返回它的二进制与 MIME。默认实现用 fetch 下载。 */
-export type ImageFetcher = (src: string) => Promise<{ bytes: Uint8Array | Blob; mimeType: string }>;
+/**
+ * 给定图片 src，返回它的二进制与 MIME。默认实现用 fetch 下载。
+ * The MIME decides the media kind (image / GIF / video). For video, a known
+ * videoDurationMs is forwarded to INIT; leaving it out is accepted by X.
+ */
+export type ImageFetcher = (
+  src: string,
+) => Promise<{ bytes: Uint8Array | Blob; mimeType: string; videoDurationMs?: number }>;
 
 /** 取封面图字节（在建草稿拿到 rest_id 后才会被调用）。 */
 export type CoverFetcher = () => Promise<{ bytes: Uint8Array | Blob; mimeType: string }>;
@@ -84,14 +93,17 @@ export async function publishXArticle(params: PublishArticleParams): Promise<Pub
   // 1 + 2：收集并上传图片
   const srcs = collectImageSources(markdown);
   const mediaMap: Record<string, string> = {};
+  const kindBySrc: Record<string, MediaKind> = {};
   const skippedImages: string[] = [];
 
   let imagesDone = 0;
   notify({ stage: 'images', done: 0, total: srcs.length });
   await mapLimit(srcs, imageConcurrency, async (src) => {
     try {
-      const { bytes, mimeType } = await fetchImage(src);
-      mediaMap[src] = await client.uploadMedia(bytes, mimeType, 'tweet_image');
+      const { bytes, mimeType, videoDurationMs } = await fetchImage(src);
+      const kind = mediaKindFromMime(mimeType);
+      mediaMap[src] = await client.uploadMedia(bytes, mimeType, UPLOAD_CATEGORY_BY_KIND[kind], { videoDurationMs });
+      kindBySrc[src] = kind;
     } catch (err) {
       skippedImages.push(src);
       // 单张失败不阻断整篇；正文里该图会被跳过。
@@ -107,7 +119,7 @@ export async function publishXArticle(params: PublishArticleParams): Promise<Pub
     contentState,
     skippedImages: unresolvable,
     title: h1Title,
-  } = markdownToContentState(markdown, mediaMap);
+  } = markdownToContentState(markdown, mediaMap, kindBySrc);
   for (const s of unresolvable) if (!skippedImages.includes(s)) skippedImages.push(s);
 
   // 标题优先级：调用方显式指定 > 正文第一个 H1 > 其他级别的第一个标题
@@ -157,19 +169,8 @@ function defaultImageFetcher(clientOptions?: XArticleClientOptions): ImageFetche
 }
 
 function guessMime(src: string): string {
-  const ext = src.split('?')[0].split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'png':
-      return 'image/png';
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'gif':
-      return 'image/gif';
-    case 'webp':
-    default:
-      return 'image/webp';
-  }
+  const mime = guessMimeFromName(src);
+  return mime === 'application/octet-stream' ? 'image/webp' : mime;
 }
 
 /**

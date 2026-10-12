@@ -4,7 +4,7 @@ English | [简体中文](README.zh-CN.md)
 
 Local, loopback-only draft relay for the [Kaitox](https://kaitox.ai) toolkit. Upload clients (the [`@kaitox/cli`](../cli/README.md), the Obsidian plugin, or your own service) POST draft bundles — raw Markdown plus image bytes — to `http://127.0.0.1:8765`; the relay stores them on disk under `~/.kaitox/<kind>/outbox/` (e.g. `~/.kaitox/x-article/outbox/`), and the Kaitox Chrome extension polls it from `https://x.com/compose/articles` to publish drafts using your own logged-in session.
 
-Pure `node:http` server on top of the zero-dep [`@kaitox/relay-protocol`](../relay-protocol/README.md) wire contract; [sharp](https://sharp.pixelplumbing.com) transparently re-encodes images over X's 5MB upload limit at ingest. Ships the `kaitox-relay` CLI.
+Pure `node:http` server on top of the zero-dep [`@kaitox/relay-protocol`](../relay-protocol/README.md) wire contract; [sharp](https://sharp.pixelplumbing.com) transparently re-encodes images over X's 5MB upload limit at ingest, and videos X can't take (WebM, MKV, AVI, HEVC MOV, …) are converted to H.264/AAC MP4 with the system [ffmpeg](https://ffmpeg.org) when one is installed. Ships the `kaitox-relay` CLI.
 
 Requires Node.js >= 18 (global `fetch`). ESM only.
 
@@ -47,6 +47,7 @@ Notes:
 | --- | --- | --- |
 | `KAITOX_HOME` | `~/.kaitox` | Data directory (per-kind `<kind>/{outbox,sent}`, config, pidfile) |
 | `KAITOX_RELAY_PORT` | `8765` | Listen port (host is always `127.0.0.1`) |
+| `KAITOX_FFMPEG` | `ffmpeg` on `PATH`, then `/opt/homebrew/bin`, `/usr/local/bin` | Path to the ffmpeg used for video conversion (`ffprobe` must sit beside it). Without ffmpeg, videos are stored as-is |
 | `~/.kaitox/config.json` → `token` | unset | Optional per-install shared token |
 
 `config.json` example:

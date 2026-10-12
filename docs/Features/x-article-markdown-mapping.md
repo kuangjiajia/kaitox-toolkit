@@ -34,6 +34,8 @@ An X Article is **not** Markdown — the editor stores a Draft.js document (bloc
 | Table | Table | ✅ | Rendered natively by X. |
 | `---` horizontal rule | Divider | ✅ | |
 | `![alt](src)` | Image | ✅ | Needs the image bytes → uploaded for a `media_id`. A missing / unresolved `src` is skipped (rest of the article still uploads). |
+| `![](clip.gif)` / `![](clip.mp4)` | GIF / video | ✅ | Same syntax as images; the file's MIME picks the kind. Videos: `.mp4` / `.mov` upload directly; `.webm` `.mkv` `.avi` `.m4v` `.wmv` `.flv` `.3gp` `.ogv` `.mpg`, and HEVC-encoded MOVs (iPhone default), are converted to H.264 MP4 by the relay at ingest, which needs [ffmpeg](https://ffmpeg.org) installed. In Obsidian, `![[clip.mp4]]` works too. |
+| `<video src="…">` | _(not uploaded)_ | ❌ | Not a media embed: dropped or shown as literal text. Use `![](clip.mp4)` instead. |
 | An x.com/twitter status URL **alone on its line** | Embedded quote tweet | ✅ | Only when the link occupies its own line. The same URL mid-sentence stays a plain link. |
 | Raw HTML block (`<div>…`) | _(dropped)_ | ❌ | The whole block is discarded. Rewrite it as Markdown. |
 
@@ -79,7 +81,7 @@ When you leave a 🟡/❌ construct in and choose the "plain text" fallback, onl
 - **Headings collapse to two levels.** `##` → Heading, `###` → SubHeading; `#` is the title (removed from the body); `####`+ clamp to SubHeading. X Article's body simply has no deeper level.
 - **Embeds are "standalone-only."** A tweet link becomes an embedded quote only when it's alone on its line — matching X's own paste-to-embed behavior. One per line means one embed per line.
 - **Images travel as bytes, not URLs.** The pusher packages local image bytes; the extension uploads them from your logged-in session to get a `media_id`. Remote (`http(s)`) images aren't fetched automatically — a custom uploader must pre-download them into the bundle.
-- **Oversized images are usually fine.** The relay auto-recompresses oversized PNG / JPEG / WebP at ingest. Only non-compressible formats (GIF, SVG) over ~5 MB risk an X rejection.
+- **Oversized images are usually fine.** The relay auto-recompresses oversized PNG / JPEG / WebP at ingest. GIFs aren't recompressed and are rejected above X's 15 MB GIF limit; SVGs risk a rejection above ~5 MB. Video limits depend on your X account. Converting a long video takes a while, so the push waits until it's done.
 - **Offsets are UTF-16 code units.** A CJK character counts as 1, most emoji as 2. This only matters if you build `content_state` yourself — the converter handles it.
 
 ---

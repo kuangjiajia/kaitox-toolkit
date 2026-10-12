@@ -9,6 +9,7 @@ import { base64ToBytes } from '@kaitox/relay-protocol';
 import type { DraftBundle, DraftListItem, DraftStatus, PostDraftWireBody } from '@kaitox/relay-protocol';
 import { outboxDir, sentDir } from './config.js';
 import { fitImageBytes } from './imageFit.js';
+import { fitVideoBytes } from './videoFit.js';
 
 const BUNDLE_FILE = 'bundle.json';
 const ASSETS_DIR = 'assets';
@@ -42,10 +43,12 @@ export async function saveDraft(wire: PostDraftWireBody, kind: string): Promise<
   await mkdir(join(dir, ASSETS_DIR), { recursive: true });
 
   // 写资源字节（base64 → 二进制）；超过 X 上限的图片入库前静默压到限内。
+  // Videos X can't take are converted to H.264/AAC MP4 (videoFit.ts).
   const written = new Map<string, { mime: string; bytesLen: number }>();
   const assetsByName = new Map(wire.assets.map((a) => [sanitizeFileName(a.fileName), a]));
   for (const [fileName, a] of assetsByName) {
-    const fit = await fitImageBytes(base64ToBytes(a.base64), a.mime);
+    const raw = base64ToBytes(a.base64);
+    const fit = a.mime.startsWith('video/') ? await fitVideoBytes(raw, a.mime) : await fitImageBytes(raw, a.mime);
     written.set(fileName, { mime: fit.mime, bytesLen: fit.bytes.byteLength });
     await writeFile(join(dir, ASSETS_DIR, fileName), fit.bytes);
   }

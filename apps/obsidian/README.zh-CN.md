@@ -51,7 +51,7 @@ cover: "[[cover.png]]"       # 可选；wikilink、vault 相对路径或 http(s)
 
 图片解析规则：
 
-- `![[image.png]]` 和 `![[image.png|alt]]` —— 走 Obsidian 的链接解析器；`#heading` 后缀会被去掉；非图片嵌入会被跳过并报告。
+- `![[image.png]]` 和 `![[image.png|alt]]` —— 走 Obsidian 的链接解析器；`#heading` 后缀会被去掉。GIF 和视频（`![[clip.gif]]`、`![[clip.mp4]]`）会作为 X 媒体上传；除 `.mp4` / `.mov` 外，`.webm` / `.mkv` / `.avi` 等视频格式由 relay 转成 MP4（需要 ffmpeg）。找不到或不支持的附件会在样式检查里报错并被跳过，不会以 `![[…]]` 原文发布出去；笔记嵌入会被报告并保持原样。
 - `![alt](relative/path.png)` —— 按 vault 解析（URL 编码的路径会被解码）。
 - `![alt](https://...)` —— 下载后作为字节打包。
 

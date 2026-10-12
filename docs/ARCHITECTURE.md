@@ -53,7 +53,8 @@ kaitox/
 │   ├── x-article/           # @kaitox/x-article — X engine: Markdown → content_state,
 │   │                        #   XArticleClient, publishXArticle, style checker, plaintext fallback
 │   ├── relay/               # @kaitox/relay — local relay server on 127.0.0.1,
-│   │                        #   re-encodes oversized images at ingest, bin: kaitox-relay (start|dev|stop|status|restart)
+│   │                        #   re-encodes oversized images and converts videos X can't take at ingest,
+│   │                        #   bin: kaitox-relay (start|dev|stop|status|restart)
 │   └── cli/                 # @kaitox/cli — bin: kaitox (kaitox x push|list|status, kaitox relay ...)
 ├── apps/
 │   ├── extension/           # Chrome extension (MV3), private — polls the relay on

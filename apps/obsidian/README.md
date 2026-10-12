@@ -51,7 +51,7 @@ The cover is resolved to bytes and shipped separately from the body (sentinel sr
 
 Image resolution rules:
 
-- `![[image.png]]` and `![[image.png|alt]]` — resolved through Obsidian's link resolver; `#heading` suffixes are stripped; non-image embeds are skipped and reported.
+- `![[image.png]]` and `![[image.png|alt]]` — resolved through Obsidian's link resolver; `#heading` suffixes are stripped. GIFs and videos (`![[clip.gif]]`, `![[clip.mp4]]`) upload as X media; besides `.mp4` / `.mov`, video formats such as `.webm` / `.mkv` / `.avi` are converted to MP4 by the relay (needs ffmpeg). A missing or unsupported attachment is flagged by the style check and skipped instead of being published as literal `![[…]]` text; note embeds are reported and left as-is.
 - `![alt](relative/path.png)` — resolved against the vault (URL-encoded paths are decoded).
 - `![alt](https://...)` — fetched and bundled as bytes.
 

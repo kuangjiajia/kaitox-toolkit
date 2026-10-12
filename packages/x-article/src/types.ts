@@ -83,9 +83,18 @@ export interface MediaItem {
   local_media_id: number;
   /** X media 上传（FINALIZE）后拿到的 media_id_string。 */
   media_id: string;
-  /** X Article 里图片固定用 "DraftTweetImage"（注意与上传时的 tweet_image 不同）。 */
-  media_category: 'DraftTweetImage';
+  /** 注意与上传时的 media_category（tweet_image 等）不同；按媒体类型取值，见 media.ts。 */
+  media_category: DraftMediaCategory;
 }
+
+/**
+ * Media kind of a body media item. Decides both the upload category and the
+ * content_state category (see media.ts for the mapping).
+ */
+export type MediaKind = 'image' | 'gif' | 'video';
+
+/** media_category inside content_state MEDIA entities (X article editor enum). */
+export type DraftMediaCategory = 'DraftTweetImage' | 'DraftTweetGif' | 'DraftTweetVideo';
 
 export type EntityValue =
   | { type: 'MEDIA'; mutability: 'Immutable'; data: { media_items: MediaItem[] } }
@@ -208,14 +217,26 @@ export interface ArticleUpdateCoverMediaBody {
 // X media upload（分片上传 INIT/APPEND/FINALIZE）
 // ---------------------------------------------------------------------------
 
-/** 上传时的 media_category（URL query 参数），与正文里的 DraftTweetImage 不同。 */
-export type UploadMediaCategory = 'tweet_image' | 'tweet_gif' | 'tweet_video';
+/**
+ * 上传时的 media_category（URL query 参数），与正文里的 DraftTweetImage 不同。
+ * Article videos must be tweet_video (see media.ts); amplify_video is what X's tweet
+ * composer uses and does not resolve inside an article.
+ */
+export type UploadMediaCategory = 'tweet_image' | 'tweet_gif' | 'tweet_video' | 'amplify_video';
 
 export interface MediaUploadInitResponse {
   media_id: number;
   media_id_string: string;
   expires_after_secs?: number;
   media_key?: string;
+}
+
+/** Async processing state returned by FINALIZE / STATUS for video and GIF uploads. */
+export interface MediaProcessingInfo {
+  state: 'pending' | 'in_progress' | 'succeeded' | 'failed';
+  check_after_secs?: number;
+  progress_percent?: number;
+  error?: { code?: number; name?: string; message?: string };
 }
 
 /** 一次待上传的图片（正文里出现的一张图）。 */

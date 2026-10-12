@@ -71,6 +71,8 @@ const MIME = {
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.webp': 'image/webp',
+  '.mp4': 'video/mp4',
+  '.mov': 'video/quicktime',
 };
 const mimeOf = (p) => MIME[extname(p).toLowerCase()] ?? 'application/octet-stream';
 

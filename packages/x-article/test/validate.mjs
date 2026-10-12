@@ -221,5 +221,77 @@ check(
   cover.src === '__cover__' && cover.key === 'cover' && cover.fileName === 'cover-hero-1.png' && cover.bytes.length === 2,
 );
 
+// --- GIF / video media kinds ------------------------------------------------------
+
+const { mediaKindFromMime, MAX_X_GIF_BYTES } = await import('../dist/media.js');
+const { checkMarkdownStyle } = await import('../dist/styleCheck.js');
+
+check(
+  'guessMimeFromName 视频类型',
+  guessMimeFromName('dir/clip.MP4') === 'video/mp4' && guessMimeFromName('b.mov') === 'video/quicktime',
+);
+check(
+  'guessMimeFromName 其他视频格式',
+  guessMimeFromName('a.webm') === 'video/webm' &&
+    guessMimeFromName('a.MKV') === 'video/x-matroska' &&
+    guessMimeFromName('a.avi') === 'video/x-msvideo' &&
+    guessMimeFromName('a.m4v') === 'video/mp4' &&
+    guessMimeFromName('a.3gp') === 'video/3gpp',
+);
+check(
+  'mediaKindFromMime 分类',
+  mediaKindFromMime('image/gif') === 'gif' &&
+    mediaKindFromMime('video/mp4') === 'video' &&
+    mediaKindFromMime('video/quicktime') === 'video' &&
+    mediaKindFromMime('image/png') === 'image',
+);
+
+const mediaMd = '![](a.png)\n\n![](b.gif)\n\n![](c.mp4)\n';
+const mediaIds = { 'a.png': 'M1', 'b.gif': 'M2', 'c.mp4': 'M3' };
+const { contentState: mediaCs } = markdownToContentState(mediaMd, mediaIds, { 'b.gif': 'gif', 'c.mp4': 'video' });
+const mediaCats = mediaCs.entity_map.map((e) => e.value.data.media_items[0].media_category);
+check(
+  'MEDIA category 随媒体类型',
+  JSON.stringify(mediaCats) === JSON.stringify(['DraftTweetImage', 'DraftTweetGif', 'DraftTweetVideo']),
+  `(got ${mediaCats})`,
+);
+const { contentState: noKindCs } = markdownToContentState(mediaMd, mediaIds);
+check(
+  '未给 kind 时默认 DraftTweetImage',
+  noKindCs.entity_map.every((e) => e.value.data.media_items[0].media_category === 'DraftTweetImage'),
+);
+
+const gifMeta = (bytesLen) => ({ resolved: true, mime: 'image/gif', bytesLen });
+const tooLarge = (r) => r.issues.some((i) => i.rule === 'image-too-large');
+check(
+  'GIF 按 15MB 上限检查',
+  tooLarge(checkMarkdownStyle('![](g.gif)\n', { assetMap: { 'g.gif': gifMeta(MAX_X_GIF_BYTES + 1) } })) &&
+    !tooLarge(checkMarkdownStyle('![](g.gif)\n', { assetMap: { 'g.gif': gifMeta(8 * 1024 * 1024) } })),
+);
+check(
+  '视频不按图片上限报过大',
+  !tooLarge(
+    checkMarkdownStyle('![](v.mp4)\n', {
+      assetMap: { 'v.mp4': { resolved: true, mime: 'video/mp4', bytesLen: 200 * 1024 * 1024 } },
+    }),
+  ),
+);
+const videoMeta = (mime) => ({ resolved: true, mime, bytesLen: 1024 });
+const converts = (src, mime) =>
+  checkMarkdownStyle(`![](${src})\n`, { assetMap: { [src]: videoMeta(mime) } }).issues.some(
+    (i) => i.rule === 'video-convert' && i.severity === 'info',
+  );
+check(
+  '非 MP4/MOV 视频提示入库转码（info），MP4/MOV 不提示',
+  converts('a.webm', 'video/webm') && !converts('a.mp4', 'video/mp4') && !converts('a.mov', 'video/quicktime'),
+);
+const videoTagReport = checkMarkdownStyle('前言 <video src="a.mp4"></video>\n\n<video src="b.mp4" controls>\n</video>\n');
+check(
+  '<video> 标签报 video-html，不重复报 html-block',
+  videoTagReport.issues.filter((i) => i.rule === 'video-html').length === 2 &&
+    !videoTagReport.issues.some((i) => i.rule === 'html-block'),
+  `(got ${videoTagReport.issues.map((i) => i.rule)})`,
+);
+
 console.log(`\n== ${pass} passed, ${fail} failed ==`);
 process.exit(fail ? 1 : 0);

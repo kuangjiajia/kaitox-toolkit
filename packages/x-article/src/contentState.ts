@@ -17,7 +17,7 @@
  *   `code`（行内）             →  普通文本（X 无行内代码样式，实测 Code 枚举被拒）
  *   [text](url)              →  LINK 实体 + entity_range 覆盖 text
  *   独占一行的 x/twitter 帖子链接 →  atomic block + TWEET 实体（内嵌引用推文，只取 tweet_id）
- *   ![alt](src)              →  atomic block + MEDIA 实体（图片需先上传拿 media_id）
+ *   ![alt](src)              →  atomic block + MEDIA 实体（图片/GIF/视频需先上传拿 media_id）
  *   ```代码```               →  atomic block + MARKDOWN 实体（整段围栏原样塞进去）
  *   ---（分割线）             →  atomic block + DIVIDER 实体
  *   表格                      →  atomic block + MARKDOWN 实体（X 按 markdown 原生渲染成表格）
@@ -39,7 +39,9 @@ import type {
   EntityValue,
   EntityRange,
   InlineStyleRange,
+  MediaKind,
 } from './types';
+import { DRAFT_CATEGORY_BY_KIND } from './media.js';
 
 /** marked 的 token 版本间字段略有差异，这里用一个宽松结构 + 局部 cast 兼容。 */
 interface MdToken {
@@ -83,8 +85,12 @@ class ContentStateBuilder {
   /**
    * @param resolveMediaId  给一个图片 src，返回它上传到 X 后的 media_id。
    *                        返回 undefined 表示没上传成功——该图片会被跳过并记录。
+   * @param resolveKind     Media kind of an uploaded src; picks the entity's media_category.
    */
-  constructor(private readonly resolveMediaId: (src: string) => string | undefined) {}
+  constructor(
+    private readonly resolveMediaId: (src: string) => string | undefined,
+    private readonly resolveKind: (src: string) => MediaKind,
+  ) {}
 
   readonly skippedImages: string[] = [];
 
@@ -251,7 +257,9 @@ class ContentStateBuilder {
       type: 'MEDIA',
       mutability: 'Immutable',
       data: {
-        media_items: [{ local_media_id: key, media_id: mediaId, media_category: 'DraftTweetImage' }],
+        media_items: [
+          { local_media_id: key, media_id: mediaId, media_category: DRAFT_CATEGORY_BY_KIND[this.resolveKind(src)] },
+        ],
       },
     });
     this.pushAtomic(key);
@@ -443,18 +451,24 @@ export function collectImageSources(markdown: string): string[] {
  *
  * @param markdown        源 markdown
  * @param mediaIdBySrc    图片 src → 已上传的 media_id 映射（先跑 collectImageSources + 上传得到）
+ * @param mediaKindBySrc  src → media kind of the upload (GIF / video); srcs not listed are images
  * @returns               content_state、被跳过（未提供 media_id）的图片列表，
  *                        以及 title（第一个 H1 的纯文本；该 H1 不进正文，没有 H1 则为 undefined）
  */
 export function markdownToContentState(
   markdown: string,
   mediaIdBySrc: Record<string, string> | Map<string, string> = {},
+  mediaKindBySrc: Record<string, MediaKind> | Map<string, MediaKind> = {},
 ): { contentState: ContentState; skippedImages: string[]; title?: string } {
   const lookup =
     mediaIdBySrc instanceof Map
       ? (src: string) => mediaIdBySrc.get(src)
       : (src: string) => mediaIdBySrc[src];
-  const builder = new ContentStateBuilder(lookup);
+  const kindOf =
+    mediaKindBySrc instanceof Map
+      ? (src: string) => mediaKindBySrc.get(src) ?? 'image'
+      : (src: string) => mediaKindBySrc[src] ?? 'image';
+  const builder = new ContentStateBuilder(lookup, kindOf);
   const contentState = builder.build(markdown);
   return { contentState, skippedImages: builder.skippedImages, title: builder.derivedTitle };
 }
