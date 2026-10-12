@@ -17,7 +17,10 @@
 #
 # Requires repo secret OBSIDIAN_RELEASE_TOKEN: a PAT with contents:write on the
 # distribution repo (fine-grained token scoped to kaitox-obsidian, or a classic
-# token with `repo`).
+# token with `repo`). Without it the release job is skipped rather than failing —
+# `npm run release:direct` does the same sync + release locally with the
+# maintainer's own gh auth. If that already created the bare-version release, the
+# release step leaves it as is.
 name: Release Obsidian plugin
 
 on:
@@ -29,7 +32,27 @@ env:
   RELEASE_REPO: kuangjiajia/kaitox-obsidian
 
 jobs:
+  # Secrets can't be read in a job-level `if`, so a tiny job reports whether the
+  # token is configured and the release job keys off its output.
+  check-token:
+    runs-on: ubuntu-latest
+    outputs:
+      has_token: ${{ steps.check.outputs.has_token }}
+    steps:
+      - id: check
+        env:
+          OBSIDIAN_RELEASE_TOKEN: ${{ secrets.OBSIDIAN_RELEASE_TOKEN }}
+        run: |
+          if [ -n "${OBSIDIAN_RELEASE_TOKEN:-}" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+            echo "OBSIDIAN_RELEASE_TOKEN is not configured; skipping (use npm run release:direct)."
+          fi
+
   release:
+    needs: check-token
+    if: needs.check-token.outputs.has_token == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,6 +105,10 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ steps.v.outputs.version }}"
+          if gh release view "$VERSION" --repo "$RELEASE_REPO" >/dev/null 2>&1; then
+            echo "release $VERSION already exists in $RELEASE_REPO (likely from release:direct); leaving it as is"
+            exit 0
+          fi
           gh release create "$VERSION" \
             apps/obsidian/dist/main.js \
             apps/obsidian/dist/manifest.json \
