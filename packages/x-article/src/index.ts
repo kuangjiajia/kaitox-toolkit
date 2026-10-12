@@ -5,6 +5,7 @@
  *   - types.ts          data model (Draft.js content_state + X API)
  *   - contentState.ts   Markdown → content_state conversion (the core algorithm)
  *   - xArticleClient.ts HTTP + auth + media upload + draft creation
+ *   - media.ts          media kinds (image / GIF / video) → X upload & content_state categories
  *   - publishArticle.ts end-to-end orchestration
  *   - styleCheck.ts     X-friendliness linter + plaintext fallback
  *   - pushHelpers.ts    shared push-side helpers (frontmatter, file names, cover asset)
@@ -30,7 +31,13 @@ export {
   DEFAULT_COVER_MEDIA_FEATURES,
   DEFAULT_ARTICLE_FIELD_TOGGLES,
 } from './xArticleClient.js';
-export type { XArticleClientOptions, FetchLike } from './xArticleClient.js';
+export type { XArticleClientOptions, FetchLike, UploadMediaOptions } from './xArticleClient.js';
+export {
+  mediaKindFromMime,
+  UPLOAD_CATEGORY_BY_KIND,
+  DRAFT_CATEGORY_BY_KIND,
+  MAX_X_GIF_BYTES,
+} from './media.js';
 export {
   publishXArticle,
   deriveTitle,

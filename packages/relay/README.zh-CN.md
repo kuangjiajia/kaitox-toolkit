@@ -4,7 +4,7 @@
 
 [Kaitox](https://kaitox.ai) 工具集的本地、仅回环草稿 relay。上传端（[`@kaitox/cli`](../cli/README.md)、Obsidian 插件，或你自己的服务）把草稿包——原始 Markdown 加图片字节——POST 到 `http://127.0.0.1:8765`；relay 将其存到磁盘上的 `~/.kaitox/<kind>/outbox/` 下（如 `~/.kaitox/x-article/outbox/`），Kaitox Chrome 插件则在 `https://x.com/compose/articles` 页面轮询它，用你自己的登录会话发布草稿。
 
-纯 `node:http` 服务，构建在零依赖的 [`@kaitox/relay-protocol`](../relay-protocol/README.md) 线上契约之上；超过 X 上传上限（5MB）的图片在入库时由 [sharp](https://sharp.pixelplumbing.com) 静默重编码。附带 `kaitox-relay` 命令行。
+纯 `node:http` 服务，构建在零依赖的 [`@kaitox/relay-protocol`](../relay-protocol/README.md) 线上契约之上；超过 X 上传上限（5MB）的图片在入库时由 [sharp](https://sharp.pixelplumbing.com) 静默重编码；X 不接受的视频（WebM、MKV、AVI、HEVC 编码的 MOV 等）在装了 [ffmpeg](https://ffmpeg.org) 时会用本机 ffmpeg 转成 H.264/AAC 的 MP4。附带 `kaitox-relay` 命令行。
 
 要求 Node.js >= 18（全局 `fetch`）。仅 ESM。
 
@@ -47,6 +47,7 @@ kaitox-relay --version  # print the version
 | --- | --- | --- |
 | `KAITOX_HOME` | `~/.kaitox` | 数据目录（按 kind 的 `<kind>/{outbox,sent}`、配置、pidfile） |
 | `KAITOX_RELAY_PORT` | `8765` | 监听端口（host 恒为 `127.0.0.1`） |
+| `KAITOX_FFMPEG` | `PATH` 里的 `ffmpeg`，其次 `/opt/homebrew/bin`、`/usr/local/bin` | 视频转码用的 ffmpeg 路径（`ffprobe` 须在同一目录）。没有 ffmpeg 时视频原样入库 |
 | `~/.kaitox/config.json` → `token` | 未设置 | 可选的每机共享 token |
 
 `config.json` 示例：

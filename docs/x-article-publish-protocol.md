@@ -82,14 +82,15 @@ AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cH
 
 ## 3. Media upload: three-phase chunked INIT / APPEND / FINALIZE
 
-Run it once per image; the endpoint is always `POST https://upload.x.com/i/media/upload.json`, with query params distinguishing the phases.
+Run it once per media item (image, GIF, or video); the endpoint is `POST https://upload.x.com/i/media/upload.json`, with query params distinguishing the phases. GIFs and videos use different `media_category` values and a few extra params. See [GIF and video](#gif-and-video) below.
 
 ### ① INIT — request a media slot
 ```
 POST upload.json?command=INIT
      &total_bytes=<byte count>
-     &media_type=<image/webp | image/png | image/jpeg | image/gif>
-     &media_category=tweet_image
+     &media_type=<image/webp | image/png | image/jpeg | image/gif | video/mp4 | video/quicktime>
+     &media_category=<tweet_image | tweet_gif | tweet_video>
+     [&video_duration_ms=<ms>]          (video only, when the duration is known)
 ```
 - Empty body.
 - Take **`media_id_string`** from the returned JSON (be sure to use the string version, not the numeric `media_id` which loses precision).
@@ -113,11 +114,28 @@ Content-Type: multipart/form-data; boundary=…
 
 ### ③ FINALIZE — wrap up
 ```
-POST upload.json?command=FINALIZE&media_id=<id>
+POST upload.json?command=FINALIZE&media_id=<id>[&allow_async=true]   (allow_async only for video)
 ```
 - Images complete instantly. Video/GIF returns `processing_info`, requiring further polling of `command=STATUS` until `state==succeeded` (the reference implementation's `waitForProcessing` handles this).
+- `processing_info` = `{ state: pending | in_progress | succeeded | failed, check_after_secs?, progress_percent?, error? }`. Wait `check_after_secs` before each `GET upload.json?command=STATUS&media_id=<id>`. X's web client keeps polling until the media slot expires (`expires_after_secs` from INIT/FINALIZE, default one hour), so don't use a short fixed timeout: transcoding a video often takes longer than a minute.
 
 > Watch one **easy-to-get-wrong point**: on upload `media_category` is **`tweet_image`**, but when the body `content_state` references this image, `media_category` is **`DraftTweetImage`**. The two fields serve two different endpoints; don't mix them up.
+
+### GIF and video
+
+The body categories come from X's article editor code (`article-editor` chunk, 2026-10). The media kind follows the MIME type and decides **both** category strings, and the two must pair up:
+
+| Kind | MIME | Upload `media_category` | Body `media_items[].media_category` |
+|---|---|---|---|
+| image | `image/png` `image/jpeg` `image/webp` | `tweet_image` | `DraftTweetImage` |
+| GIF | `image/gif` | `tweet_gif` | `DraftTweetGif` |
+| video | `video/mp4` `video/quicktime` | `tweet_video` | `DraftTweetVideo` |
+
+- **Size limits:** images 5MB (the relay re-encodes oversized PNG/JPEG/WebP), GIFs 15MB (`15728640` bytes). Video duration and size limits come from per-account feature switches. X takes H.264 video (AAC audio) in MP4/MOV; the relay converts anything else (WebM, MKV, AVI, HEVC MOV, …) to H.264/AAC MP4 at ingest when ffmpeg is installed.
+- **Video INIT** carries `video_duration_ms` (the duration rounded to ms) when the browser could read the video's metadata; X's client sends INIT without it when it can't.
+- **Video FINALIZE** carries `allow_async=true`.
+- **Video must be `tweet_video`, not `amplify_video`.** X looks an article's media up under the media type its `DraftTweet*` category implies. Observed 2026-10: a video uploaded as `amplify_video` (media key type 13) and referenced as `DraftTweetVideo` came back in the article's `media_entities` as an `ApiMedia` id keyed by type 7 (`tweet_video`), with no `media_id` or `media_info`. The article editor builds a video block only from `media_info` (`ApiVideo` with `variants`), so it showed an endless spinner. X's tweet composer does use `amplify_video`, and on long-video accounts (`subscriptions_long_video_upload`) sends it to `https://upload.x.com/i/media/upload2.json`. That is the post path; the reference implementation uploads article videos as `tweet_video` through `upload.json`.
+- Uploading a GIF or video as `tweet_image` gets it rejected or flattened to a still frame, and referencing it as `DraftTweetImage` mislabels it in the article.
 
 ---
 
@@ -189,7 +207,8 @@ Structure:
 Five types:
 
 ```jsonc
-// Image: upload first to get media_id, then reference it
+// Image: upload first to get media_id, then reference it.
+// GIF / video use the same shape with media_category DraftTweetGif / DraftTweetVideo (§3 GIF and video).
 { "key": 3, "value": { "type": "MEDIA", "mutability": "Immutable",
     "data": { "media_items": [
       { "local_media_id": 3, "media_id": "2073636721275641856", "media_category": "DraftTweetImage" }
@@ -326,7 +345,7 @@ The response echoes `cover_media` (including `media_key`, `original_img_url`, et
 **The pitfalls you're most likely to hit when building similar features:**
 1. **`queryId` rotates.** X changes `g1l5N8BxGewYuCy5USe_bQ` from time to time. Make it configurable (the reference implementation already supports overriding); when it breaks, re-fetch it from the x.com frontend bundle.
 2. **`x-client-transaction-id`.** Omittable within a same-origin page, but X often validates it for server-side / cross-origin calls. It's computed dynamically by a piece of obfuscated code in the x.com frontend based on the request method + path; to truly call from outside the page, you must implement that algorithm yourself or send the request from within the page context.
-3. **`media_category` differs in two places**: `tweet_image` on upload, `DraftTweetImage` when referenced in the body.
+3. **`media_category` differs in two places**: `tweet_image` on upload, `DraftTweetImage` when referenced in the body. Both change with the media kind: GIF is `tweet_gif` / `DraftTweetGif`, video is `tweet_video` / `DraftTweetVideo`. A mismatched pair (e.g. `amplify_video` + `DraftTweetVideo`) never resolves in the article.
 4. **Use the string `media_id`** (`media_id_string`), not the numeric version.
 5. **Offsets use UTF-16 code units**: don't count by "number of characters" or bytes; emoji (surrogate pairs) will misalign you with X.
 6. **Entity keys increment globally and continuously**, block-level and inline sharing one counter; MEDIA's `local_media_id` must equal its key.

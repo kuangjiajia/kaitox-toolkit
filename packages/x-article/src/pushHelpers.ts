@@ -39,6 +39,19 @@ const MIME_BY_EXT: Record<string, string> = {
   gif: 'image/gif',
   webp: 'image/webp',
   svg: 'image/svg+xml',
+  // Video: X takes MP4 / MOV; the relay converts the rest to MP4 at ingest (needs ffmpeg).
+  mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  mkv: 'video/x-matroska',
+  avi: 'video/x-msvideo',
+  wmv: 'video/x-ms-wmv',
+  flv: 'video/x-flv',
+  '3gp': 'video/3gpp',
+  ogv: 'video/ogg',
+  mpg: 'video/mpeg',
+  mpeg: 'video/mpeg',
 };
 
 /** 按文件名后缀猜 MIME（接受完整路径/URL，内部先取 baseName）。猜不出回退 octet-stream。 */

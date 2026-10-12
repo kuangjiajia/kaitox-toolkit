@@ -82,14 +82,15 @@ AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cH
 
 ## 3. 媒体上传：分片三段式 INIT / APPEND / FINALIZE
 
-对每张图片走一遍，接口都是 `POST https://upload.x.com/i/media/upload.json`，靠 query 参数区分阶段。
+对每个媒体（图片、GIF 或视频）走一遍，接口是 `POST https://upload.x.com/i/media/upload.json`，靠 query 参数区分阶段。GIF 和视频的 `media_category` 不同，还多几个参数，见下文 [GIF 与视频](#gif-与视频)。
 
 ### ① INIT —— 申请一个 media 槽位
 ```
 POST upload.json?command=INIT
      &total_bytes=<字节数>
-     &media_type=<image/webp | image/png | image/jpeg | image/gif>
-     &media_category=tweet_image
+     &media_type=<image/webp | image/png | image/jpeg | image/gif | video/mp4 | video/quicktime>
+     &media_category=<tweet_image | tweet_gif | tweet_video>
+     [&video_duration_ms=<毫秒>]          （仅视频，读得到时长时才带）
 ```
 - body 为空。
 - 返回 JSON 里取 **`media_id_string`**（务必用字符串版，别用会丢精度的数字 `media_id`）。
@@ -113,11 +114,28 @@ Content-Type: multipart/form-data; boundary=…
 
 ### ③ FINALIZE —— 收尾
 ```
-POST upload.json?command=FINALIZE&media_id=<id>
+POST upload.json?command=FINALIZE&media_id=<id>[&allow_async=true]   （allow_async 仅视频）
 ```
 - 图片即时完成。视频/GIF 会返回 `processing_info`，需要再轮询 `command=STATUS` 直到 `state==succeeded`（参考实现里 `waitForProcessing` 已处理）。
+- `processing_info` = `{ state: pending | in_progress | succeeded | failed, check_after_secs?, progress_percent?, error? }`。每次 `GET upload.json?command=STATUS&media_id=<id>` 前先等 `check_after_secs`。X 网页端会一直轮询到媒体槽位过期为止（INIT/FINALIZE 返回的 `expires_after_secs`，默认一小时），所以别用很短的固定超时：视频转码常常超过一分钟。
 
 > 注意一个**易错点**：上传时 `media_category` 是 **`tweet_image`**，但正文 `content_state` 里引用这张图时 `media_category` 是 **`DraftTweetImage`**。两个字段服务于两个不同接口，别混。
+
+### GIF 与视频
+
+正文分类取自 X 文章编辑器的代码（`article-editor` chunk，2026-10）。媒体类型由 MIME 决定，并且**同时**决定两处分类字符串，两处必须配对：
+
+| 类型 | MIME | 上传 `media_category` | 正文 `media_items[].media_category` |
+|---|---|---|---|
+| 图片 | `image/png` `image/jpeg` `image/webp` | `tweet_image` | `DraftTweetImage` |
+| GIF | `image/gif` | `tweet_gif` | `DraftTweetGif` |
+| 视频 | `video/mp4` `video/quicktime` | `tweet_video` | `DraftTweetVideo` |
+
+- **大小上限：** 图片 5MB（超限的 PNG/JPEG/WebP 由 relay 自动重编码），GIF 15MB（`15728640` 字节）。视频的时长和大小上限由账号级 feature switch 决定。X 接受 MP4/MOV 封装的 H.264 视频（AAC 音频）；其他格式（WebM、MKV、AVI、HEVC 编码的 MOV 等）在装了 ffmpeg 时由 relay 入库时转成 H.264/AAC 的 MP4。
+- **视频 INIT** 在浏览器读得到视频元数据时带 `video_duration_ms`（时长取整到毫秒）；读不到时 X 网页端也会不带它照常 INIT。
+- **视频 FINALIZE** 带 `allow_async=true`。
+- **视频必须用 `tweet_video`，不能用 `amplify_video`。** X 会按 `DraftTweet*` 分类对应的媒体类型去查文章里的媒体。2026-10 实测：按 `amplify_video`（media key 类型 13）上传、正文引用为 `DraftTweetVideo` 的视频，在文章的 `media_entities` 里只返回了一个按类型 7（`tweet_video`）编码的 `ApiMedia` id，没有 `media_id` 也没有 `media_info`。文章编辑器只靠 `media_info`（带 `variants` 的 `ApiVideo`）构建视频块，于是一直转圈。X 的发推框确实用 `amplify_video`，开了长视频功能（`subscriptions_long_video_upload`）的账号还会发到 `https://upload.x.com/i/media/upload2.json`。那是发推的路径；参考实现把文章视频按 `tweet_video` 经 `upload.json` 上传。
+- 把 GIF 或视频按 `tweet_image` 上传，会被拒或被压成静态的一帧；正文里按 `DraftTweetImage` 引用，在文章里的类型也不对。
 
 ---
 
@@ -189,7 +207,8 @@ X Article 正文用的是 **Draft.js 的 `RawDraftContentState`**，但 X 做了
 五种类型：
 
 ```jsonc
-// 图片：先上传拿 media_id 再引用
+// 图片：先上传拿 media_id 再引用。
+// GIF / 视频结构相同，media_category 换成 DraftTweetGif / DraftTweetVideo（见第 3 节「GIF 与视频」）。
 { "key": 3, "value": { "type": "MEDIA", "mutability": "Immutable",
     "data": { "media_items": [
       { "local_media_id": 3, "media_id": "2073636721275641856", "media_category": "DraftTweetImage" }
@@ -326,7 +345,7 @@ Content-Type: application/json
 **做同类功能时最容易踩的坑：**
 1. **`queryId` 会轮换。** X 会不定期改 `g1l5N8BxGewYuCy5USe_bQ`。做成可配置（参考实现已支持覆盖），失效时从 x.com 前端 bundle 里重新取。
 2. **`x-client-transaction-id`。** 同源页面内可省，但服务端/跨域调用时 X 常会校验。它由 x.com 前端一段混淆代码基于请求方法+路径动态算出；真要在页面外调用，得自行实现这套算法或在页面上下文里发请求。
-3. **`media_category` 两处不同**：上传 `tweet_image`，正文引用 `DraftTweetImage`。
+3. **`media_category` 两处不同**：上传 `tweet_image`，正文引用 `DraftTweetImage`。两处都随媒体类型变：GIF 是 `tweet_gif` / `DraftTweetGif`，视频是 `tweet_video` / `DraftTweetVideo`。配错（比如 `amplify_video` + `DraftTweetVideo`）在文章里永远解析不出来。
 4. **`media_id` 用字符串**（`media_id_string`），别用数字版。
 5. **offset 用 UTF-16 code unit**：别按「字符数」或字节数算，emoji（代理对）会让你和 X 对不齐。
 6. **entity key 全局连续递增**，block 级和 inline 级共用一个计数器；MEDIA 的 `local_media_id` 必须等于其 key。

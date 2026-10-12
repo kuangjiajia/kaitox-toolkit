@@ -17,11 +17,15 @@
  *   本地图缺失      无字节 → pushImage 跳过                     →  image-missing / error
  *   图片过大        PNG/JPEG/WebP 由 relay 入库自动压缩（无感）  →  不报
  *                   GIF/SVG 等不可压缩格式仍可能被 X 拒          →  image-too-large / warning
+ *                   (GIFs are checked against X's 15MB GIF limit; video limits are per-account, not checked)
+ *   <video> 标签    not a media embed; pasted as literal text   →  video-html / warning
+ *   非 MP4/MOV 视频  relay converts it to MP4 at ingest (ffmpeg)  →  video-convert / info
  *   空文档          X 要求非空正文（转换器塞空段落兜底）          →  empty-doc / error
  */
 
 import { marked } from 'marked';
 import { collectImageSources } from './contentState.js';
+import { mediaKindFromMime, MAX_X_GIF_BYTES } from './media.js';
 import type { StyleIssue, StyleReport } from '@kaitox/relay-protocol';
 
 /** 单张图片的元信息（上传端解析本地/相对路径后填）。key = markdown 里的原样 src。 */
@@ -55,6 +59,12 @@ const DEFAULT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 /** relay 入库时会自动重编码压缩的格式：超限也无需打扰用户，不报问题。 */
 const AUTO_COMPRESSED_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
+/** Video containers X takes as-is; others are converted by the relay at ingest. */
+const X_VIDEO_MIMES = new Set(['video/mp4', 'video/quicktime']);
+
+/** An HTML <video> tag anywhere in the source. */
+const VIDEO_TAG_RE = /<video\b[^>]*>/i;
+
 /** 主入口：扫描 markdown，返回风格报告。 */
 export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {}): StyleReport {
   const issues: StyleIssue[] = [];
@@ -76,6 +86,7 @@ export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {
         });
         break;
       case 'html':
+        if (VIDEO_TAG_RE.test(t.raw ?? '')) break; // reported once below as video-html
         issues.push({
           rule: 'html-block',
           severity: 'warning',
@@ -167,6 +178,19 @@ export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {
     });
   }
 
+  // <video> tags are not uploaded: block-level ones are dropped and inline ones are
+  // pasted as literal text. Point users at the image syntax, which does upload video.
+  for (const tag of markdown.matchAll(new RegExp(VIDEO_TAG_RE.source, 'gi'))) {
+    issues.push({
+      rule: 'video-html',
+      severity: 'warning',
+      message: '<video> 标签不会被上传成视频，会被丢弃或原样显示成文本。',
+      suggestion: '改用图片语法引用视频：![](clip.mp4)。',
+      line: lineAt(markdown, tag.index ?? 0),
+      excerpt: excerpt(tag[0]),
+    });
+  }
+
   // 图片：结合 assetMap 判定 远程 / 缺失 / 过大。
   const assetMap = opts.assetMap ?? {};
   for (const src of collectImageSources(markdown)) {
@@ -204,6 +228,34 @@ export function checkMarkdownStyle(markdown: string, opts: StyleCheckOptions = {
         line,
         excerpt: src,
       });
+      continue;
+    }
+    // GIF has its own, larger limit; video limits depend on the account, so leave them to X.
+    const kind = meta?.mime !== undefined ? mediaKindFromMime(meta.mime) : 'image';
+    if (kind === 'video') {
+      if (meta?.mime && !X_VIDEO_MIMES.has(meta.mime)) {
+        issues.push({
+          rule: 'video-convert',
+          severity: 'info',
+          message: `视频 ${src}（${meta.mime}）X 不直接支持，relay 入库时会用本机 ffmpeg 转成 MP4；没装 ffmpeg 会上传失败并被跳过。`,
+          suggestion: '安装 ffmpeg（如 brew install ffmpeg），或先转成 MP4。',
+          line,
+          excerpt: src,
+        });
+      }
+      continue;
+    }
+    if (kind === 'gif') {
+      if (typeof meta?.bytesLen === 'number' && meta.bytesLen > MAX_X_GIF_BYTES) {
+        issues.push({
+          rule: 'image-too-large',
+          severity: 'warning',
+          message: `GIF ${src} 约 ${(meta.bytesLen / 1024 / 1024).toFixed(1)}MB，超过 X 的 15MB GIF 上限，上传会被拒。`,
+          suggestion: '压缩 GIF，或转成 mp4 视频。',
+          line,
+          excerpt: src,
+        });
+      }
       continue;
     }
     // 超限的 PNG/JPEG/WebP 由 relay 入库时静默压缩，不打扰；只有不可压缩的格式才值得报。

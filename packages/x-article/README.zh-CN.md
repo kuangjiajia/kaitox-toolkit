@@ -207,7 +207,7 @@ container.innerHTML = html; // 输出已全部转义；不安全的链接协议�
 - **queryId 轮换。** X 会不打招呼地轮换 GraphQL queryId。两个 queryId 均可通过 `XArticleClientOptions` 覆盖；失效时从 x.com 前端 bundle 里提取新值。
 - **`x-client-transaction-id`。** 本包不生成它。同源时没问题；服务端/跨域调用可能必须提供。
 - **`restId` 提取是尽力而为。** 它针对观测到的响应结构并带兜底逻辑；请用真实响应验证。
-- **媒体约束。** 上传用 `media_category=tweet_image`，正文的 `MEDIA` entity 里却引用 `DraftTweetImage`——两个不同的字符串。`media_id` 是字符串（`media_id_string`），永远不是数字形式。
+- **媒体约束。** 上传用 `media_category=tweet_image`，正文的 `MEDIA` entity 里却引用 `DraftTweetImage`——两个不同的字符串。GIF 和视频分别用 `tweet_gif` / `DraftTweetGif` 和 `tweet_video` / `DraftTweetVideo`；`publishXArticle` 按每个媒体的 MIME 自动选择（`mediaKindFromMime`）。`media_id` 是字符串（`media_id_string`），永远不是数字形式。
 - **合规。** 这些是 X 私有的、未文档化的网页接口。本库以用户身份、在用户自己的账号上、用用户自己的会话行事——它是非官方的，随时可能失效，并受 X 的自动化政策和频控约束。不要高频运行，不要跨账号批量自动化，风险自担。
 
 ## 许可证

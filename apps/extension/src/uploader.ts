@@ -9,7 +9,7 @@
  * bundle.markdown 已由上传端按 mode 处理完（plaintext 已降级），这里无需再转换；
  * 唯一的额外变换是 mermaid 围栏：默认渲染成 PNG 走图片通道（X 没有 mermaid 支持）。
  */
-import { publishXArticle, extractMermaidBlocks } from '@kaitox/x-article';
+import { publishXArticle, extractMermaidBlocks, mediaKindFromMime } from '@kaitox/x-article';
 import type { ImageFetcher, CoverFetcher } from '@kaitox/x-article';
 import type { DraftBundle, HttpRelayClient } from '@kaitox/relay-protocol';
 import { readCt0, getSettings } from './xsession.js';
@@ -47,7 +47,8 @@ export async function uploadDraft(
     const asset = draft.assets.find((a) => a.src === src);
     if (!asset) throw new Error(`草稿包内找不到图片资源：${src}`);
     const bytes = await client.getAsset(draft.id, asset.fileName);
-    return { bytes, mimeType: asset.mime };
+    if (mediaKindFromMime(asset.mime) !== 'video') return { bytes, mimeType: asset.mime };
+    return { bytes, mimeType: asset.mime, videoDurationMs: await readVideoDurationMs(bytes, asset.mime) };
   };
 
   // 有封面才拉封面字节（在建草稿拿到 rest_id 后 publishXArticle 才会调用它）。
@@ -71,7 +72,7 @@ export async function uploadDraft(
     // 各阶段映射成人话，实时刷新详情面板的提示行。
     onProgress: (p) => {
       if (p.stage === 'images') {
-        if (p.total > 0) onProgress?.(`正在上传图片 ${p.done}/${p.total}…`);
+        if (p.total > 0) onProgress?.(`正在上传图片/视频 ${p.done}/${p.total}…`);
       } else if (p.stage === 'draft') {
         onProgress?.('正在创建草稿…');
       } else {
@@ -81,4 +82,28 @@ export async function uploadDraft(
   });
 
   return { restId: result.restId, skippedImages: result.skippedImages };
+}
+
+/**
+ * Reads a video's duration from its metadata, as X's own uploader does before INIT.
+ * Resolves undefined when the browser can't read it; X accepts INIT without a duration.
+ */
+function readVideoDurationMs(bytes: Uint8Array, mime: string): Promise<number | undefined> {
+  const url = URL.createObjectURL(new Blob([bytes as unknown as BlobPart], { type: mime }));
+  const video = document.createElement('video');
+  return new Promise<number | undefined>((resolve) => {
+    const timer = setTimeout(() => resolve(undefined), 10_000);
+    const done = (ms: number | undefined) => {
+      clearTimeout(timer);
+      resolve(ms);
+    };
+    video.preload = 'metadata';
+    video.onloadedmetadata = () =>
+      done(Number.isFinite(video.duration) && video.duration > 0 ? Math.round(video.duration * 1000) : undefined);
+    video.onerror = () => done(undefined);
+    video.src = url;
+  }).finally(() => {
+    video.removeAttribute('src');
+    URL.revokeObjectURL(url);
+  });
 }

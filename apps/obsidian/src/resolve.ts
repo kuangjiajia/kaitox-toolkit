@@ -5,7 +5,7 @@
  * 预览、样式检查、推送共用同一份解析结果——预览里看到的就是推送出去的，
  * 保证所见即所得。原逻辑来自 main.ts 的 resolveAndRewrite/resolveCover，抽出复用。
  */
-import { requestUrl, TFile, type App } from 'obsidian';
+import { MarkdownView, requestUrl, TFile, type App } from 'obsidian';
 import {
   parseFrontmatter,
   baseName,
@@ -31,7 +31,7 @@ export interface Resolved {
 
 /** 读笔记、把嵌入/图片解析成字节、改写成标准 ![alt](fileName)。 */
 export async function resolveActiveNote(app: App, file: TFile): Promise<Resolved> {
-  const raw = await app.vault.cachedRead(file);
+  const raw = await readNoteText(app, file);
   const { fields, body } = parseFrontmatter(raw);
   const fmTitle = fields.title;
   const fmCover = fields.cover;
@@ -54,12 +54,19 @@ export async function resolveActiveNote(app: App, file: TFile): Promise<Resolved
   };
 
   // 1) ![[wikilink]] 嵌入
+  const unresolvedEmbeds = new Set<string>();
   let work = await replaceAsync(body, /!\[\[([^\]\n]+?)\]\]/g, async (whole, inner) => {
     const { link, alias } = splitWiki(inner);
     const tfile = app.metadataCache.getFirstLinkpathDest(link, file.path);
-    if (!tfile || !isImageExt(tfile.extension)) {
+    if (!tfile || !isMediaExt(tfile.extension)) {
       unresolved.push(inner);
-      return whole;
+      // A missing or unsupported attachment left as ![[…]] would be published as
+      // literal text. Rewrite it to the standard syntax so the style check flags it
+      // and the converter skips it, like an unresolved ![](src). Note embeds stay as-is.
+      if (!isAttachmentLink(link)) return whole;
+      const src = encodeURI(link);
+      unresolvedEmbeds.add(src);
+      return `![${alias ?? ''}](${src})`;
     }
     const bytes = new Uint8Array(await app.vault.readBinary(tfile));
     const src = addAsset(bytes, tfile.name, guessMimeFromName(tfile.name), tfile.path);
@@ -68,7 +75,7 @@ export async function resolveActiveNote(app: App, file: TFile): Promise<Resolved
 
   // 2) 标准 ![alt](src)
   work = await replaceAsync(work, /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, async (whole, alt, src) => {
-    if (assetMap[src]) return whole; // 已是我们改写过的资源
+    if (assetMap[src] || unresolvedEmbeds.has(src)) return whole; // 已是我们改写过的资源 / 已记为解析失败的嵌入
     try {
       if (/^https?:\/\//i.test(src)) {
         const r = await requestUrl({ url: src });
@@ -135,6 +142,18 @@ export async function resolveCover(
   }
 }
 
+/**
+ * The note's current text. Obsidian writes editor changes to disk about 2s after
+ * typing stops, so the vault copy misses a just-pasted embed; prefer the open
+ * editor's content and fall back to the vault copy when the note isn't open.
+ */
+async function readNoteText(app: App, file: TFile): Promise<string> {
+  for (const leaf of app.workspace.getLeavesOfType('markdown')) {
+    if (leaf.view instanceof MarkdownView && leaf.view.file === file) return leaf.view.getViewData();
+  }
+  return app.vault.cachedRead(file);
+}
+
 // ---------------------------------------------------------------------------
 // 纯工具（浏览器环境安全，不依赖 node:path）
 // ---------------------------------------------------------------------------
@@ -171,6 +190,17 @@ export function splitWiki(inner: string): { link: string; alias?: string } {
 
 export function isImageExt(ext: string): boolean {
   return /^(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(ext.replace(/^\./, ''));
+}
+
+/** An embed link that points at a file attachment rather than a note (has a non-.md extension). */
+function isAttachmentLink(link: string): boolean {
+  const m = /\.([a-z0-9]+)$/i.exec(link);
+  return !!m && m[1].toLowerCase() !== 'md';
+}
+
+/** Body embeds may also be videos (the relay converts non-MP4/MOV ones at ingest); covers stay image-only. */
+export function isMediaExt(ext: string): boolean {
+  return isImageExt(ext) || /^(mp4|m4v|mov|webm|mkv|avi|wmv|flv|3gp|ogv|mpe?g)$/i.test(ext.replace(/^\./, ''));
 }
 
 /** 字节 → 可显示的 blob URL。（cast 规避 TS lib 对 Uint8Array<ArrayBufferLike> 的名义收紧。） */

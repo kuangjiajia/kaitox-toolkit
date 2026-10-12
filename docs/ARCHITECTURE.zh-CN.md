@@ -48,7 +48,8 @@ kaitox/
 │   ├── x-article/           # @kaitox/x-article — X 引擎：Markdown → content_state，
 │   │                        #   XArticleClient、publishXArticle、风格检查器、纯文本兜底
 │   ├── relay/               # @kaitox/relay — 运行在 127.0.0.1 的本地 relay 服务器，
-│   │                        #   入库时重编码超大图片，bin: kaitox-relay (start|dev|stop|status|restart)
+│   │                        #   入库时重编码超大图片、把 X 不接受的视频转成 MP4，
+│   │                        #   bin: kaitox-relay (start|dev|stop|status|restart)
 │   └── cli/                 # @kaitox/cli — bin: kaitox (kaitox x push|list|status, kaitox relay ...)
 ├── apps/
 │   ├── extension/           # Chrome 扩展（MV3），私有 — 轮询 relay，位于

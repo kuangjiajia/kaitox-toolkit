@@ -9,7 +9,13 @@
  * （POST 到本地 relay 队列）。
  */
 import { ItemView, Notice, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
-import { checkMarkdownStyle, renderPreviewHtml, extractMermaidBlocks, MERMAID_SRC_PREFIX } from '@kaitox/x-article';
+import {
+  checkMarkdownStyle,
+  renderPreviewHtml,
+  extractMermaidBlocks,
+  mediaKindFromMime,
+  MERMAID_SRC_PREFIX,
+} from '@kaitox/x-article';
 import type { MermaidBlock } from '@kaitox/x-article';
 import type { DraftKind, StyleReport } from '@kaitox/relay-protocol';
 import type KaitoxPlugin from './main.js';
@@ -102,6 +108,12 @@ export class KaitoxView extends ItemView {
         if (info?.file && info.file === this.currentFile) this.scheduleRefresh(500);
       }),
     );
+    // Edits that don't go through the editor (another app, a sync tool) only show up on disk.
+    this.registerEvent(
+      this.app.vault.on('modify', (f) => {
+        if (f === this.currentFile) this.scheduleRefresh(500);
+      }),
+    );
 
     this.healthTimer = window.setInterval(() => void this.pingHealth(), 8000);
     this.registerInterval(this.healthTimer);
@@ -163,7 +175,7 @@ export class KaitoxView extends ItemView {
     const pushIcon = push.createSpan({ cls: 'kx-ic' });
     setIcon(pushIcon, 'send');
     push.createSpan({ text: '推送到草稿箱' });
-    push.onclick = () => this.openPush();
+    push.onclick = () => void this.openPush();
 
     const gear = right.createEl('button', { cls: 'kx-icon-btn', attr: { 'aria-label': '设置' } });
     setIcon(gear, 'settings');
@@ -349,6 +361,10 @@ export class KaitoxView extends ItemView {
         // 普通图片：找不到=未打包（上传时跳过）。Obsidian 端字节已同步解析，无「加载中」态。
         return this.imgUrlBySrc[src] ?? null;
       },
+      isVideo: (src) => {
+        const asset = this.resolved?.assets.find((a) => a.src === src);
+        return !!asset && mediaKindFromMime(asset.mime) === 'video';
+      },
     });
   }
 
@@ -456,7 +472,17 @@ export class KaitoxView extends ItemView {
     this.renderBody();
   }
 
-  private openPush(): void {
+  /** Waits out an in-flight refresh, then resolves the note again. */
+  private async refreshNow(): Promise<void> {
+    window.clearTimeout(this.refreshTimer);
+    while (this.busy) await new Promise((r) => window.setTimeout(r, 50));
+    await this.refresh();
+  }
+
+  private async openPush(): Promise<void> {
+    // Push what the note says now, not the last debounced parse (a just-pasted embed
+    // would otherwise be missing from the draft).
+    await this.refreshNow();
     if (!this.resolved || !this.currentFile) {
       new Notice('Kaitox：请先打开一篇 Markdown 笔记。');
       return;
